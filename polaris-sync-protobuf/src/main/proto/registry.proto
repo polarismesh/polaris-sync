@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package v1;
+
+
+option java_package = "cn.polarismesh.polaris.sync.registry.pb";
+option java_outer_classname = "RegistryProto";
+
+// main entry for json
+message Registry {
+
+  repeated Task tasks = 1;
+
+  repeated Method methods = 2;
+
+  HealthCheck health_check = 3 [json_name = "health_check"];
+
+  Report report = 4;
+
+}
+
+message Report {
+
+  string interval = 1;
+
+  repeated ReportTarget targets = 2;
+}
+
+message ReportTarget {
+
+  string name = 1;
+
+  bool enable = 2;
+
+  enum TargetType {
+    unknown = 0;
+    prometheus = 1;
+    balad = 2;
+  }
+  TargetType type = 3;
+
+  string uri = 4;
+
+  string user = 5;
+
+  string password = 6;
+}
+
+message HealthCheck {
+
+  bool enable = 1;
+
+  string interval = 2;
+
+  string timeout = 3;
+}
+
+message Method {
+  enum MethodType {
+    unknown = 0;
+    watch = 1;
+    pull = 2;
+  }
+  MethodType type = 1;
+
+  bool enable = 2;
+
+  string interval = 3;
+}
+
+message Task {
+
+  string name = 1;
+
+  bool enable = 2;
+
+  RegistryEndpoint source = 3;
+
+  RegistryEndpoint destination = 4;
+
+  repeated Match match = 5;
+}
+
+message RegistryEndpoint {
+
+  enum RegistryType {
+    unknown = 0;
+    nacos = 1;
+    consul = 2;
+    polaris = 3;
+    kong = 4;
+  }
+
+  RegistryType type = 1;
+
+  repeated string addresses = 2;
+
+  string token = 3;
+
+  string user = 4;
+
+  string password = 5;
+
+}
+
+message Match {
+
+  string namespace = 1;
+
+  string service = 2;
+
+  repeated Group groups = 3;
+}
+
+message Group {
+
+  string name = 1;
+
+  string key = 2;
+
+  string value =3;
+}
