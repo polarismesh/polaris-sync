@@ -83,6 +83,8 @@ message Task {
 
 message RegistryEndpoint {
 
+  string name = 1;
+
   enum RegistryType {
     unknown = 0;
     nacos = 1;
@@ -91,15 +93,15 @@ message RegistryEndpoint {
     kong = 4;
   }
 
-  RegistryType type = 1;
+  RegistryType type = 2;
 
-  repeated string addresses = 2;
+  repeated string addresses = 3;
 
-  string token = 3;
+  string token = 4;
 
-  string user = 4;
+  string user = 5;
 
-  string password = 5;
+  string password = 6;
 
 }
 
