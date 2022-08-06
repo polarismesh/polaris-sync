@@ -15,22 +15,14 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.registry.extensions;
+package cn.polarismesh.polaris.sync.extension.registry;
 
-import cn.polarismesh.polaris.sync.registry.config.Group;
-import cn.polarismesh.polaris.sync.registry.config.Match;
-import cn.polarismesh.polaris.sync.registry.config.RegistryConfig;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Match;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import java.util.List;
-import java.util.concurrent.Executor;
 
-public interface Registry {
-
-    /**
-     * registry name, unique name for registry
-     * @return name
-     */
-    String getName();
+public interface RegistryCenter {
 
     /**
      * registry type, such as nacos, kong, consul, etc...
@@ -41,7 +33,7 @@ public interface Registry {
     /**
      * initialize registry
      */
-    void init(RegistryConfig registryConfig);
+    void init(RegistryEndpoint registryEndpoint, List<Match> filters);
 
     /**
      * destroy registry
@@ -77,11 +69,17 @@ public interface Registry {
 
     /**
      * register the service to destinations
-     * @param groups groups to register
      * @param sourceName name for source registry
      * @param service service instances
      */
-    void register(String sourceName, List<Group> groups, DiscoverResponse service);
+    void register(String sourceName, DiscoverResponse service);
+
+    /**
+     * deregister the service to destinations
+     * @param sourceName name for source registry
+     * @param service service instances
+     */
+    void deregister(String sourceName, DiscoverResponse service);
 
     /**
      * listener to watch the instance change events
@@ -90,9 +88,15 @@ public interface Registry {
 
         /**
          * called when response event received
-         * @param response instances
+         * @param watchEvent instances event
          */
-        void onResponse(DiscoverResponse response);
+        void onEvent(WatchEvent watchEvent);
     }
+
+    /**
+     * process health checking
+     * @return check result
+     */
+    Health healthCheck();
 
 }

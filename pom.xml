@@ -6,8 +6,8 @@
     <modules>
         <module>polaris-sync-registry-core</module>
         <module>polaris-sync-registry-plugins</module>
-        <module>untitled</module>
         <module>polaris-sync-protobuf</module>
+        <module>polaris-sync-extension</module>
     </modules>
 
     <parent>

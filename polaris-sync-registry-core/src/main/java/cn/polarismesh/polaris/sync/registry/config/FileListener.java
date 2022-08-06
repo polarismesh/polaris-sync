@@ -17,12 +17,10 @@
 
 package cn.polarismesh.polaris.sync.registry.config;
 
-public interface DefaultValues {
+import java.io.File;
+import java.util.EventListener;
 
-    long DEFAULT_INTERVAL_MS = 5 * 1000;
+public interface FileListener extends EventListener {
 
-    long DEFAULT_TIMEOUT_MS = 1000;
-
-    long DEFAULT_PULL_INTERVAL_MS = 5 * 60 * 1000;
-
+    boolean onFileChanged(File file);
 }

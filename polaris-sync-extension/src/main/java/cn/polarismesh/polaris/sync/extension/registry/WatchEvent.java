@@ -15,16 +15,19 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.registry.utils;
+package cn.polarismesh.polaris.sync.extension.registry;
 
-import cn.polarismesh.polaris.sync.registry.config.RegistryConfig;
-import java.util.Collections;
+import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 
-public class RegistryUtils {
+public class WatchEvent {
 
-    public static String genRegistryKey(RegistryConfig registryConfig) {
-        Collections.sort(registryConfig.getAddresses());
-        String addressStr = String.join("-", registryConfig.getAddresses());
-        return registryConfig.getToken() + "-" + addressStr;
+    private final DiscoverResponse response;
+
+    public WatchEvent(DiscoverResponse response) {
+        this.response = response;
+    }
+
+    public DiscoverResponse getResponse() {
+        return response;
     }
 }

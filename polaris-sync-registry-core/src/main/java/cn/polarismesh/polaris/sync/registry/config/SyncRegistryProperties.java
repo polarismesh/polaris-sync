@@ -17,56 +17,41 @@
 
 package cn.polarismesh.polaris.sync.registry.config;
 
-import java.util.List;
-import java.util.Objects;
+import javax.validation.constraints.NotEmpty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
-@ConfigurationProperties(prefix = "polaris.sync.registry")
+@ConfigurationProperties("polaris.sync.registry")
+@Validated
 public class SyncRegistryProperties {
 
-    private List<SyncTaskConfig> tasks;
+    @NotEmpty
+    private String configPath;
 
-    private List<SyncMethod> methods;
+    @NotEmpty
+    private String watchPath;
 
-    public List<SyncTaskConfig> getTasks() {
-        return tasks;
+    public String getConfigPath() {
+        return configPath;
     }
 
-    public void setTasks(List<SyncTaskConfig> tasks) {
-        this.tasks = tasks;
+    public void setConfigPath(String configPath) {
+        this.configPath = configPath;
     }
 
-    public List<SyncMethod> getMethods() {
-        return methods;
+    public String getWatchPath() {
+        return watchPath;
     }
 
-    public void setMethods(List<SyncMethod> methods) {
-        this.methods = methods;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof SyncRegistryProperties)) {
-            return false;
-        }
-        SyncRegistryProperties that = (SyncRegistryProperties) o;
-        return Objects.equals(tasks, that.tasks) &&
-                Objects.equals(methods, that.methods);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(tasks, methods);
+    public void setWatchPath(String watchPath) {
+        this.watchPath = watchPath;
     }
 
     @Override
     public String toString() {
         return "SyncRegistryProperties{" +
-                "tasks=" + tasks +
-                ", methods=" + methods +
+                "configPath='" + configPath + '\'' +
+                ", watchPath='" + watchPath + '\'' +
                 '}';
     }
 }

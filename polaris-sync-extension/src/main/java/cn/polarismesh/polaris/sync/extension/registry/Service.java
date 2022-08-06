@@ -15,33 +15,27 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.registry.config;
+package cn.polarismesh.polaris.sync.extension.registry;
 
-import java.util.List;
 import java.util.Objects;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "polaris.sync.registry.report")
-public class ReportProperties {
+public class Service {
 
-    private String interval;
+    private final String namespace;
 
-    private List<ReportTarget> targets;
+    private final String service;
 
-    public String getInterval() {
-        return interval;
+    public Service(String namespace, String service) {
+        this.namespace = namespace;
+        this.service = service;
     }
 
-    public void setInterval(String interval) {
-        this.interval = interval;
+    public String getNamespace() {
+        return namespace;
     }
 
-    public List<ReportTarget> getTargets() {
-        return targets;
-    }
-
-    public void setTargets(List<ReportTarget> targets) {
-        this.targets = targets;
+    public String getService() {
+        return service;
     }
 
     @Override
@@ -49,24 +43,24 @@ public class ReportProperties {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof ReportProperties)) {
+        if (!(o instanceof Service)) {
             return false;
         }
-        ReportProperties that = (ReportProperties) o;
-        return Objects.equals(interval, that.interval) &&
-                Objects.equals(targets, that.targets);
+        Service service1 = (Service) o;
+        return Objects.equals(namespace, service1.namespace) &&
+                Objects.equals(service, service1.service);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(interval, targets);
+        return Objects.hash(namespace, service);
     }
 
     @Override
     public String toString() {
-        return "ReportProperties{" +
-                "interval='" + interval + '\'' +
-                ", targets=" + targets +
+        return "Service{" +
+                "namespace='" + namespace + '\'' +
+                ", service='" + service + '\'' +
                 '}';
     }
 }

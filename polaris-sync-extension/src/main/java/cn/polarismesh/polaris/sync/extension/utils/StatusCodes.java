@@ -15,14 +15,13 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.registry.config;
+package cn.polarismesh.polaris.sync.extension.utils;
 
-public interface DefaultValues {
+public interface StatusCodes {
 
-    long DEFAULT_INTERVAL_MS = 5 * 1000;
+    int SUCCESS = 200000;
 
-    long DEFAULT_TIMEOUT_MS = 1000;
+    int SERVER_EXCEPTION = 500000;
 
-    long DEFAULT_PULL_INTERVAL_MS = 5 * 60 * 1000;
-
+    int CLIENT_EXCEPTION = 501000;
 }

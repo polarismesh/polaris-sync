@@ -15,29 +15,41 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.registry.tasks;
+package cn.polarismesh.polaris.sync.extension.registry;
 
-import cn.polarismesh.polaris.sync.extension.registry.Service;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
-import cn.polarismesh.polaris.sync.registry.tasks.TaskEngine.NamedRegistryCenter;
+public class Health {
 
-public class UnwatchTask implements Runnable {
-
-    private final NamedRegistryCenter source;
-
-    private final Service service;
-
-    public UnwatchTask(NamedRegistryCenter source, RegistryProto.Match match) {
-        this.source = source;
-        this.service = new Service(match.getNamespace(), match.getService());
+    public enum Status {
+        UP, DOWN
     }
 
-    @Override
-    public void run() {
-        this.source.getRegistry().unwatch(service);
+    private final Status status;
+
+    private final int code;
+
+    private final String detail;
+
+    public Health(Status status, int code, String detail) {
+        this.status = status;
+        this.code = code;
+        this.detail = detail;
     }
 
-    public Service getService() {
-        return service;
+
+    public Health(Status status) {
+        this(status, 0, "");
+    }
+
+
+    public Status getStatus() {
+        return status;
+    }
+
+    public int getCode() {
+        return code;
+    }
+
+    public String getDetail() {
+        return detail;
     }
 }

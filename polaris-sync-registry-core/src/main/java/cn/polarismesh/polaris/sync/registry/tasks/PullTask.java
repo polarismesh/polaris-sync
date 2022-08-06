@@ -17,30 +17,40 @@
 
 package cn.polarismesh.polaris.sync.registry.tasks;
 
-import cn.polarismesh.polaris.sync.registry.config.Match;
-import cn.polarismesh.polaris.sync.registry.extensions.Registry;
-import cn.polarismesh.polaris.sync.registry.extensions.Service;
+import cn.polarismesh.polaris.sync.extension.registry.Service;
+import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
+import cn.polarismesh.polaris.sync.registry.tasks.TaskEngine.NamedRegistryCenter;
+import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class PullTask implements Runnable {
+public class PullTask extends CommonTask implements Runnable {
 
-    private final Registry source;
+    private static final Logger LOG = LoggerFactory.getLogger(PullTask.class);
 
-    private final Registry destination;
-
-    private final Match match;
-
-    private final Service service;
-
-    public PullTask(Registry source, Registry destination, Match match) {
-        this.source = source;
-        this.destination = destination;
-        this.match = match;
-        this.service = new Service(match.getNamespace(), match.getService());
+    public PullTask(NamedRegistryCenter source, NamedRegistryCenter destination, RegistryProto.Match match) {
+        super(source, destination, match, new Service(match.getNamespace(), match.getService()));
     }
 
     @Override
     public void run() {
-        //TODO: implement
+        //pull the instances from source
+        DiscoverResponse srcInstanceResponse = source.getRegistry().listInstances(service);
+        if (srcInstanceResponse.getCode().getValue() != StatusCodes.SUCCESS) {
+            LOG.warn("[Core][Pull] fail to list service in source {}, code is {}",
+                    source.getName(), srcInstanceResponse.getCode().getValue());
+            return;
+        }
+        //pull the instances from destination
+        DiscoverResponse dstInstanceResponse = destination.getRegistry().listInstances(service);
+        if (dstInstanceResponse.getCode().getValue() != StatusCodes.SUCCESS) {
+            LOG.warn("[Core][Pull] fail to list service in destination {}, code is {}",
+                    destination.getName(), dstInstanceResponse.getCode().getValue());
+            return;
+        }
+        // diff the deleted instances and new added instances
+        changeInstances(srcInstanceResponse.getInstancesList(), dstInstanceResponse.getInstancesList());
     }
 
     public Service getService() {
