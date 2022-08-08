@@ -9,7 +9,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 VERSION=$1
-
+echo "version is ${VERSION}"
 PREFIX="docker.io/polarismesh"
 SCRIPTDIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
