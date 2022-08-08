@@ -2,7 +2,7 @@ FROM java:8
 
 ARG version
 
-COPY polaris-sync-server/target/polaris-sync-${version}.jar /app/polaris-sync-server.jar
+COPY polaris-sync-server/target/polaris-sync-server-${version}.jar /app/polaris-sync-server.jar
 
 WORKDIR /app
 
