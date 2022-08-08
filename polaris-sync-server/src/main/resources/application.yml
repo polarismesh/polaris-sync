@@ -1,0 +1,5 @@
+polaris:
+  sync:
+    registry:
+      watchPath: G:\\config\\dynamic\\sync.json
+      configPath: G:\\config\\static\\sync.json
