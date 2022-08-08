@@ -19,13 +19,11 @@ package cn.polarismesh.polaris.sync.registry.utils;
 
 import java.time.Duration;
 import java.util.regex.Pattern;
-import org.springframework.util.StringUtils;
 
 /**
  * 解析时间格式的工具类
  *
  * @author andrewshan
- * @date 2019/8/20
  */
 public class DurationUtils {
 

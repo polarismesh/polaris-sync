@@ -47,7 +47,7 @@ public class RestResponse<T> {
     public static <T> RestResponse<T> withRestClientException(RestClientException restClientException) {
         if (restClientException instanceof RestClientResponseException) {
             //存在消息返回，只是前面没有出错
-            RestClientResponseException restClientResponseException = (RestClientResponseException)restClientException;
+            RestClientResponseException restClientResponseException = (RestClientResponseException) restClientException;
             return new RestResponse<T>(null, null,
                     restClientResponseException.getRawStatusCode(), restClientResponseException.getStatusText());
         } else {
