@@ -26,19 +26,22 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
 
 public class RegistrySyncServer {
 
-    @Autowired
-    private SyncRegistryProperties syncRegistryProperties;
+    private final SyncRegistryProperties syncRegistryProperties;
 
-    @Autowired
-    private List<RegistryCenter> registryCenters;
+    private final List<RegistryCenter> registryCenters;
 
     private TaskEngine taskEngine;
 
     private WatchManager watchManager;
+
+    public RegistrySyncServer(SyncRegistryProperties syncRegistryProperties,
+            List<RegistryCenter> registryCenters) {
+        this.syncRegistryProperties = syncRegistryProperties;
+        this.registryCenters = registryCenters;
+    }
 
     public void init() {
         taskEngine = new TaskEngine(registryCenters);

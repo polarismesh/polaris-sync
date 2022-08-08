@@ -29,12 +29,21 @@ public class Health {
 
     private final String detail;
 
+    private final int errorCount;
+
     public Health(Status status, int code, String detail) {
         this.status = status;
         this.code = code;
         this.detail = detail;
+        this.errorCount = 1;
     }
 
+    public Health(Status status, int code, String detail, int errorCount) {
+        this.status = status;
+        this.code = code;
+        this.detail = detail;
+        this.errorCount = errorCount;
+    }
 
     public Health(Status status) {
         this(status, 0, "");
@@ -51,5 +60,9 @@ public class Health {
 
     public String getDetail() {
         return detail;
+    }
+
+    public int getErrorCount() {
+        return errorCount;
     }
 }

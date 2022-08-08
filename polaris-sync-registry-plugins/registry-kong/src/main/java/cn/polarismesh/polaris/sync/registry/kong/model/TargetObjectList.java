@@ -15,27 +15,26 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.registry.utils;
+package cn.polarismesh.polaris.sync.registry.kong.model;
 
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.List;
 
-public class NamedThreadFactory implements ThreadFactory {
+public class TargetObjectList {
 
-    private final String name;
+    private List<TargetObject> data;
 
-    private final AtomicInteger idx = new AtomicInteger(0);
+    public List<TargetObject> getData() {
+        return data;
+    }
 
-    public NamedThreadFactory(String name) {
-        this.name = name;
+    public void setData(List<TargetObject> data) {
+        this.data = data;
     }
 
     @Override
-    public Thread newThread(Runnable r) {
-        Thread thread = new Thread(r);
-        int nextIdx = idx.addAndGet(1);
-        thread.setName(String.format("%s-%d", name, nextIdx));
-        return thread;
+    public String toString() {
+        return "TargetList{" +
+                "data=" + data +
+                '}';
     }
-
 }

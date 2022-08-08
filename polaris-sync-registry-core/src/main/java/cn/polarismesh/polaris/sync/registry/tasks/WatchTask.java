@@ -17,27 +17,43 @@
 
 package cn.polarismesh.polaris.sync.registry.tasks;
 
+import static cn.polarismesh.polaris.sync.registry.utils.TaskUtils.verifyGroups;
+
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.registry.WatchEvent;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
-import cn.polarismesh.polaris.sync.registry.tasks.TaskEngine.NamedRegistryCenter;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
+import cn.polarismesh.polaris.sync.registry.utils.TaskUtils;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
+import com.tencent.polaris.client.pb.ServiceProto.Instance;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class WatchTask extends CommonTask implements Runnable {
+public class WatchTask implements Runnable {
 
     private static final Logger LOG = LoggerFactory.getLogger(WatchTask.class);
 
-    private final Executor executor;
+    private final NamedRegistryCenter source;
 
+    private final NamedRegistryCenter destination;
+
+    private final Service service;
+
+    private final Collection<Group> groups;
+
+    private final Executor executor;
 
     public WatchTask(NamedRegistryCenter source,
             NamedRegistryCenter destination, RegistryProto.Match match, Executor executor) {
-        super(source, destination, match, new Service(match.getNamespace(), match.getService()));
+        this.source = source;
+        this.destination = destination;
+        this.service = new Service(match.getNamespace(), match.getService());
+        this.groups = verifyGroups(match.getGroupsList());
         this.executor = executor;
     }
 
@@ -47,7 +63,7 @@ public class WatchTask extends CommonTask implements Runnable {
 
     @Override
     public void run() {
-        source.getRegistry().watch(new Service(match.getNamespace(), match.getService()), new ResponseListener());
+        source.getRegistry().watch(service, new ResponseListener());
     }
 
     private class ResponseListener implements RegistryCenter.ResponseListener {
@@ -63,14 +79,12 @@ public class WatchTask extends CommonTask implements Runnable {
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
-                    //pull the instances from destination
-                    DiscoverResponse dstInstanceResponse = destination.getRegistry().listInstances(service);
-                    if (dstInstanceResponse.getCode().getValue() != StatusCodes.SUCCESS) {
-                        LOG.warn("[Core][Pull] fail to list service in destination {}, code is {}",
-                                destination.getName(), dstInstanceResponse.getCode().getValue());
-                        return;
+                    // diff by groups
+                    for (Group group : groups) {
+                        List<Instance> instances = TaskUtils
+                                .filterInstances(group, srcInstanceResponse.getInstancesList());
+                        destination.getRegistry().updateInstances(service, group, instances);
                     }
-                    changeInstances(srcInstanceResponse.getInstancesList(), dstInstanceResponse.getInstancesList());
                 }
             });
         }

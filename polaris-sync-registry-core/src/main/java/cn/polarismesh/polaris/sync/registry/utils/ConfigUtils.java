@@ -17,6 +17,7 @@
 
 package cn.polarismesh.polaris.sync.registry.utils;
 
+import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Match;
@@ -35,6 +36,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +57,7 @@ public class ConfigUtils {
         }
     }
 
-    public static boolean verifyTasks(RegistryProto.Registry registry, Set<String> supportedTypes) {
+    public static boolean verifyTasks(RegistryProto.Registry registry, Set<RegistryType> supportedTypes) {
         LOG.info("[Core] start to verify tasks config {}", registry);
         List<Task> tasks = registry.getTasksList();
         Set<String> taskNames = new HashSet<>();
@@ -141,10 +143,18 @@ public class ConfigUtils {
                 continue;
             }
             for (Group group : groups) {
-                if (!StringUtils.hasText(group.getName())
-                        || !StringUtils.hasText(group.getKey()) || !StringUtils.hasText(group.getValue())) {
-                    LOG.error("[Core] match group is invalid, task {}", taskName);
+                if (!StringUtils.hasText(group.getName())) {
+                    LOG.error("[Core] match group name is invalid, task {}", taskName);
                     return false;
+                }
+                Map<String, String> metadataMap = group.getMetadataMap();
+                if (metadataMap.size() > 0) {
+                    for (Map.Entry<String, String> entry : metadataMap.entrySet()) {
+                        if (!StringUtils.hasText(entry.getKey()) || !StringUtils.hasText(entry.getValue())) {
+                            LOG.error("[Core] match group {} metadata is invalid, task {}", group.getName(), taskName);
+                            return false;
+                        }
+                    }
                 }
             }
         }
@@ -152,7 +162,7 @@ public class ConfigUtils {
     }
 
     private static boolean verifyEndpoint(
-            RegistryEndpoint registryEndpoint, String taskName, Set<String> supportedTypes) {
+            RegistryEndpoint registryEndpoint, String taskName, Set<RegistryType> supportedTypes) {
         String name = registryEndpoint.getName();
         if (!StringUtils.hasText(name)) {
             LOG.error("[Core] endpoint name is empty, task {}", taskName);
@@ -168,7 +178,7 @@ public class ConfigUtils {
             LOG.error("[Core] unknown endpoint type for {}, task {}", name, taskName);
             return false;
         }
-        if (!supportedTypes.contains(type.name())) {
+        if (!supportedTypes.contains(type)) {
             LOG.error("[Core] unsupported endpoint type {} for {}, task {}", type.name(), name, taskName);
             return false;
         }

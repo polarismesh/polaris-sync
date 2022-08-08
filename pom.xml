@@ -8,6 +8,8 @@
         <module>polaris-sync-registry-plugins</module>
         <module>polaris-sync-protobuf</module>
         <module>polaris-sync-extension</module>
+        <module>polaris-sync-server</module>
+        <module>polaris-sync-commons</module>
     </modules>
 
     <parent>

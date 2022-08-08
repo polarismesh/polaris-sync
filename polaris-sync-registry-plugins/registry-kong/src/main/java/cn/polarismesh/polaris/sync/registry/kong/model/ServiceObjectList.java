@@ -15,14 +15,26 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.registry.config;
+package cn.polarismesh.polaris.sync.registry.kong.model;
 
-public interface DefaultValues {
+import java.util.List;
 
-    long DEFAULT_INTERVAL_MS = 5 * 1000;
+public class ServiceObjectList {
 
-    long DEFAULT_TIMEOUT_MS = 1000;
+    private List<ServiceObject> data;
 
-    long DEFAULT_PULL_INTERVAL_MS = 5 * 60 * 1000;
+    public List<ServiceObject> getData() {
+        return data;
+    }
 
+    public void setData(List<ServiceObject> data) {
+        this.data = data;
+    }
+
+    @Override
+    public String toString() {
+        return "ServiceObjectList{" +
+                "data=" + data +
+                '}';
+    }
 }

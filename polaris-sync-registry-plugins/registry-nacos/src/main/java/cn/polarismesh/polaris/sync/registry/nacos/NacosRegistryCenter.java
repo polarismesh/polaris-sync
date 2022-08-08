@@ -15,17 +15,20 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.registry.nacos;
+package cn.polarismesh.polaris.sync.registry.nacos;
 
 import cn.polarismesh.polaris.sync.extension.registry.Health;
 import cn.polarismesh.polaris.sync.extension.registry.Health.Status;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
+import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.registry.WatchEvent;
+import cn.polarismesh.polaris.sync.extension.utils.CommonUtils;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Match;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
 import com.alibaba.nacos.api.NacosFactory;
 import com.alibaba.nacos.api.common.Constants;
 import com.alibaba.nacos.api.exception.NacosException;
@@ -39,6 +42,7 @@ import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse.DiscoverResp
 import com.tencent.polaris.client.pb.ServiceProto;
 import com.tencent.polaris.client.pb.ServiceProto.Instance.Builder;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -55,7 +59,7 @@ public class NacosRegistryCenter implements RegistryCenter {
 
     private static final Logger LOG = LoggerFactory.getLogger(NacosRegistryCenter.class);
 
-    private static final String GROUP_SEP = "@@";
+    private static final String GROUP_SEP = "__";
 
     private final Map<String, NamingService> ns2NamingService = new ConcurrentHashMap<>();
 
@@ -65,16 +69,16 @@ public class NacosRegistryCenter implements RegistryCenter {
 
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
 
-    private RegistryEndpoint registryEndpoint;
+    private RegistryInitRequest registryInitRequest;
 
     @Override
-    public String getType() {
-        return "consul";
+    public RegistryType getType() {
+        return RegistryType.nacos;
     }
 
     @Override
-    public void init(RegistryEndpoint registryEndpoint, List<Match> filters) {
-        this.registryEndpoint = registryEndpoint;
+    public void init(RegistryInitRequest registryInitRequest) {
+        this.registryInitRequest = registryInitRequest;
     }
 
     @Override
@@ -85,7 +89,7 @@ public class NacosRegistryCenter implements RegistryCenter {
                 entry.getValue().shutDown();
             } catch (NacosException e) {
                 LOG.error("[Nacos] fail to shutdown namingService {}, name {}",
-                        entry.getKey(), registryEndpoint.getName(), e);
+                        entry.getKey(), registryInitRequest.getRegistryEndpoint().getName(), e);
             }
         }
     }
@@ -96,6 +100,7 @@ public class NacosRegistryCenter implements RegistryCenter {
             return namingService;
         }
         synchronized (lock) {
+            RegistryEndpoint registryEndpoint = registryInitRequest.getRegistryEndpoint();
             namingService = ns2NamingService.get(namespace);
             if (null != namingService) {
                 return namingService;
@@ -122,12 +127,6 @@ public class NacosRegistryCenter implements RegistryCenter {
     }
 
 
-    @Override
-    public DiscoverResponse listServices(String namespace) {
-        //TODO: implement
-        throw new UnsupportedOperationException("listServices is not supported in naocs");
-    }
-
     private static String[] parseServiceToGroupService(String serviceName) {
         if (serviceName.contains(GROUP_SEP)) {
             return serviceName.split(GROUP_SEP);
@@ -136,36 +135,42 @@ public class NacosRegistryCenter implements RegistryCenter {
     }
 
     @Override
-    public DiscoverResponse listInstances(Service service) {
+    public DiscoverResponse listInstances(Service service, Group group) {
+        RegistryEndpoint registryEndpoint = registryInitRequest.getRegistryEndpoint();
         NamingService namingService = getOrCreateNamingService(service.getNamespace());
         if (null == namingService) {
             LOG.error("[Nacos] fail to lookup namingService for service {}, registry {}",
                     service, registryEndpoint.getName());
             return ResponseUtils.toRegistryCenterException(service);
         }
-        List<Instance> allInstances = new ArrayList<>();
         String[] values = parseServiceToGroupService(service.getService());
-        String group = values[0];
+        String nacosGroup = values[0];
         String serviceName = values[1];
+        List<Instance> allInstances;
         try {
-            allInstances = namingService.getAllInstances(serviceName, group);
+            allInstances = namingService.getAllInstances(serviceName, nacosGroup);
         } catch (NacosException e) {
             LOG.error("[Nacos] fail to getAllInstances for service {}, registry {}",
                     service, registryEndpoint.getName(), e);
             return ResponseUtils.toRegistryClientException(service);
         }
-        List<ServiceProto.Instance> polarisInstances = nacosInstancesToPolaris(allInstances);
+        List<ServiceProto.Instance> outInstances = convertNacosInstances(allInstances, group);
         DiscoverResponse.Builder builder = ResponseUtils
                 .toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE);
-        builder.addAllInstances(polarisInstances);
+        builder.addAllInstances(outInstances);
         return builder.build();
     }
 
-    private List<ServiceProto.Instance> nacosInstancesToPolaris(List<Instance> instances) {
+    private List<ServiceProto.Instance> convertNacosInstances(List<Instance> instances, Group group) {
+        Map<String, String> filters = (null == group ? null : group.getMetadataMap());
         List<ServiceProto.Instance> polarisInstances = new ArrayList<>();
         for (Instance instance : instances) {
             String instanceId = instance.getInstanceId();
             Map<String, String> metadata = instance.getMetadata();
+            boolean matched = CommonUtils.matchMetadata(metadata, filters);
+            if (!matched) {
+                continue;
+            }
             String ip = instance.getIp();
             int port = instance.getPort();
             double weight = instance.getWeight();
@@ -186,6 +191,7 @@ public class NacosRegistryCenter implements RegistryCenter {
 
     @Override
     public void watch(Service service, ResponseListener eventListener) {
+        RegistryEndpoint registryEndpoint = registryInitRequest.getRegistryEndpoint();
         NamingService namingService = getOrCreateNamingService(service.getNamespace());
         if (null == namingService) {
             LOG.error("[Nacos] fail to lookup namingService for service {}, registry {}",
@@ -203,7 +209,7 @@ public class NacosRegistryCenter implements RegistryCenter {
                 }
                 NamingEvent namingEvent = (NamingEvent) event;
                 List<Instance> instances = namingEvent.getInstances();
-                List<ServiceProto.Instance> polarisInstances = nacosInstancesToPolaris(instances);
+                List<ServiceProto.Instance> polarisInstances = convertNacosInstances(instances, null);
                 DiscoverResponse.Builder builder = ResponseUtils
                         .toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE);
                 builder.addAllInstances(polarisInstances);
@@ -222,6 +228,7 @@ public class NacosRegistryCenter implements RegistryCenter {
 
     @Override
     public void unwatch(Service service) {
+        RegistryEndpoint registryEndpoint = registryInitRequest.getRegistryEndpoint();
         NamingService namingService = getOrCreateNamingService(service.getNamespace());
         if (null == namingService) {
             LOG.error("[Nacos] fail to lookup namingService for service {}, registry {}",
@@ -245,15 +252,18 @@ public class NacosRegistryCenter implements RegistryCenter {
     }
 
     @Override
-    public void register(String sourceName, DiscoverResponse service) {
-        //TODO: implement
-        throw new UnsupportedOperationException("register is not supported in naocs");
+    public void updateServices(Collection<Service> services) {
+        throw new UnsupportedOperationException("updateServices not supported in nacos");
     }
 
     @Override
-    public void deregister(String sourceName, DiscoverResponse service) {
-        //TODO: implement
-        throw new UnsupportedOperationException("deregister is not supported in naocs");
+    public void updateGroups(Service service, Collection<Group> groups) {
+        throw new UnsupportedOperationException("updateGroups not supported in nacos");
+    }
+
+    @Override
+    public void updateInstances(Service service, Group group, Collection<ServiceProto.Instance> instances) {
+        throw new UnsupportedOperationException("updateInstances not supported in nacos");
     }
 
     @Override

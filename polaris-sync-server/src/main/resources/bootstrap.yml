@@ -1,0 +1,9 @@
+server:
+  session-timeout: 1800
+  port: 48080
+spring:
+  application:
+    name: PolarisSyncServer
+logging:
+  level:
+    root: DEBUG

@@ -17,10 +17,11 @@
 
 package cn.polarismesh.polaris.sync.extension.registry;
 
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Match;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
-import java.util.List;
+import com.tencent.polaris.client.pb.ServiceProto.Instance;
+import java.util.Collection;
 
 public interface RegistryCenter {
 
@@ -28,12 +29,12 @@ public interface RegistryCenter {
      * registry type, such as nacos, kong, consul, etc...
      * @return type
      */
-    String getType();
+    RegistryType getType();
 
     /**
      * initialize registry
      */
-    void init(RegistryEndpoint registryEndpoint, List<Match> filters);
+    void init(RegistryInitRequest request);
 
     /**
      * destroy registry
@@ -41,18 +42,11 @@ public interface RegistryCenter {
     void destroy();
 
     /**
-     * list the discovery services
-     * @param namespace namespace to list
-     * @return services
-     */
-    DiscoverResponse listServices(String namespace);
-
-    /**
      * list the discovery instances
      * @param service service to list
      * @return instances
      */
-    DiscoverResponse listInstances(Service service);
+    DiscoverResponse listInstances(Service service, Group group);
 
     /**
      * watch the instances changed
@@ -68,18 +62,26 @@ public interface RegistryCenter {
     void unwatch(Service service);
 
     /**
-     * register the service to destinations
-     * @param sourceName name for source registry
-     * @param service service instances
+     * update the services to destinations
+     *
+     * @param services services
      */
-    void register(String sourceName, DiscoverResponse service);
+    void updateServices(Collection<Service> services);
 
     /**
-     * deregister the service to destinations
-     * @param sourceName name for source registry
-     * @param service service instances
+     * register the service group
+     * @param service service
+     * @param groups groups name
      */
-    void deregister(String sourceName, DiscoverResponse service);
+    void updateGroups(Service service, Collection<Group> groups);
+
+    /**
+     * update the instances to destinations
+     * @param service service instances
+     * @param group service group
+     * @param instances service instances
+     */
+    void updateInstances(Service service, Group group, Collection<Instance> instances);
 
     /**
      * listener to watch the instance change events

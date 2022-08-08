@@ -17,19 +17,21 @@
 
 package cn.polarismesh.polaris.sync.registry.tasks;
 
-import cn.polarismesh.polaris.sync.registry.config.DefaultValues;
-import cn.polarismesh.polaris.sync.registry.config.FileListener;
+import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
+import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
+import cn.polarismesh.polaris.sync.extension.utils.DefaultValues;
+import cn.polarismesh.polaris.sync.registry.config.FileListener;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Method;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Method.MethodType;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Task;
 import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.registry.utils.DurationUtils;
-import cn.polarismesh.polaris.sync.registry.utils.NamedThreadFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -42,7 +44,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
@@ -63,13 +64,13 @@ public class TaskEngine implements FileListener {
 
     private final Map<ServiceWithSource, Future<?>> watchedServices = new HashMap<>();
 
-    private final Map<ServiceWithSource, ScheduledFuture<?>> pulledServices = new HashMap<>();
+    private final Map<String, ScheduledFuture<?>> pulledServices = new HashMap<>();
 
     private final Object configLock = new Object();
 
-    private final Map<String, Class<? extends RegistryCenter>> registryTypeMap = new HashMap<>();
+    private final Map<RegistryType, Class<? extends RegistryCenter>> registryTypeMap = new HashMap<>();
 
-    private final Map<String, NamedRegistryCenter> registryMap = new HashMap<>();
+    private final Map<String, RegistrySet> taskRegistryMap = new HashMap<>();
 
     public TaskEngine(List<RegistryCenter> registries) {
         for (RegistryCenter registry : registries) {
@@ -80,7 +81,7 @@ public class TaskEngine implements FileListener {
 
     public void init(String fullConfigFile) throws IOException {
         RegistryProto.Registry config = ConfigUtils.parseFromFile(fullConfigFile);
-        if (!ConfigUtils.verifyTasks(config, registryMap.keySet())) {
+        if (!ConfigUtils.verifyTasks(config, registryTypeMap.keySet())) {
             throw new IllegalArgumentException("invalid configuration for path " + fullConfigFile);
         }
         reload(config);
@@ -114,49 +115,37 @@ public class TaskEngine implements FileListener {
                 watchTasks++;
             }
         }
+        RegistrySet registrySet = taskRegistryMap.remove(syncTask.getName());
+        if (null != registrySet) {
+            registrySet.destroy();
+        }
         return new int[]{watchTasks, pullTasks};
     }
 
     private void addPullTask(Task syncTask, long intervalMilli) {
-        RegistryEndpoint source = syncTask.getSource();
-        NamedRegistryCenter sourceRegistry= getOrCreateRegistry(source);
-        if (null == sourceRegistry) {
-            LOG.error("[Core] adding task {}, fail to parse source registry {}", syncTask.getName(), source.getName());
+        RegistrySet registrySet = getOrCreateRegistrySet(syncTask);
+        if (null == registrySet) {
+            LOG.error("[Core] adding pull task {}, fail to init registry", syncTask.getName());
             return;
         }
-        RegistryEndpoint destination = syncTask.getDestination();
-        NamedRegistryCenter destRegistry = getOrCreateRegistry(destination);
-        if (null == destRegistry) {
-            LOG.error("[Core] adding task {}, fail to parse destination registry {}",
-                    syncTask.getName(), destination.getName());
-            return;
-        }
-        for (RegistryProto.Match match : syncTask.getMatchList()) {
-            PullTask pullTask = new PullTask(sourceRegistry, destRegistry, match);
-            ScheduledFuture<?> future = pullExecutor
-                    .scheduleAtFixedRate(pullTask, 0, intervalMilli, TimeUnit.MILLISECONDS);
-            ServiceWithSource serviceWithSource = new ServiceWithSource(source.getName(), pullTask.getService());
-            pulledServices.put(serviceWithSource, future);
-            LOG.info("[Core] service {} has been scheduled pulled", serviceWithSource);
-        }
+        NamedRegistryCenter sourceRegistry= registrySet.getSrcRegistry();
+        NamedRegistryCenter destRegistry = registrySet.getDstRegistry();
+        PullTask pullTask = new PullTask(sourceRegistry, destRegistry, syncTask.getMatchList());
+        ScheduledFuture<?> future = pullExecutor
+                .scheduleAtFixedRate(pullTask, 0, intervalMilli, TimeUnit.MILLISECONDS);
+        pulledServices.put(syncTask.getName(), future);
+        LOG.info("[Core] task {} has been scheduled pulled", syncTask.getName());
     }
 
     private void addWatchTask(Task syncTask) {
         RegistryEndpoint source = syncTask.getSource();
-        NamedRegistryCenter sourceRegistry= getOrCreateRegistry(source);
-        if (null == sourceRegistry) {
-            LOG.error("[Core] adding task {}, fail to parse source registry {}", syncTask.getName(), source.getName());
+        RegistrySet registrySet = getOrCreateRegistrySet(syncTask);
+        if (null == registrySet) {
+            LOG.error("[Core] adding watch task {}, fail to init registry", syncTask.getName());
             return;
         }
-        sourceRegistry.acquire();
-        RegistryEndpoint destination = syncTask.getDestination();
-        NamedRegistryCenter destRegistry = getOrCreateRegistry(destination);
-        if (null == destRegistry) {
-            LOG.error("[Core] adding task {}, fail to parse destination registry {}",
-                    syncTask.getName(), destination.getName());
-            return;
-        }
-        destRegistry.acquire();
+        NamedRegistryCenter sourceRegistry= registrySet.getSrcRegistry();
+        NamedRegistryCenter destRegistry = registrySet.getDstRegistry();
         for (RegistryProto.Match match : syncTask.getMatchList()) {
             WatchTask watchTask = new WatchTask(sourceRegistry, destRegistry, match,
                     registerExecutor);
@@ -168,38 +157,17 @@ public class TaskEngine implements FileListener {
     }
 
     private void deletePullTask(Task syncTask) {
-        RegistryEndpoint destination = syncTask.getDestination();
-        NamedRegistryCenter destRegistry = getRegistry(destination);
-        if (null != destRegistry) {
-            destRegistry.release();
+        ScheduledFuture<?> future = pulledServices.remove(syncTask.getName());
+        if (null != future) {
+            future.cancel(true);
         }
-        RegistryEndpoint source = syncTask.getSource();
-        NamedRegistryCenter sourceRegistry= getRegistry(source);
-        if (null != sourceRegistry) {
-            sourceRegistry.release();
-        }
-        for (RegistryProto.Match match : syncTask.getMatchList()) {
-            ServiceWithSource serviceWithSource = new ServiceWithSource(
-                    source.getName(), new Service(match.getNamespace(), match.getService()));
-            ScheduledFuture<?> future = pulledServices.remove(serviceWithSource);
-            if (null != future) {
-                future.cancel(true);
-            }
-            LOG.info("[Core] service {} has been cancel pulled", serviceWithSource);
-        }
-
+        LOG.info("[Core] task {} has been cancel pulled", syncTask.getName());
     }
 
     private void deleteWatchTask(Task syncTask) {
-        RegistryEndpoint destination = syncTask.getDestination();
-        NamedRegistryCenter destRegistry = getRegistry(destination);
-        if (null != destRegistry) {
-            destRegistry.release();
-        }
         RegistryEndpoint source = syncTask.getSource();
-        NamedRegistryCenter sourceRegistry= getRegistry(source);
+        NamedRegistryCenter sourceRegistry= getSrcRegistry(syncTask.getName());
         if (null != sourceRegistry) {
-            sourceRegistry.release();
             for (RegistryProto.Match match : syncTask.getMatchList()) {
                 UnwatchTask unwatchTask = new UnwatchTask(sourceRegistry, match);
                 ServiceWithSource serviceWithSource = new ServiceWithSource(source.getName(), unwatchTask.getService());
@@ -207,7 +175,7 @@ public class TaskEngine implements FileListener {
                 if (null != future) {
                     future.cancel(true);
                 }
-                watchExecutor.submit(unwatchTask);
+                unwatchTask.run();
                 LOG.info("[Core] service {} has been cancel watched", serviceWithSource);
             }
         }
@@ -338,34 +306,60 @@ public class TaskEngine implements FileListener {
         }
     }
 
-    private NamedRegistryCenter getRegistry(RegistryEndpoint registryConfig) {
-        String key = registryConfig.getName();
-        return registryMap.get(key);
+    private NamedRegistryCenter getSrcRegistry(String taskName) {
+        RegistrySet registrySet = taskRegistryMap.get(taskName);
+        if (null == registrySet) {
+            return null;
+        }
+        return registrySet.getSrcRegistry();
     }
 
-    private NamedRegistryCenter getOrCreateRegistry(RegistryEndpoint registryConfig) {
-        String key = registryConfig.getName();
-        NamedRegistryCenter registryCounter = registryMap.get(key);
-        if (null != registryCounter) {
-            return registryCounter;
+    private NamedRegistryCenter getDstRegistry(String taskName) {
+        RegistrySet registrySet = taskRegistryMap.get(taskName);
+        if (null == registrySet) {
+            return null;
         }
-        Class<? extends RegistryCenter> registryClazz = registryTypeMap.get(key);
-        RegistryCenter registry = null;
+        return registrySet.getDstRegistry();
+    }
+
+    private RegistrySet getOrCreateRegistrySet(Task task) {
+        RegistrySet registrySet = taskRegistryMap.get(task.getName());
+        if (null != registrySet) {
+            return registrySet;
+        }
+        RegistryEndpoint source = task.getSource();
+        RegistryEndpoint destination = task.getDestination();
+        RegistryCenter sourceCenter = createRegistry(source.getType());
+        if (null == sourceCenter) {
+            return null;
+        }
+        RegistryCenter destinationCenter = createRegistry(destination.getType());
+        if (null == destinationCenter) {
+            return null;
+        }
+        sourceCenter.init(new RegistryInitRequest(source.getName(), source.getType().name(), source));
+        destinationCenter.init(new RegistryInitRequest(source.getName(), source.getType().name(), destination));
+        registrySet = new RegistrySet(new NamedRegistryCenter(
+                source.getName(), sourceCenter), new NamedRegistryCenter(destination.getName(), destinationCenter));
+        taskRegistryMap.put(task.getName(), registrySet);
+        return registrySet;
+    }
+
+    private RegistryCenter createRegistry(RegistryType registryType) {
+        Class<? extends RegistryCenter> registryClazz = registryTypeMap.get(registryType);
+        RegistryCenter registry;
         try {
             registry = registryClazz.newInstance();
         } catch (Exception e) {
             LOG.error("[Core] fail to create instance for class {}", registryClazz.getCanonicalName(), e);
             return null;
         }
-        registry.init(registryConfig);
-        registryCounter = new NamedRegistryCenter(key, registry);
-        registryMap.put(key, registryCounter);
-        return registryCounter;
+        return registry;
     }
 
     @Override
     public boolean onFileChanged(File file) {
-        RegistryProto.Registry config = null;
+        RegistryProto.Registry config;
         String fullPath = file.getAbsolutePath();
         try {
             config = ConfigUtils.parseFromFile(fullPath);
@@ -374,7 +368,7 @@ public class TaskEngine implements FileListener {
             return false;
         }
 
-        if (!ConfigUtils.verifyTasks(config, registryMap.keySet())) {
+        if (!ConfigUtils.verifyTasks(config, registryTypeMap.keySet())) {
             LOG.error("invalid configuration for path {}", fullPath);
             return false;
         }
@@ -419,33 +413,29 @@ public class TaskEngine implements FileListener {
         }
     }
 
-    public static class NamedRegistryCenter {
+    private static class RegistrySet {
 
-        private final String name;
+        private final NamedRegistryCenter srcRegistry;
 
-        private final RegistryCenter registry;
+        private final NamedRegistryCenter dstRegistry;
 
-        private final AtomicInteger counter = new AtomicInteger();
-
-        public NamedRegistryCenter(String name, RegistryCenter registry) {
-            this.name = name;
-            this.registry = registry;
+        public RegistrySet(NamedRegistryCenter srcRegistry,
+                NamedRegistryCenter dstRegistry) {
+            this.srcRegistry = srcRegistry;
+            this.dstRegistry = dstRegistry;
         }
 
-        public String getName() {
-            return name;
+        public NamedRegistryCenter getSrcRegistry() {
+            return srcRegistry;
         }
 
-        public RegistryCenter getRegistry() {
-            return registry;
+        public NamedRegistryCenter getDstRegistry() {
+            return dstRegistry;
         }
 
-        private void acquire() {
-            counter.incrementAndGet();
-        }
-
-        private void release() {
-            counter.decrementAndGet();
+        public void destroy() {
+            srcRegistry.getRegistry().destroy();
+            dstRegistry.getRegistry().destroy();
         }
     }
 }

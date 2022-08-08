@@ -22,13 +22,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 @ConfigurationProperties("polaris.sync.registry")
-@Validated
+//@Validated
 public class SyncRegistryProperties {
 
-    @NotEmpty
+    //@NotEmpty
     private String configPath;
 
-    @NotEmpty
+    //@NotEmpty
     private String watchPath;
 
     public String getConfigPath() {

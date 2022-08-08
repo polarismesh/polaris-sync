@@ -28,6 +28,10 @@ import com.tencent.polaris.client.pb.ServiceProto;
 
 public class ResponseUtils {
 
+    public static DiscoverResponse toRegistryCustomizeException(Service service, int code) {
+        return toDiscoverResponse(service, code, DiscoverResponseType.INSTANCE).build();
+    }
+
     public static DiscoverResponse toRegistryCenterException(Service service) {
         return toDiscoverResponse(service, StatusCodes.SERVER_EXCEPTION, DiscoverResponseType.INSTANCE).build();
     }
@@ -58,4 +62,5 @@ public class ResponseUtils {
     public static BoolValue toBooleanValue(boolean value) {
         return BoolValue.newBuilder().setValue(value).build();
     }
+
 }

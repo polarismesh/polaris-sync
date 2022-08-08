@@ -19,7 +19,6 @@ package cn.polarismesh.polaris.sync.registry.tasks;
 
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
-import cn.polarismesh.polaris.sync.registry.tasks.TaskEngine.NamedRegistryCenter;
 
 public class UnwatchTask implements Runnable {
 

@@ -17,43 +17,63 @@
 
 package cn.polarismesh.polaris.sync.registry.tasks;
 
+import static cn.polarismesh.polaris.sync.registry.utils.TaskUtils.verifyGroups;
+
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
-import cn.polarismesh.polaris.sync.registry.tasks.TaskEngine.NamedRegistryCenter;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Match;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PullTask extends CommonTask implements Runnable {
+public class PullTask implements Runnable {
 
     private static final Logger LOG = LoggerFactory.getLogger(PullTask.class);
 
-    public PullTask(NamedRegistryCenter source, NamedRegistryCenter destination, RegistryProto.Match match) {
-        super(source, destination, match, new Service(match.getNamespace(), match.getService()));
+    private static final Map<Service, Collection<Group>> serviceToGroups = new HashMap<>();
+
+    private final NamedRegistryCenter source;
+
+    private final NamedRegistryCenter destination;
+
+    public PullTask(NamedRegistryCenter source, NamedRegistryCenter destination, List<Match> matches) {
+        this.source = source;
+        this.destination = destination;
+        for (Match match : matches) {
+            serviceToGroups.put(
+                    new Service(match.getNamespace(), match.getService()), verifyGroups(match.getGroupsList()));
+        }
     }
+
 
     @Override
     public void run() {
-        //pull the instances from source
-        DiscoverResponse srcInstanceResponse = source.getRegistry().listInstances(service);
-        if (srcInstanceResponse.getCode().getValue() != StatusCodes.SUCCESS) {
-            LOG.warn("[Core][Pull] fail to list service in source {}, code is {}",
-                    source.getName(), srcInstanceResponse.getCode().getValue());
-            return;
+        // check services, add or remove the services from destination
+        destination.getRegistry().updateServices(serviceToGroups.keySet());
+
+        // check groups
+        for (Map.Entry<Service, Collection<Group>> entry : serviceToGroups.entrySet()) {
+            destination.getRegistry().updateGroups(entry.getKey(), entry.getValue());
         }
-        //pull the instances from destination
-        DiscoverResponse dstInstanceResponse = destination.getRegistry().listInstances(service);
-        if (dstInstanceResponse.getCode().getValue() != StatusCodes.SUCCESS) {
-            LOG.warn("[Core][Pull] fail to list service in destination {}, code is {}",
-                    destination.getName(), dstInstanceResponse.getCode().getValue());
-            return;
+
+        // check instances
+        for (Map.Entry<Service, Collection<Group>> entry : serviceToGroups.entrySet()) {
+            Service service = entry.getKey();
+            for (Group group : entry.getValue()) {
+                DiscoverResponse srcInstanceResponse = source.getRegistry().listInstances(service, group);
+                if (srcInstanceResponse.getCode().getValue() != StatusCodes.SUCCESS) {
+                    LOG.warn("[Core][Pull] fail to list service in source {}, group {}, code is {}",
+                            source.getName(), group.getName(), srcInstanceResponse.getCode().getValue());
+                    return;
+                }
+                destination.getRegistry().updateInstances(service, group, srcInstanceResponse.getInstancesList());
+            }
         }
-        // diff the deleted instances and new added instances
-        changeInstances(srcInstanceResponse.getInstancesList(), dstInstanceResponse.getInstancesList());
     }
 
-    public Service getService() {
-        return service;
-    }
 }
