@@ -82,7 +82,7 @@ public class ConsulRegistryCenter implements RegistryCenter {
 
     @Override
     public void init(RegistryInitRequest request) {
-        registryEndpoint =  request.getRegistryEndpoint();
+        registryEndpoint = request.getRegistryEndpoint();
     }
 
     @Override
@@ -161,15 +161,16 @@ public class ConsulRegistryCenter implements RegistryCenter {
     }
 
     @Override
-    public void watch(Service service, ResponseListener eventListener) {
+    public boolean watch(Service service, ResponseListener eventListener) {
         synchronized (lock) {
             if (watchedServices.containsKey(service)) {
                 LOG.warn("[Consul] service {} already watched", service);
-                return;
+                return true;
             }
             long watchIndex = 0L;
             Future<?> submit = longPullExecutor.submit(new LongPullRunnable(service, eventListener));
             watchedServices.put(service, new LongPullContext(watchIndex, submit));
+            return true;
         }
     }
 

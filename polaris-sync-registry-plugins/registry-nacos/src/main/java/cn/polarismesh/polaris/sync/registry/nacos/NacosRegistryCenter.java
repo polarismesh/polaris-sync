@@ -188,13 +188,13 @@ public class NacosRegistryCenter implements RegistryCenter {
     }
 
     @Override
-    public void watch(Service service, ResponseListener eventListener) {
+    public boolean watch(Service service, ResponseListener eventListener) {
         RegistryEndpoint registryEndpoint = registryInitRequest.getRegistryEndpoint();
         NamingService namingService = getOrCreateNamingService(service.getNamespace());
         if (null == namingService) {
             LOG.error("[Nacos] fail to lookup namingService for service {}, registry {}",
                     service, registryEndpoint.getName());
-            return;
+            return false;
         }
         String[] values = parseServiceToGroupService(service.getService());
         String group = values[0];
@@ -218,9 +218,11 @@ public class NacosRegistryCenter implements RegistryCenter {
         try {
             namingService.subscribe(serviceName, group, nacosEventListener);
             eventListeners.put(service, nacosEventListener);
+            return true;
         } catch (NacosException e) {
             LOG.error("[Nacos] fail to subscribe for service {}, registry {}",
                     service, registryEndpoint.getName(), e);
+            return false;
         }
     }
 

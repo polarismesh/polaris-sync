@@ -166,12 +166,12 @@ public class PolarisRegistryCenter implements RegistryCenter {
     }
 
     @Override
-    public void watch(Service service, ResponseListener eventListener) {
+    public boolean watch(Service service, ResponseListener eventListener) {
         ConsumerAPI consumerAPI = getConsumerAPI();
         if (null == consumerAPI) {
             LOG.error("[Polaris] fail to lookup ConsumerAPI for service {}, registry {}",
                     service, registryInitRequest.getRegistryEndpoint().getName());
-            return;
+            return false;
         }
         WatchServiceRequest watchServiceRequest = new WatchServiceRequest();
         watchServiceRequest.setNamespace(service.getNamespace());
@@ -179,11 +179,13 @@ public class PolarisRegistryCenter implements RegistryCenter {
         ServiceListener serviceListener = new ServiceListener() {
             @Override
             public void onEvent(ServiceChangeEvent event) {
-
+                //TODO:
+                //  eventListener.onEvent();
             }
         };
         watchServiceRequest.setListeners(Collections.singletonList(serviceListener));
         consumerAPI.watchService(watchServiceRequest);
+        return true;
     }
 
     @Override

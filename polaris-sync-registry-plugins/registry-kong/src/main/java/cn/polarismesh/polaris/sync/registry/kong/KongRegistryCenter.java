@@ -134,7 +134,7 @@ public class KongRegistryCenter implements RegistryCenter {
     }
 
     @Override
-    public void watch(Service service, ResponseListener eventListener) {
+    public boolean watch(Service service, ResponseListener eventListener) {
         throw new UnsupportedOperationException("watch is not supported in kong");
     }
 

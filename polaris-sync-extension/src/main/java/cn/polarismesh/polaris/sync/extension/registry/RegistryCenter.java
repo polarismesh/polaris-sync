@@ -27,6 +27,7 @@ public interface RegistryCenter {
 
     /**
      * registry type, such as nacos, kong, consul, etc...
+     *
      * @return type
      */
     RegistryType getType();
@@ -43,6 +44,7 @@ public interface RegistryCenter {
 
     /**
      * list the discovery instances
+     *
      * @param service service to list
      * @return instances
      */
@@ -50,13 +52,15 @@ public interface RegistryCenter {
 
     /**
      * watch the instances changed
+     *
      * @param service service to watch
      * @param eventListener listener callback
      */
-    void watch(Service service, ResponseListener eventListener);
+    boolean watch(Service service, ResponseListener eventListener);
 
     /**
      * unwatch the instance changed
+     *
      * @param service service to watch
      */
     void unwatch(Service service);
@@ -70,6 +74,7 @@ public interface RegistryCenter {
 
     /**
      * register the service group
+     *
      * @param service service
      * @param groups groups name
      */
@@ -77,6 +82,7 @@ public interface RegistryCenter {
 
     /**
      * update the instances to destinations
+     *
      * @param service service instances
      * @param group service group
      * @param instances service instances
@@ -90,6 +96,7 @@ public interface RegistryCenter {
 
         /**
          * called when response event received
+         *
          * @param watchEvent instances event
          */
         void onEvent(WatchEvent watchEvent);
@@ -97,6 +104,7 @@ public interface RegistryCenter {
 
     /**
      * process health checking
+     *
      * @return check result
      */
     Health healthCheck();
