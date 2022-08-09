@@ -103,6 +103,7 @@ message RegistryEndpoint {
 
   string password = 6;
 
+  string product_name = 7;
 }
 
 message Match {
