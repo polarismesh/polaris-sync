@@ -39,7 +39,6 @@ import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse.DiscoverResponseType;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +47,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -62,8 +60,7 @@ public class KongRegistryCenter implements RegistryCenter {
 
     private RegistryInitRequest registryInitRequest;
 
-    @Autowired
-    private RestTemplate restTemplate;
+    private final RestTemplate restTemplate = new RestTemplate();
 
     private String token;
 
@@ -113,12 +110,14 @@ public class KongRegistryCenter implements RegistryCenter {
             LOG.warn("[Kong] text error to query target {}, code {}, reason {}",
                     targetsUrl, restResponse.getRawStatusCode(), restResponse.getStatusText());
             if (restResponse.isNotFound()) {
-                return ResponseUtils.toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE).build();
+                return ResponseUtils.toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE)
+                        .build();
             }
             return ResponseUtils.toRegistryClientException(service);
         }
         ResponseEntity<String> strEntity = restResponse.getResponseEntity();
-        TargetObjectList targetObjectList = ConversionUtils.unmarshalJsonText(strEntity.getBody(), TargetObjectList.class);
+        TargetObjectList targetObjectList = ConversionUtils
+                .unmarshalJsonText(strEntity.getBody(), TargetObjectList.class);
         if (null == targetObjectList) {
             LOG.error("[Kong] invalid response to query target from {}, reason {}", targetsUrl, strEntity.getBody());
             return ResponseUtils.toRegistryClientException(service);
@@ -165,7 +164,8 @@ public class KongRegistryCenter implements RegistryCenter {
         ServiceObjectList serviceObjectList = ConversionUtils
                 .unmarshalJsonText(queryEntity.getBody(), ServiceObjectList.class);
         if (null == serviceObjectList) {
-            LOG.error("[Kong] invalid response to query services from {}, reason {}", servicesUrl, queryEntity.getBody());
+            LOG.error("[Kong] invalid response to query services from {}, reason {}", servicesUrl,
+                    queryEntity.getBody());
             return;
         }
         String sourceName = registryInitRequest.getSourceName();
@@ -191,16 +191,22 @@ public class KongRegistryCenter implements RegistryCenter {
         // process operation
         int serviceAddCount = 0;
         int serviceDeleteCount = 0;
-        for (ServiceObject serviceObject : servicesToCreate) {
-            processServiceRequest(servicesUrl, HttpMethod.POST, serviceObject, "create");
-            serviceAddCount++;
+        if (!servicesToCreate.isEmpty()) {
+            LOG.info("[Kong] services pending to create are {}", servicesToCreate);
+            for (ServiceObject serviceObject : servicesToCreate) {
+                processServiceRequest(servicesUrl, HttpMethod.POST, serviceObject, "create");
+                serviceAddCount++;
+            }
         }
-        for (ServiceObject serviceObject : servicesToDelete) {
-            String serviceUrl = KongEndpointUtils.toServiceUrl(addressesList, serviceObject.getName());
-            processServiceRequest(serviceUrl, HttpMethod.DELETE, null, "delete");
-            serviceDeleteCount++;
+        if (!servicesToDelete.isEmpty()) {
+            LOG.info("[Kong] services pending to delete are {}", servicesToDelete);
+            for (ServiceObject serviceObject : servicesToDelete) {
+                String serviceUrl = KongEndpointUtils.toServiceUrl(addressesList, serviceObject.getName());
+                processServiceRequest(serviceUrl, HttpMethod.DELETE, null, "delete");
+                serviceDeleteCount++;
+            }
         }
-        LOG.info("[Core] success to update services, add {}, delete {}", serviceAddCount, serviceDeleteCount);
+        LOG.info("[Kong] success to update services, add {}, delete {}", serviceAddCount, serviceDeleteCount);
     }
 
     @Override
@@ -225,7 +231,8 @@ public class KongRegistryCenter implements RegistryCenter {
         UpstreamObjectList upstreamObjectList = ConversionUtils
                 .unmarshalJsonText(queryEntity.getBody(), UpstreamObjectList.class);
         if (null == upstreamObjectList) {
-            LOG.error("[Kong] invalid response to query upstreams from {}, reason {}", upstreamsUrl, queryEntity.getBody());
+            LOG.error("[Kong] invalid response to query upstreams from {}, reason {}", upstreamsUrl,
+                    queryEntity.getBody());
             return;
         }
         String sourceName = registryInitRequest.getSourceName();
@@ -252,16 +259,22 @@ public class KongRegistryCenter implements RegistryCenter {
         // process operation
         int upstreamAddCount = 0;
         int upstreamDeleteCount = 0;
-        for (UpstreamObject upstreamObject : upstreamsToCreate) {
-            processUpstreamRequest(upstreamsUrl, HttpMethod.POST, upstreamObject, "create");
-            upstreamAddCount++;
+        if (!upstreamsToCreate.isEmpty()) {
+            LOG.info("[Kong] upstreams pending to create are {}", upstreamsToCreate);
+            for (UpstreamObject upstreamObject : upstreamsToCreate) {
+                processUpstreamRequest(upstreamsUrl, HttpMethod.POST, upstreamObject, "create");
+                upstreamAddCount++;
+            }
         }
-        for (UpstreamObject upstreamObject : upstreamsToDelete) {
-            String upstreamUrl = KongEndpointUtils.toUpstreamUrl(addressesList, upstreamObject.getName());
-            processUpstreamRequest(upstreamUrl, HttpMethod.DELETE, null, "delete");
-            upstreamDeleteCount++;
+        if (!upstreamsToDelete.isEmpty()) {
+            LOG.info("[Kong] upstreams pending to delete are {}", upstreamsToDelete);
+            for (UpstreamObject upstreamObject : upstreamsToDelete) {
+                String upstreamUrl = KongEndpointUtils.toUpstreamUrl(addressesList, upstreamObject.getName());
+                processUpstreamRequest(upstreamUrl, HttpMethod.DELETE, null, "delete");
+                upstreamDeleteCount++;
+            }
         }
-        LOG.info("[Core] success to update upstreams, add {}, delete {}", upstreamAddCount, upstreamDeleteCount);
+        LOG.info("[Kong] success to update upstreams, add {}, delete {}", upstreamAddCount, upstreamDeleteCount);
     }
 
     private boolean registerGroup(Service service, String group) {
@@ -289,9 +302,8 @@ public class KongRegistryCenter implements RegistryCenter {
         }
         HttpMethod updateMethod = HttpMethod.POST;
         String createUrl = KongEndpointUtils.toUpstreamsUrl(addressesList);
-        UpstreamObject upstreamObject = new UpstreamObject();
-        upstreamObject.setName(upstreamName);
-        upstreamObject.setTags(Collections.singletonList(group));
+        UpstreamObject upstreamObject = ConversionUtils.groupToUpstreamObject(
+                group, service, registryInitRequest.getSourceName(), registryInitRequest.getSourceType());
         String upstreamText = ConversionUtils.marshalJsonText(upstreamObject);
         restResponse = restOperator.curlRemoteEndpoint(
                 createUrl, updateMethod, KongEndpointUtils.getRequestEntity(token, upstreamText), String.class);
@@ -312,10 +324,12 @@ public class KongRegistryCenter implements RegistryCenter {
 
     @Override
     public void updateInstances(Service service, Group group, Collection<Instance> instances) {
-        if (!registerGroup(service, group.getName())) {
-            LOG.warn("[Kong] updateInstances canceled by fail to regisger group");
-            return;
-        }
+        LOG.info("[Kong] instances to update instances group {}, service {}, is {}, ",
+                group.getName(), service, instances);
+        //if (!registerGroup(service, group.getName())) {
+        //    LOG.warn("[Kong] updateInstances canceled by fail to regisger group");
+        //     return;
+        //}
         String sourceName = registryInitRequest.getSourceName();
         String upstreamName = ConversionUtils.getUpstreamName(service, group.getName(), sourceName);
         ProtocolStringList addressesList = registryInitRequest.getRegistryEndpoint().getAddressesList();
@@ -328,16 +342,22 @@ public class KongRegistryCenter implements RegistryCenter {
             LOG.error("[Kong] server error to query targets {}", targetsUrl, restResponse.getException());
             return;
         }
-        if (restResponse.hasTextError()) {
+        if (restResponse.hasTextError() && restResponse.getRawStatusCode() != 404) {
             LOG.warn("[Kong] text error to query targets {}, code {}, reason {}",
                     targetsUrl, restResponse.getRawStatusCode(), restResponse.getStatusText());
             return;
         }
-        ResponseEntity<String> strEntity = restResponse.getResponseEntity();
-        TargetObjectList targetObjectList = ConversionUtils.unmarshalJsonText(strEntity.getBody(), TargetObjectList.class);
-        if (null == targetObjectList) {
-            LOG.error("[Kong] invalid response to query targets {}, text {}", targetsUrl, strEntity.getBody());
-            return;
+        TargetObjectList targetObjectList;
+        if (restResponse.hasNormalResponse()) {
+            ResponseEntity<String> strEntity = restResponse.getResponseEntity();
+            targetObjectList = ConversionUtils
+                    .unmarshalJsonText(strEntity.getBody(), TargetObjectList.class);
+            if (null == targetObjectList) {
+                LOG.error("[Kong] invalid response to query targets {}, text {}", targetsUrl, strEntity.getBody());
+                return;
+            }
+        } else {
+            targetObjectList = new TargetObjectList();
         }
         Map<String, TargetObject> targetObjectMap = ConversionUtils.parseTargetObjects(targetObjectList);
         Set<TargetObject> targetsToCreate = new HashSet<>();
@@ -370,21 +390,30 @@ public class KongRegistryCenter implements RegistryCenter {
         int targetAddCount = 0;
         int targetPatchCount = 0;
         int targetDeleteCount = 0;
-        for (TargetObject targetObject : targetsToCreate) {
-            processTargetRequest(targetsUrl, HttpMethod.POST, targetObject, "create");
-            targetAddCount++;
+        if (!targetsToCreate.isEmpty()) {
+            LOG.info("[Kong] targets pending to create are {}, upstream {}", targetsToCreate, upstreamName);
+            for (TargetObject targetObject : targetsToCreate) {
+                processTargetRequest(targetsUrl, HttpMethod.POST, targetObject, "create");
+                targetAddCount++;
+            }
         }
-        for (TargetObject targetObject : targetsToUpdate) {
-            String targetUrl = KongEndpointUtils.toTargetUrl(addressesList, upstreamName, targetObject.getTarget());
-            processTargetRequest(targetUrl, HttpMethod.PATCH, targetObject, "update");
-            targetPatchCount++;
+        if (!targetsToUpdate.isEmpty()) {
+            LOG.info("[Kong] targets pending to update are {}, upstream {}", targetsToUpdate, upstreamName);
+            for (TargetObject targetObject : targetsToUpdate) {
+                String targetUrl = KongEndpointUtils.toTargetUrl(addressesList, upstreamName, targetObject.getTarget());
+                processTargetRequest(targetUrl, HttpMethod.PATCH, targetObject, "update");
+                targetPatchCount++;
+            }
         }
-        for (TargetObject targetObject : targetsToDelete) {
-            String targetUrl = KongEndpointUtils.toTargetUrl(addressesList, upstreamName, targetObject.getTarget());
-            processTargetRequest(targetUrl, HttpMethod.DELETE, null, "delete");
-            targetDeleteCount++;
+        if (!targetsToDelete.isEmpty()) {
+            LOG.info("[Kong] targets pending to delete are {}, upstream {}", targetsToDelete, upstreamName);
+            for (TargetObject targetObject : targetsToDelete) {
+                String targetUrl = KongEndpointUtils.toTargetUrl(addressesList, upstreamName, targetObject.getTarget());
+                processTargetRequest(targetUrl, HttpMethod.DELETE, null, "delete");
+                targetDeleteCount++;
+            }
         }
-        LOG.info("[Core] success to update targets, add {}, patch {}, delete {}",
+        LOG.info("[Kong] success to update targets, add {}, patch {}, delete {}",
                 targetAddCount, targetPatchCount, targetDeleteCount);
     }
 
@@ -398,16 +427,18 @@ public class KongRegistryCenter implements RegistryCenter {
                 serviceUrl, method, KongEndpointUtils.getRequestEntity(token, jsonText), String.class);
         processHealthCheck(restResponse);
         if (restResponse.hasServerError()) {
-            LOG.error("[Kong] server error to {} {} to {}, request {}",
-                    operation, name, serviceUrl, jsonText, restResponse.getException());
+            LOG.error("[Kong] server error to {} {} to {}, method {}, request {}",
+                    operation, name, serviceUrl, method.name(), jsonText, restResponse.getException());
             return;
         }
         if (restResponse.hasTextError()) {
-            LOG.error("[Kong] server error to {} {} t {}, request {}, code {}, reason {}",
-                    operation, name, serviceUrl, jsonText, restResponse.getRawStatusCode(), restResponse.getStatusText());
+            LOG.warn("[Kong] text error to {} {} to {}, method {}, request {}, code {}, reason {}",
+                    operation, name, serviceUrl, method.name(), jsonText, restResponse.getRawStatusCode(),
+                    restResponse.getStatusText());
             return;
         }
-        LOG.error("[Kong] success to {} {} to {}, request {}", operation, name, serviceUrl, jsonText);
+        LOG.info("[Kong] success to {} {} to {}, method {}, request {}", operation, name, serviceUrl, method.name(),
+                jsonText);
     }
 
     private void processServiceRequest(
@@ -420,7 +451,8 @@ public class KongRegistryCenter implements RegistryCenter {
         commonCreateOrUpdateRequest("upstream", upstreamUrl, method, upstreamObject, operation);
     }
 
-    private void processTargetRequest(String targetUrl, HttpMethod method, TargetObject targetObject, String operation) {
+    private void processTargetRequest(String targetUrl, HttpMethod method, TargetObject targetObject,
+            String operation) {
         commonCreateOrUpdateRequest("target", targetUrl, method, targetObject, operation);
     }
 
@@ -434,8 +466,9 @@ public class KongRegistryCenter implements RegistryCenter {
     }
 
     public static class ServiceGroup {
-       final Service service;
-       final String groupName;
+
+        final Service service;
+        final String groupName;
 
         public ServiceGroup(Service service, String groupName) {
             this.service = service;

@@ -165,7 +165,6 @@ public class NacosRegistryCenter implements RegistryCenter {
         Map<String, String> filters = (null == group ? null : group.getMetadataMap());
         List<ServiceProto.Instance> polarisInstances = new ArrayList<>();
         for (Instance instance : instances) {
-            String instanceId = instance.getInstanceId();
             Map<String, String> metadata = instance.getMetadata();
             boolean matched = CommonUtils.matchMetadata(metadata, filters);
             if (!matched) {
@@ -177,12 +176,11 @@ public class NacosRegistryCenter implements RegistryCenter {
             boolean enabled = instance.isEnabled();
             boolean healthy = instance.isHealthy();
             Builder builder = ServiceProto.Instance.newBuilder();
-            builder.setId(ResponseUtils.toStringValue(instanceId));
-            builder.setWeight(ResponseUtils.toUInt32Value((int)weight));
+            builder.setWeight(ResponseUtils.toUInt32Value((int) weight));
             builder.putAllMetadata(metadata);
             builder.setHost(ResponseUtils.toStringValue(ip));
             builder.setPort(ResponseUtils.toUInt32Value(port));
-            builder.setIsolate(ResponseUtils.toBooleanValue(enabled));
+            builder.setIsolate(ResponseUtils.toBooleanValue(!enabled));
             builder.setHealthy(ResponseUtils.toBooleanValue(healthy));
             polarisInstances.add(builder.build());
         }

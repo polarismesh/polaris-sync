@@ -51,7 +51,7 @@ public class WatchManager {
         stop.set(true);
     }
 
-    private void run(WatchService watchService, String fileName, String backupFileName) {
+    private void run(WatchService watchService, String folder, String fileName, String backupFileName) {
         boolean poll = true;
         while (poll && !stop.get()) {
             WatchKey key = null;
@@ -62,7 +62,7 @@ public class WatchManager {
                 continue;
             }
             for (WatchEvent<?> event : key.pollEvents()) {
-                Path path  = (Path) event.context();
+                Path path = (Path) event.context();
                 if (!fileName.equals(path.getFileName().toFile().getName())) {
                     continue;
                 }
@@ -71,7 +71,8 @@ public class WatchManager {
                     continue;
                 }
                 LOG.info("[Core] config file {} changed, event kind {}", fileName, event.kind());
-                File configFile = path.toFile();
+                String fullPath = folder + File.separator + path.toFile().getName();
+                File configFile = new File(fullPath);
                 boolean fileValid = true;
                 for (FileListener fileListener : fileListeners) {
                     if (!fileListener.onFileChanged(configFile)) {
@@ -118,8 +119,8 @@ public class WatchManager {
         }
         final WatchService wService = watchService;
         String fileName = file.getName();
-        Thread thread = new Thread(()-> {
-            run(wService, fileName, backupFileName);
+        Thread thread = new Thread(() -> {
+            run(wService, folder, fileName, backupFileName);
         });
         thread.setName("sync-config-file-watcher");
         thread.setDaemon(true);

@@ -17,7 +17,6 @@
 
 package cn.polarismesh.polaris.sync.registry.utils;
 
-import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Match;
@@ -135,6 +134,10 @@ public class ConfigUtils {
                 LOG.error("[Core] match namespace is empty, task {}", taskName);
                 return false;
             }
+            if (namespace.contains(".")) {
+                LOG.error("[Core] match namespace contains DOT, task {}", taskName);
+                return false;
+            }
             if (!StringUtils.hasText(service)) {
                 LOG.error("[Core] match service is empty, task {}", taskName);
                 return false;
@@ -145,6 +148,10 @@ public class ConfigUtils {
             for (Group group : groups) {
                 if (!StringUtils.hasText(group.getName())) {
                     LOG.error("[Core] match group name is invalid, task {}", taskName);
+                    return false;
+                }
+                if (group.getName().contains(".")) {
+                    LOG.error("[Core] match group name contains DOT, task {}", taskName);
                     return false;
                 }
                 Map<String, String> metadataMap = group.getMetadataMap();

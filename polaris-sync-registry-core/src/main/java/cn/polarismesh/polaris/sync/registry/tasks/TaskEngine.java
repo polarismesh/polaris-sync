@@ -60,7 +60,7 @@ public class TaskEngine implements FileListener {
     private final ExecutorService watchExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("watch-worker"));
 
     private final ExecutorService registerExecutor =
-            Executors.newCachedThreadPool(new NamedThreadFactory("register-worker"));
+            Executors.newCachedThreadPool(new NamedThreadFactory("regis-worker"));
 
     private final Map<ServiceWithSource, Future<?>> watchedServices = new HashMap<>();
 
@@ -110,7 +110,7 @@ public class TaskEngine implements FileListener {
             if (MethodType.pull.equals(method.getType())) {
                 deletePullTask(syncTask);
                 pullTasks++;
-            } else if(MethodType.watch.equals(method.getType())) {
+            } else if (MethodType.watch.equals(method.getType())) {
                 deleteWatchTask(syncTask);
                 watchTasks++;
             }
@@ -128,7 +128,7 @@ public class TaskEngine implements FileListener {
             LOG.error("[Core] adding pull task {}, fail to init registry", syncTask.getName());
             return;
         }
-        NamedRegistryCenter sourceRegistry= registrySet.getSrcRegistry();
+        NamedRegistryCenter sourceRegistry = registrySet.getSrcRegistry();
         NamedRegistryCenter destRegistry = registrySet.getDstRegistry();
         PullTask pullTask = new PullTask(sourceRegistry, destRegistry, syncTask.getMatchList());
         ScheduledFuture<?> future = pullExecutor
@@ -144,7 +144,7 @@ public class TaskEngine implements FileListener {
             LOG.error("[Core] adding watch task {}, fail to init registry", syncTask.getName());
             return;
         }
-        NamedRegistryCenter sourceRegistry= registrySet.getSrcRegistry();
+        NamedRegistryCenter sourceRegistry = registrySet.getSrcRegistry();
         NamedRegistryCenter destRegistry = registrySet.getDstRegistry();
         for (RegistryProto.Match match : syncTask.getMatchList()) {
             WatchTask watchTask = new WatchTask(sourceRegistry, destRegistry, match,
@@ -166,7 +166,7 @@ public class TaskEngine implements FileListener {
 
     private void deleteWatchTask(Task syncTask) {
         RegistryEndpoint source = syncTask.getSource();
-        NamedRegistryCenter sourceRegistry= getSrcRegistry(syncTask.getName());
+        NamedRegistryCenter sourceRegistry = getSrcRegistry(syncTask.getName());
         if (null != sourceRegistry) {
             for (RegistryProto.Match match : syncTask.getMatchList()) {
                 UnwatchTask unwatchTask = new UnwatchTask(sourceRegistry, match);
@@ -200,7 +200,7 @@ public class TaskEngine implements FileListener {
                         method.getInterval(), DefaultValues.DEFAULT_PULL_INTERVAL_MS);
                 addPullTask(task, pullInterval);
                 pullTasks++;
-            } else if(MethodType.watch.equals(method.getType())) {
+            } else if (MethodType.watch.equals(method.getType())) {
                 addWatchTask(task);
                 watchTasks++;
             }
@@ -217,7 +217,7 @@ public class TaskEngine implements FileListener {
             return new int[]{watchTasks, pullTasks};
         }
         List<Method> methods = registryConfig.getMethodsList();
-        for(Task task : tasks) {
+        for (Task task : tasks) {
             int[] counts = addTask(task, methods);
             watchTasks += counts[0];
             pullTasks += counts[1];
@@ -234,7 +234,7 @@ public class TaskEngine implements FileListener {
             return new int[]{watchTasks, pullTasks};
         }
         List<Method> methods = registryConfig.getMethodsList();
-        for(Task task : tasks) {
+        for (Task task : tasks) {
             int[] counts = deleteTask(task, methods);
             watchTasks += counts[0];
             pullTasks += counts[1];
@@ -259,7 +259,8 @@ public class TaskEngine implements FileListener {
                 pullTasksAdded += addCounts[1];
                 watchTasksDeleted += clearCounts[0];
                 pullTasksDeleted += clearCounts[1];
-                LOG.info("[Core] tasks reloaded, watchTasksAdded {}, pullTasksAdded {}, watchTasksDeleted {}, pullTasksDeleted {}",
+                LOG.info(
+                        "[Core] tasks reloaded, watchTasksAdded {}, pullTasksAdded {}, watchTasksDeleted {}, pullTasksDeleted {}",
                         watchTasksAdded, pullTasksAdded, watchTasksDeleted, pullTasksDeleted);
                 return;
             }
@@ -301,7 +302,8 @@ public class TaskEngine implements FileListener {
                     pullTasksAdded += addCounts[1];
                 }
             }
-            LOG.info("[Core] tasks reloaded, watchTasksAdded {}, pullTasksAdded {}, watchTasksDeleted {}, pullTasksDeleted {}",
+            LOG.info(
+                    "[Core] tasks reloaded, watchTasksAdded {}, pullTasksAdded {}, watchTasksDeleted {}, pullTasksDeleted {}",
                     watchTasksAdded, pullTasksAdded, watchTasksDeleted, pullTasksDeleted);
         }
     }
@@ -377,6 +379,7 @@ public class TaskEngine implements FileListener {
     }
 
     private static class ServiceWithSource {
+
         private final String sourceName;
 
         private final Service service;

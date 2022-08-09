@@ -22,6 +22,7 @@ import java.util.Random;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.Assert;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -30,6 +31,7 @@ public class RestOperator {
     private final RestTemplate restTemplate;
 
     public RestOperator(RestTemplate restTemplate) {
+        Assert.notNull(restTemplate, "restTemplate should not be null");
         this.restTemplate = restTemplate;
     }
 
@@ -39,14 +41,14 @@ public class RestOperator {
         }
         Random random = new Random();
         int i = random.nextInt();
-        return addresses.get(i%addresses.size());
+        return addresses.get(i % addresses.size());
     }
 
     public <T> RestResponse<T> curlRemoteEndpoint(String url, HttpMethod method,
             HttpEntity<?> requestEntity, Class<T> clazz) {
         ResponseEntity<T> queryEntity;
         try {
-            queryEntity = restTemplate.exchange(url, HttpMethod.GET, requestEntity, clazz);
+            queryEntity = restTemplate.exchange(url, method, requestEntity, clazz);
         } catch (RestClientException e) {
             return RestResponse.withRestClientException(e);
         }
