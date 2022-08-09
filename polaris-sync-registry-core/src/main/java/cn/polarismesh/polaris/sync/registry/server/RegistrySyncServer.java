@@ -26,8 +26,13 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.util.FileCopyUtils;
 
 public class RegistrySyncServer {
+
+    private static final Logger LOG = LoggerFactory.getLogger(RegistrySyncServer.class);
 
     private final SyncRegistryProperties syncRegistryProperties;
 
@@ -43,22 +48,46 @@ public class RegistrySyncServer {
         this.registryCenters = registryCenters;
     }
 
+
     public void init() {
         taskEngine = new TaskEngine(registryCenters);
         List<FileListener> listeners = new ArrayList<>();
         listeners.add(taskEngine);
         watchManager = new WatchManager(listeners);
+
         String configPath = syncRegistryProperties.getConfigPath();
         String watchPath = syncRegistryProperties.getWatchPath();
         File configFile = new File(configPath);
-        String targetInitFile = configPath;
-        if (!configFile.exists()) {
-            targetInitFile = watchPath;
+        File watchFile = new File(watchPath);
+        boolean initByWatched = false;
+        if (watchFile.exists()) {
+            LOG.info("[Core] try to init by watch file {}", watchPath);
+            initByWatched = true;
+            try {
+                taskEngine.init(watchPath);
+                LOG.info("[Core] engine init by watch file {}", watchPath);
+            } catch (IOException e) {
+                LOG.error("[Core] fail to init engine by watch file {}", watchPath, e);
+                initByWatched = false;
+            }
         }
-        try {
-            taskEngine.init(targetInitFile);
-        } catch (IOException e) {
-            throw new RuntimeException("fail to init task engine", e);
+        if (!initByWatched) {
+            LOG.info("[Core] try to init by config file {}", configPath);
+            if (!configFile.exists()) {
+                throw new RuntimeException("config file not found in " + configPath);
+            }
+            try {
+                taskEngine.init(configPath);
+                LOG.info("[Core] engine init by config file {}", configPath);
+            } catch (IOException e) {
+                LOG.error("[Core] fail to init engine by config file {}", configPath, e);
+            }
+        } else {
+            try {
+                FileCopyUtils.copy(watchFile, configFile);
+            } catch (IOException e) {
+                LOG.error("[Core]fail to copy file from {} to {}", watchPath, configPath, e);
+            }
         }
         try {
             watchManager.start(watchPath, configPath);

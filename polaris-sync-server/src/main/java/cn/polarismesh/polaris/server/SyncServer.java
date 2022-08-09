@@ -23,18 +23,12 @@ import cn.polarismesh.polaris.sync.registry.nacos.NacosRegistryCenter;
 import cn.polarismesh.polaris.sync.registry.polaris.PolarisRegistryCenter;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.web.client.RestTemplate;
 
-@Import(value = {NacosRegistryCenter.class, PolarisRegistryCenter.class, KongRegistryCenter.class, ConsulRegistryCenter.class})
+@Import(value = {NacosRegistryCenter.class, PolarisRegistryCenter.class, KongRegistryCenter.class,
+        ConsulRegistryCenter.class})
 @SpringBootApplication
 public class SyncServer {
-
-    @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
-    }
 
     public static void main(String[] args) {
         SpringApplication.run(SyncServer.class, args);

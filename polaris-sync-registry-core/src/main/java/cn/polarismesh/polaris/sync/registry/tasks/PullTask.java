@@ -24,6 +24,7 @@ import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Match;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
+import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -71,7 +72,9 @@ public class PullTask implements Runnable {
                             source.getName(), group.getName(), srcInstanceResponse.getCode().getValue());
                     return;
                 }
-                destination.getRegistry().updateInstances(service, group, srcInstanceResponse.getInstancesList());
+                List<Instance> instances = srcInstanceResponse.getInstancesList();
+                LOG.info("[Core][Pull]prepare to update group {} instances {}", group.getName(), instances);
+                destination.getRegistry().updateInstances(service, group, instances);
             }
         }
     }

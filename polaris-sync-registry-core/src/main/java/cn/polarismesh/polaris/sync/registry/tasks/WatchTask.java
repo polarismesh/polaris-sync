@@ -25,11 +25,12 @@ import cn.polarismesh.polaris.sync.extension.registry.WatchEvent;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
-import cn.polarismesh.polaris.sync.registry.utils.TaskUtils;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +48,8 @@ public class WatchTask implements Runnable {
     private final Collection<Group> groups;
 
     private final Executor executor;
+
+    private static final Map<Service, Collection<Group>> serviceToGroups = new HashMap<>();
 
     public WatchTask(NamedRegistryCenter source,
             NamedRegistryCenter destination, RegistryProto.Match match, Executor executor) {
@@ -70,19 +73,19 @@ public class WatchTask implements Runnable {
 
         @Override
         public void onEvent(WatchEvent watchEvent) {
-            DiscoverResponse srcInstanceResponse = watchEvent.getResponse();
-            if (srcInstanceResponse.getCode().getValue() != StatusCodes.SUCCESS) {
-                LOG.warn("[Core][Pull] fail to watch service in source {}, code is {}",
-                        source.getName(), srcInstanceResponse.getCode().getValue());
-                return;
-            }
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
                     // diff by groups
                     for (Group group : groups) {
-                        List<Instance> instances = TaskUtils
-                                .filterInstances(group, srcInstanceResponse.getInstancesList());
+                        DiscoverResponse discoverResponse = source.getRegistry().listInstances(service, group);
+                        if (discoverResponse.getCode().getValue() != StatusCodes.SUCCESS) {
+                            LOG.warn("[Core][Watch] fail to list service in source {}, group {}, code is {}",
+                                    source.getName(), group.getName(), discoverResponse.getCode().getValue());
+                            return;
+                        }
+                        List<Instance> instances = discoverResponse.getInstancesList();
+                        LOG.info("[Core][Watch]prepare to update group {} instances {}", group.getName(), instances);
                         destination.getRegistry().updateInstances(service, group, instances);
                     }
                 }

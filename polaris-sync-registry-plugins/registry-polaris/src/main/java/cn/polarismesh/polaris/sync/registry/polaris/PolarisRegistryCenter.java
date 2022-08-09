@@ -52,13 +52,10 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 @Component
@@ -74,8 +71,7 @@ public class PolarisRegistryCenter implements RegistryCenter {
 
     private final Object lock = new Object();
 
-    @Autowired
-    private RestTemplate restTemplate;
+    private final RestTemplate restTemplate = new RestTemplate();
 
     private RestOperator restOperator;
 
@@ -122,7 +118,7 @@ public class PolarisRegistryCenter implements RegistryCenter {
                     service, registryInitRequest.getRegistryEndpoint().getName());
             return ResponseUtils.toRegistryCenterException(service);
         }
-        GetAllInstancesRequest request= new GetAllInstancesRequest();
+        GetAllInstancesRequest request = new GetAllInstancesRequest();
         request.setNamespace(service.getNamespace());
         request.setService(service.getService());
         InstancesResponse allInstance;

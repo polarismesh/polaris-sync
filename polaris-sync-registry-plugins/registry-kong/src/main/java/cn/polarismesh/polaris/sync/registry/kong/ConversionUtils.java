@@ -37,7 +37,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +55,12 @@ public class ConversionUtils {
         serviceObject.setName(getServiceName(service, currentSource));
         serviceObject.setHost(getUpstreamName(service, KongConsts.GROUP_NAME_DEFAULT, currentSource));
         serviceObject.setPort(KongConsts.PORT_DEFAULT);
-        serviceObject.setTags(Collections.singletonList(sourceType));
+        List<String> tags = new ArrayList<>();
+        tags.add(sourceType);
+        tags.add(currentSource);
+        tags.add(service.getNamespace());
+        tags.add(service.getService());
+        serviceObject.setTags(tags);
         serviceObject.setProtocol(KongConsts.PROTOCOL_DEFAULT);
         return serviceObject;
     }
@@ -85,7 +90,8 @@ public class ConversionUtils {
             return values;
         }
         for (UpstreamObject upstreamObject : data) {
-            ServiceGroup upstreamName = ConversionUtils.parseUpstreamName(upstreamObject.getName(), service, sourceName);
+            ServiceGroup upstreamName = ConversionUtils
+                    .parseUpstreamName(upstreamObject.getName(), service, sourceName);
             if (null == upstreamName) {
                 continue;
             }
@@ -123,7 +129,13 @@ public class ConversionUtils {
             String groupName, Service service, String currentSource, String sourceType) {
         UpstreamObject upstreamObject = new UpstreamObject();
         upstreamObject.setName(getUpstreamName(service, groupName, currentSource));
-        upstreamObject.setTags(Collections.singletonList(sourceType));
+        List<String> tags = new ArrayList<>();
+        tags.add(sourceType);
+        tags.add(currentSource);
+        tags.add(service.getNamespace());
+        tags.add(service.getService());
+        tags.add(groupName);
+        upstreamObject.setTags(tags);
         return upstreamObject;
     }
 
@@ -139,14 +151,14 @@ public class ConversionUtils {
         if (!Pattern.matches("^.+\\..+\\..+$", decodeName)) {
             return null;
         }
-        String[] values = name.split("\\.");
-        String sourceName = values[0];
+        String sourceName = name.substring(0, name.indexOf("."));
         if (!currentSource.equals(sourceName)) {
             return null;
         }
-        String namespace = values[1];
-        String serviceName = values[2];
-        return new Service(namespace,serviceName);
+        name = name.substring(name.indexOf(".") + 1);
+        String namespace = name.substring(0, name.indexOf("."));
+        String serviceName = name.substring(name.indexOf(".") + 1);
+        return new Service(namespace, serviceName);
     }
 
     public static ServiceGroup parseUpstreamName(String name, Service currentService, String currentSource) {
@@ -154,17 +166,18 @@ public class ConversionUtils {
         if (!Pattern.matches("^.+\\..+\\..+\\..+$", decodeName)) {
             return null;
         }
-        String[] values = name.split("\\.");
-        String sourceName = values[0];
+        String sourceName = name.substring(0, name.indexOf("."));
         if (!currentSource.equals(sourceName)) {
             return null;
         }
-        String namespace = values[1];
-        String serviceName = values[2];
+        name = name.substring(name.indexOf(".") + 1);
+        String namespace = name.substring(0, name.indexOf("."));
+        name = name.substring(name.indexOf(".") + 1);
+        String groupName = name.substring(name.lastIndexOf(".") + 1);
+        String serviceName = name.substring(0, name.lastIndexOf("."));
         if (!currentService.getService().equals(serviceName) || !currentService.getNamespace().equals(namespace)) {
             return null;
         }
-        String groupName = values[3];
         return new ServiceGroup(new Service(namespace, serviceName), groupName);
     }
 
