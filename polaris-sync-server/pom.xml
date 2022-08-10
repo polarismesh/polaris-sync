@@ -45,6 +45,16 @@
             <artifactId>registry-consul</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.tencent.polaris</groupId>
+            <artifactId>registry-kubernetes</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.tencent.polaris</groupId>
+            <artifactId>reporter-file</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

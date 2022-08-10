@@ -344,7 +344,8 @@ public class TaskEngine implements FileListener {
         sourceCenter.init(new RegistryInitRequest(source.getName(), source.getType().name(), source));
         destinationCenter.init(new RegistryInitRequest(source.getName(), source.getType().name(), destination));
         registrySet = new RegistrySet(new NamedRegistryCenter(
-                source.getName(), sourceCenter), new NamedRegistryCenter(destination.getName(), destinationCenter));
+                source.getName(), source.getProductName(), sourceCenter),
+                new NamedRegistryCenter(destination.getName(), destination.getProductName(), destinationCenter));
         taskRegistryMap.put(task.getName(), registrySet);
         return registrySet;
     }
@@ -378,6 +379,12 @@ public class TaskEngine implements FileListener {
         }
         reload(config);
         return true;
+    }
+
+    public RegistrySet getRegistrySet(String taskName) {
+        synchronized (configLock) {
+            return taskRegistryMap.get(taskName);
+        }
     }
 
     public static class ServiceWithSource {
@@ -418,7 +425,7 @@ public class TaskEngine implements FileListener {
         }
     }
 
-    private static class RegistrySet {
+    public static class RegistrySet {
 
         private final NamedRegistryCenter srcRegistry;
 

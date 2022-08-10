@@ -34,8 +34,9 @@ message ReportTarget {
 
   enum TargetType {
     unknown = 0;
-    prometheus = 1;
-    balad = 2;
+    file = 1;
+    prometheus = 2;
+    balad = 3;
   }
   TargetType type = 3;
 
@@ -91,6 +92,7 @@ message RegistryEndpoint {
     consul = 2;
     polaris = 3;
     kong = 4;
+    kubernetes = 5;
   }
 
   RegistryType type = 2;
@@ -103,7 +105,7 @@ message RegistryEndpoint {
 
   string password = 6;
 
-  string product_name = 7;
+  string product_name = 7 [json_name = "product_name"];
 }
 
 message Match {

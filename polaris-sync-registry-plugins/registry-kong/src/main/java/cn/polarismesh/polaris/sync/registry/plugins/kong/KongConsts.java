@@ -15,34 +15,15 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.registry.tasks;
+package cn.polarismesh.polaris.sync.registry.plugins.kong;
 
-import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
+import cn.polarismesh.polaris.sync.extension.utils.DefaultValues;
 
-public class NamedRegistryCenter {
+public interface KongConsts {
 
-    private final String name;
+    String GROUP_NAME_DEFAULT = DefaultValues.GROUP_NAME_DEFAULT;
 
-    private final String productName;
+    int PORT_DEFAULT = 80;
 
-    private final RegistryCenter registry;
-
-    public NamedRegistryCenter(String name, String productName,
-            RegistryCenter registry) {
-        this.name = name;
-        this.productName = productName;
-        this.registry = registry;
-    }
-
-    public String getProductName() {
-        return productName;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public RegistryCenter getRegistry() {
-        return registry;
-    }
+    String PROTOCOL_DEFAULT = "http";
 }

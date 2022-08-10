@@ -56,6 +56,10 @@ public class ConfigUtils {
         }
     }
 
+    public static boolean verifyHealthCheck(RegistryProto.Registry registry) {
+        return true;
+    }
+
     public static boolean verifyTasks(RegistryProto.Registry registry, Set<RegistryType> supportedTypes) {
         LOG.info("[Core] start to verify tasks config {}", registry);
         List<Task> tasks = registry.getTasksList();
