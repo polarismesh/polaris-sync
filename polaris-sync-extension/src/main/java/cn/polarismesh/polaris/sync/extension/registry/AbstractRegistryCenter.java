@@ -15,34 +15,23 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.registry.tasks;
+package cn.polarismesh.polaris.sync.extension.registry;
 
-import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class NamedRegistryCenter {
+public abstract class AbstractRegistryCenter implements RegistryCenter {
 
-    private final String name;
 
-    private final String productName;
+    protected final AtomicInteger serverErrorCount = new AtomicInteger(0);
 
-    private final RegistryCenter registry;
+    protected final AtomicInteger totalCount = new AtomicInteger(0);
 
-    public NamedRegistryCenter(String name, String productName,
-            RegistryCenter registry) {
-        this.name = name;
-        this.productName = productName;
-        this.registry = registry;
-    }
-
-    public String getProductName() {
-        return productName;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public RegistryCenter getRegistry() {
-        return registry;
+    @Override
+    public Health healthCheck() {
+        int totalCountValue = totalCount.get();
+        int errorCountValue = serverErrorCount.get();
+        totalCount.addAndGet(-totalCountValue);
+        serverErrorCount.addAndGet(-errorCountValue);
+        return new Health(totalCountValue, errorCountValue);
     }
 }

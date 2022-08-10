@@ -19,47 +19,17 @@ package cn.polarismesh.polaris.sync.extension.registry;
 
 public class Health {
 
-    public enum Status {
-        UP, DOWN
-    }
-
-    private final Status status;
-
-    private final int code;
-
-    private final String detail;
+    private final int totalCount;
 
     private final int errorCount;
 
-    public Health(Status status, int code, String detail) {
-        this.status = status;
-        this.code = code;
-        this.detail = detail;
-        this.errorCount = 1;
-    }
-
-    public Health(Status status, int code, String detail, int errorCount) {
-        this.status = status;
-        this.code = code;
-        this.detail = detail;
+    public Health(int totalCount, int errorCount) {
+        this.totalCount = totalCount;
         this.errorCount = errorCount;
     }
 
-    public Health(Status status) {
-        this(status, 0, "");
-    }
-
-
-    public Status getStatus() {
-        return status;
-    }
-
-    public int getCode() {
-        return code;
-    }
-
-    public String getDetail() {
-        return detail;
+    public int getTotalCount() {
+        return totalCount;
     }
 
     public int getErrorCount() {

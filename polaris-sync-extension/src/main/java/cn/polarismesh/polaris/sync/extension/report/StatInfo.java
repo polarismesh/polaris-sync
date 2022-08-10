@@ -15,34 +15,21 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.registry.tasks;
+package cn.polarismesh.polaris.sync.extension.report;
 
-import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
+import java.util.Collection;
 
-public class NamedRegistryCenter {
+public class StatInfo {
 
-    private final String name;
+    private Collection<RegistryHealthStatus> registryHealthStatusList;
 
-    private final String productName;
 
-    private final RegistryCenter registry;
-
-    public NamedRegistryCenter(String name, String productName,
-            RegistryCenter registry) {
-        this.name = name;
-        this.productName = productName;
-        this.registry = registry;
+    public Collection<RegistryHealthStatus> getRegistryHealthStatusList() {
+        return registryHealthStatusList;
     }
 
-    public String getProductName() {
-        return productName;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public RegistryCenter getRegistry() {
-        return registry;
+    public void setRegistryHealthStatusList(
+            Collection<RegistryHealthStatus> registryHealthStatusList) {
+        this.registryHealthStatusList = registryHealthStatusList;
     }
 }

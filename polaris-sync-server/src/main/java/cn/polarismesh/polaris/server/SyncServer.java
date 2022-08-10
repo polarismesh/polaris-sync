@@ -17,16 +17,12 @@
 
 package cn.polarismesh.polaris.server;
 
-import cn.polarismesh.polaris.sync.registry.consul.ConsulRegistryCenter;
-import cn.polarismesh.polaris.sync.registry.kong.KongRegistryCenter;
-import cn.polarismesh.polaris.sync.registry.nacos.NacosRegistryCenter;
-import cn.polarismesh.polaris.sync.registry.polaris.PolarisRegistryCenter;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.ComponentScan;
 
-@Import(value = {NacosRegistryCenter.class, PolarisRegistryCenter.class, KongRegistryCenter.class,
-        ConsulRegistryCenter.class})
+@ComponentScan(basePackages = {"cn.polarismesh.polaris.sync.registry.plugins",
+        "cn.polarismesh.polaris.sync.reporter.plugins"})
 @SpringBootApplication
 public class SyncServer {
 

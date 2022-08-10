@@ -18,9 +18,12 @@
 package cn.polarismesh.polaris.sync.registry.server;
 
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
+import cn.polarismesh.polaris.sync.extension.report.ReportHandler;
 import cn.polarismesh.polaris.sync.registry.config.FileListener;
 import cn.polarismesh.polaris.sync.registry.config.SyncRegistryProperties;
 import cn.polarismesh.polaris.sync.registry.config.WatchManager;
+import cn.polarismesh.polaris.sync.registry.healthcheck.HealthCheckScheduler;
+import cn.polarismesh.polaris.sync.registry.healthcheck.StatReportAggregator;
 import cn.polarismesh.polaris.sync.registry.tasks.TaskEngine;
 import java.io.File;
 import java.io.IOException;
@@ -42,17 +45,27 @@ public class RegistrySyncServer {
 
     private WatchManager watchManager;
 
+    private HealthCheckScheduler healthCheckReporter;
+
+    private final List<ReportHandler> reportHandlers;
+
+    private StatReportAggregator statReportAggregator;
+
     public RegistrySyncServer(SyncRegistryProperties syncRegistryProperties,
-            List<RegistryCenter> registryCenters) {
+            List<RegistryCenter> registryCenters, List<ReportHandler> reportHandlers) {
         this.syncRegistryProperties = syncRegistryProperties;
         this.registryCenters = registryCenters;
+        this.reportHandlers = reportHandlers;
     }
 
 
     public void init() {
         taskEngine = new TaskEngine(registryCenters);
+        statReportAggregator = new StatReportAggregator(reportHandlers);
+        healthCheckReporter = new HealthCheckScheduler(statReportAggregator, taskEngine);
         List<FileListener> listeners = new ArrayList<>();
         listeners.add(taskEngine);
+        listeners.add(healthCheckReporter);
         watchManager = new WatchManager(listeners);
 
         String configPath = syncRegistryProperties.getConfigPath();
@@ -66,6 +79,8 @@ public class RegistrySyncServer {
             try {
                 taskEngine.init(watchPath);
                 LOG.info("[Core] engine init by watch file {}", watchPath);
+                healthCheckReporter.init(watchPath);
+                LOG.info("[Core] health checker init by watch file {}", watchPath);
             } catch (IOException e) {
                 LOG.error("[Core] fail to init engine by watch file {}", watchPath, e);
                 initByWatched = false;
@@ -79,6 +94,8 @@ public class RegistrySyncServer {
             try {
                 taskEngine.init(configPath);
                 LOG.info("[Core] engine init by config file {}", configPath);
+                healthCheckReporter.init(configPath);
+                LOG.info("[Core] health checker init by config file {}", configPath);
             } catch (IOException e) {
                 LOG.error("[Core] fail to init engine by config file {}", configPath, e);
             }
@@ -95,7 +112,6 @@ public class RegistrySyncServer {
             throw new RuntimeException("fail to init watch manager", e);
         }
 
-
     }
 
     public void destroy() {
@@ -104,6 +120,12 @@ public class RegistrySyncServer {
         }
         if (null != watchManager) {
             watchManager.destroy();
+        }
+        if (null != healthCheckReporter) {
+            healthCheckReporter.destroy();
+        }
+        if (null != statReportAggregator) {
+            statReportAggregator.destroy();
         }
     }
 }

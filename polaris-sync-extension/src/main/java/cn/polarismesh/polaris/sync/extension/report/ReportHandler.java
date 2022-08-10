@@ -15,34 +15,16 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.registry.tasks;
+package cn.polarismesh.polaris.sync.extension.report;
 
-import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget.TargetType;
 
-public class NamedRegistryCenter {
+public interface ReportHandler {
 
-    private final String name;
+    TargetType getType();
 
-    private final String productName;
+    void init(ReportTarget reportTarget);
 
-    private final RegistryCenter registry;
-
-    public NamedRegistryCenter(String name, String productName,
-            RegistryCenter registry) {
-        this.name = name;
-        this.productName = productName;
-        this.registry = registry;
-    }
-
-    public String getProductName() {
-        return productName;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public RegistryCenter getRegistry() {
-        return registry;
-    }
+    void reportStat(StatInfo statInfo);
 }
