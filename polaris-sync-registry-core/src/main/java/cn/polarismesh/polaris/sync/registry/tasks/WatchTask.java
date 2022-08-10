@@ -25,13 +25,16 @@ import cn.polarismesh.polaris.sync.extension.registry.WatchEvent;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
+import cn.polarismesh.polaris.sync.registry.tasks.TaskEngine.ServiceWithSource;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,33 +50,54 @@ public class WatchTask implements Runnable {
 
     private final Collection<Group> groups;
 
-    private final Executor executor;
+    private final Executor registerExecutor;
 
-    private static final Map<Service, Collection<Group>> serviceToGroups = new HashMap<>();
+    private final ScheduledExecutorService watchExecutor;
 
-    public WatchTask(NamedRegistryCenter source,
-            NamedRegistryCenter destination, RegistryProto.Match match, Executor executor) {
+    private final ServiceWithSource serviceWithSource;
+
+    private final Map<ServiceWithSource, Future<?>> watchedServices;
+
+    private final ResponseListener responseListener;
+
+    public WatchTask(Map<ServiceWithSource, Future<?>> watchedServices, NamedRegistryCenter source,
+            NamedRegistryCenter destination, RegistryProto.Match match, Executor registerExecutor,
+            ScheduledExecutorService watchExecutor) {
+        this.watchedServices = watchedServices;
         this.source = source;
         this.destination = destination;
         this.service = new Service(match.getNamespace(), match.getService());
         this.groups = verifyGroups(match.getGroupsList());
-        this.executor = executor;
+        this.registerExecutor = registerExecutor;
+        this.watchExecutor = watchExecutor;
+        this.serviceWithSource = new ServiceWithSource(source.getName(), this.service);
+        responseListener = new ResponseListener();
     }
 
-    public Service getService() {
-        return service;
+    public ServiceWithSource getService() {
+        return serviceWithSource;
     }
 
     @Override
     public void run() {
-        source.getRegistry().watch(service, new ResponseListener());
+        if (source.getRegistry().watch(service, responseListener)) {
+            LOG.info("[LOG] success to watch for service {}", serviceWithSource);
+            return;
+        }
+        LOG.info("[LOG] start to retry watch for service {}", serviceWithSource);
+        if (!watchedServices.containsKey(serviceWithSource)) {
+            return;
+        }
+        Future<?> submit = watchExecutor.schedule(this, 1, TimeUnit.SECONDS);
+        watchedServices.put(serviceWithSource, submit);
+        LOG.info("[Core] service {} has been scheduled watched", serviceWithSource);
     }
 
     private class ResponseListener implements RegistryCenter.ResponseListener {
 
         @Override
         public void onEvent(WatchEvent watchEvent) {
-            executor.execute(new Runnable() {
+            registerExecutor.execute(new Runnable() {
                 @Override
                 public void run() {
                     // diff by groups

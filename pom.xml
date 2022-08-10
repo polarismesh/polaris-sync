@@ -10,6 +10,7 @@
         <module>polaris-sync-extension</module>
         <module>polaris-sync-server</module>
         <module>polaris-sync-commons</module>
+        <module>polaris-sync-reporter-plugins</module>
     </modules>
 
     <parent>

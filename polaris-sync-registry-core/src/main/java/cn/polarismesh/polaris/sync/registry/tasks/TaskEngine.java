@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -57,12 +58,13 @@ public class TaskEngine implements FileListener {
     private final ScheduledExecutorService pullExecutor =
             Executors.newScheduledThreadPool(1, new NamedThreadFactory("list-worker"));
 
-    private final ExecutorService watchExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("watch-worker"));
+    private final ScheduledExecutorService watchExecutor = Executors
+            .newScheduledThreadPool(1, new NamedThreadFactory("watch-worker"));
 
     private final ExecutorService registerExecutor =
             Executors.newCachedThreadPool(new NamedThreadFactory("regis-worker"));
 
-    private final Map<ServiceWithSource, Future<?>> watchedServices = new HashMap<>();
+    private final Map<ServiceWithSource, Future<?>> watchedServices = new ConcurrentHashMap<>();
 
     private final Map<String, ScheduledFuture<?>> pulledServices = new HashMap<>();
 
@@ -147,10 +149,10 @@ public class TaskEngine implements FileListener {
         NamedRegistryCenter sourceRegistry = registrySet.getSrcRegistry();
         NamedRegistryCenter destRegistry = registrySet.getDstRegistry();
         for (RegistryProto.Match match : syncTask.getMatchList()) {
-            WatchTask watchTask = new WatchTask(sourceRegistry, destRegistry, match,
-                    registerExecutor);
-            Future<?> submit = watchExecutor.submit(watchTask);
-            ServiceWithSource serviceWithSource = new ServiceWithSource(source.getName(), watchTask.getService());
+            WatchTask watchTask = new WatchTask(watchedServices, sourceRegistry, destRegistry, match,
+                    registerExecutor, watchExecutor);
+            Future<?> submit = watchExecutor.schedule(watchTask, 1, TimeUnit.SECONDS);
+            ServiceWithSource serviceWithSource = watchTask.getService();
             watchedServices.put(serviceWithSource, submit);
             LOG.info("[Core] service {} has been scheduled watched", serviceWithSource);
         }
@@ -342,7 +344,8 @@ public class TaskEngine implements FileListener {
         sourceCenter.init(new RegistryInitRequest(source.getName(), source.getType().name(), source));
         destinationCenter.init(new RegistryInitRequest(source.getName(), source.getType().name(), destination));
         registrySet = new RegistrySet(new NamedRegistryCenter(
-                source.getName(), sourceCenter), new NamedRegistryCenter(destination.getName(), destinationCenter));
+                source.getName(), source.getProductName(), sourceCenter),
+                new NamedRegistryCenter(destination.getName(), destination.getProductName(), destinationCenter));
         taskRegistryMap.put(task.getName(), registrySet);
         return registrySet;
     }
@@ -378,7 +381,13 @@ public class TaskEngine implements FileListener {
         return true;
     }
 
-    private static class ServiceWithSource {
+    public RegistrySet getRegistrySet(String taskName) {
+        synchronized (configLock) {
+            return taskRegistryMap.get(taskName);
+        }
+    }
+
+    public static class ServiceWithSource {
 
         private final String sourceName;
 
@@ -416,7 +425,7 @@ public class TaskEngine implements FileListener {
         }
     }
 
-    private static class RegistrySet {
+    public static class RegistrySet {
 
         private final NamedRegistryCenter srcRegistry;
 

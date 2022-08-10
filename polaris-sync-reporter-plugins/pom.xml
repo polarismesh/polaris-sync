@@ -9,16 +9,11 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>polaris-sync-plugins</artifactId>
-    <name>Polaris Sync Registry Plugins</name>
+    <artifactId>polaris-sync-reporter-plugins</artifactId>
+    <name>Polaris Sync Reporter Plugins</name>
     <modules>
-        <module>registry-nacos</module>
-        <module>registry-kong</module>
-        <module>registry-consul</module>
-        <module>registry-polaris</module>
-        <module>registry-kubernetes</module>
+        <module>reporter-file</module>
     </modules>
-    <packaging>pom</packaging>
-    <description>Polaris Sync Plugins POM</description>
 
+    <packaging>pom</packaging>
 </project>

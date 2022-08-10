@@ -18,6 +18,7 @@
 package cn.polarismesh.polaris.sync.registry.autoconfig;
 
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
+import cn.polarismesh.polaris.sync.extension.report.ReportHandler;
 import cn.polarismesh.polaris.sync.registry.config.SyncRegistryProperties;
 import cn.polarismesh.polaris.sync.registry.server.RegistrySyncServer;
 import java.util.List;
@@ -39,7 +40,8 @@ public class SyncConfigBootstrapConfiguration {
     @Bean(initMethod = "init", destroyMethod = "destroy")
     @ConditionalOnMissingBean
     public RegistrySyncServer registrySyncServer(
-            SyncRegistryProperties syncRegistryProperties, List<RegistryCenter> registryCenters) {
-        return new RegistrySyncServer(syncRegistryProperties, registryCenters);
+            SyncRegistryProperties syncRegistryProperties, List<RegistryCenter> registryCenters,
+            List<ReportHandler> reportHandlers) {
+        return new RegistrySyncServer(syncRegistryProperties, registryCenters, reportHandlers);
     }
 }
