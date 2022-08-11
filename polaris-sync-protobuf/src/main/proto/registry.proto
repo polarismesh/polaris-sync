@@ -28,9 +28,7 @@ message Report {
 
 message ReportTarget {
 
-  string name = 1;
-
-  bool enable = 2;
+  bool enable = 1;
 
   enum TargetType {
     unknown = 0;
@@ -38,13 +36,9 @@ message ReportTarget {
     prometheus = 2;
     balad = 3;
   }
-  TargetType type = 3;
+  TargetType type = 2;
 
-  string uri = 4;
-
-  string user = 5;
-
-  string password = 6;
+  map<string, string> options = 3;
 }
 
 message HealthCheck {

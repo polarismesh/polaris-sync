@@ -17,23 +17,20 @@
 
 package cn.polarismesh.polaris.sync.registry.config;
 
-import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
-
+import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
+import cn.polarismesh.polaris.sync.extension.utils.DefaultValues;
+import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.FileSystems;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.WatchEvent;
-import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.util.FileCopyUtils;
 
 public class WatchManager {
 
@@ -41,90 +38,70 @@ public class WatchManager {
 
     private final List<FileListener> fileListeners;
 
-    private final AtomicBoolean stop = new AtomicBoolean(false);
+    private final ScheduledExecutorService fileWatchService = Executors.newSingleThreadScheduledExecutor(
+            new NamedThreadFactory("file-watch-worker"));
+
 
     public WatchManager(List<FileListener> fileListeners) {
         this.fileListeners = fileListeners;
     }
 
     public void destroy() {
-        stop.set(true);
+        fileWatchService.shutdown();
     }
 
-    private void run(WatchService watchService, String folder, String fileName, String backupFileName) {
-        boolean poll = true;
-        while (poll && !stop.get()) {
-            WatchKey key = null;
+    public void start(String fullFileName, long crcValue, String backupFileName) {
+        FileChangeWorker fileChangeWorker = new FileChangeWorker(fullFileName, crcValue, backupFileName);
+        fileWatchService.scheduleWithFixedDelay(fileChangeWorker,
+                DefaultValues.DEFAULT_FILE_PULL_MS, DefaultValues.DEFAULT_FILE_PULL_MS, TimeUnit.MILLISECONDS);
+    }
+
+    private class FileChangeWorker implements Runnable {
+
+        private final String fullFileName;
+
+        private final String backupFileName;
+
+        private long crcValue;
+
+        public FileChangeWorker(String fullFileName, long crcValue, String backupFileName) {
+            this.fullFileName = fullFileName;
+            this.backupFileName = backupFileName;
+            this.crcValue = crcValue;
+        }
+
+        @Override
+        public void run() {
+            File watchFile = new File(fullFileName);
+            byte[] strBytes;
             try {
-                key = watchService.take();
-            } catch (InterruptedException e) {
-                LOG.error("[Core] interrupted signal received in watch manager, ignore");
-                continue;
+                strBytes = FileUtils.readFileToByteArray(watchFile);
+            } catch (IOException e) {
+                LOG.error("[Core] fail to read watchFile {}", fullFileName, e);
+                return;
             }
-            for (WatchEvent<?> event : key.pollEvents()) {
-                Path path = (Path) event.context();
-                if (!fileName.equals(path.getFileName().toFile().getName())) {
-                    continue;
-                }
-                if (ENTRY_DELETE.equals(event.kind())) {
-                    LOG.warn("[Core] config file has been deleted");
-                    continue;
-                }
-                LOG.info("[Core] config file {} changed, event kind {}", fileName, event.kind());
-                String fullPath = folder + File.separator + path.toFile().getName();
-                File configFile = new File(fullPath);
-                boolean fileValid = true;
-                for (FileListener fileListener : fileListeners) {
-                    if (!fileListener.onFileChanged(configFile)) {
-                        fileValid = false;
-                    }
-                }
-                if (fileValid) {
-                    try {
-                        FileCopyUtils.copy(configFile, new File(backupFileName));
-                    } catch (IOException e) {
-                        LOG.error("[Core]fail to copy file from {} to {}",
-                                configFile.getAbsolutePath(), backupFileName, e);
-                    }
+            long newCrcValue = ConfigUtils.calcCrc32(strBytes);
+            if (newCrcValue == 0 || newCrcValue == crcValue) {
+                return;
+            }
+            crcValue = newCrcValue;
+            String content = new String(strBytes, StandardCharsets.UTF_8);
+            LOG.info("[Core] config watchFile changed, new content {}", content);
+            boolean fileValid = true;
+            for (FileListener fileListener : fileListeners) {
+                if (!fileListener.onFileChanged(strBytes)) {
+                    fileValid = false;
                 }
             }
-            poll = key.reset();
-        }
-        try {
-            watchService.close();
-        } catch (IOException e) {
-            LOG.error("[Core] fail to close watch service", e);
-        }
-
-    }
-
-    public void start(String fullFileName, String backupFileName) throws IOException {
-        File file = new File(fullFileName);
-        String folder = file.getParent();
-        WatchService watchService = null;
-        try {
-            watchService = FileSystems.getDefault().newWatchService();
-            Path path = Paths.get(folder);
-            path.register(watchService, ENTRY_CREATE, ENTRY_MODIFY, ENTRY_DELETE);
-        } catch (IOException e) {
-            LOG.error("[Core] watch file {} encounter exception", file.getAbsolutePath(), e);
-            if (null != watchService) {
+            if (fileValid) {
+                File backupFile = new File(backupFileName);
                 try {
-                    watchService.close();
-                } catch (IOException e1) {
-                    LOG.error("[Core] fail to close watch service", e1);
+                    FileUtils.copyFile(watchFile, backupFile);
+                } catch (IOException e) {
+                    LOG.error("[Core]fail to copy watchFile from {} to {}", fullFileName, backupFileName, e);
                 }
             }
-            throw e;
         }
-        final WatchService wService = watchService;
-        String fileName = file.getName();
-        Thread thread = new Thread(() -> {
-            run(wService, folder, fileName, backupFileName);
-        });
-        thread.setName("sync-config-file-watcher");
-        thread.setDaemon(true);
-        thread.start();
     }
 
 }

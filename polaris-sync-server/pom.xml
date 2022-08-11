@@ -22,7 +22,7 @@
         </dependency>
         <dependency>
             <groupId>com.tencent.polaris</groupId>
-            <artifactId>polaris-sync-core</artifactId>
+            <artifactId>polaris-sync-registry-core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

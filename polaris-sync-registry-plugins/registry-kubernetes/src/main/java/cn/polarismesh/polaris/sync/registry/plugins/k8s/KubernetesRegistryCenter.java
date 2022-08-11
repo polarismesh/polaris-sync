@@ -72,9 +72,8 @@ public class KubernetesRegistryCenter extends AbstractRegistryCenter {
         registryEndpoint = request.getRegistryEndpoint();
     }
 
-    private ApiClient createApiClient() {
-        String address = pickAddress(registryEndpoint.getAddressesList());
-        return Config.fromToken(address, registryEndpoint.getToken(), false);
+    private ApiClient createApiClient(String address) {
+        return Config.fromToken(String.format("https://%s", address), registryEndpoint.getToken(), false);
     }
 
     @Override
@@ -84,7 +83,9 @@ public class KubernetesRegistryCenter extends AbstractRegistryCenter {
 
     @Override
     public DiscoverResponse listInstances(Service service, Group group) {
-        ApiClient apiClient = createApiClient();
+        String apiServerAddress = pickAddress(registryEndpoint.getAddressesList());
+        LOG.info("[Kubernetes] start to list endpoints for service {} from k8s {}", service, apiServerAddress);
+        ApiClient apiClient = createApiClient(apiServerAddress);
         CoreV1Api coreV1Api = new CoreV1Api(apiClient);
         V1EndpointsList v1EndpointsList;
         try {
@@ -93,12 +94,13 @@ public class KubernetesRegistryCenter extends AbstractRegistryCenter {
                     null, null, null, null);
         } catch (ApiException e) {
             serverErrorCount.addAndGet(1);
-            LOG.error("[Kubernetes] fail to getAllInstances for service {}, registry {}",
-                    service, registryEndpoint.getName(), e);
+            LOG.error("[Kubernetes] fail to getAllInstances for service {}, address {}, registry {}",
+                    service, apiServerAddress, registryEndpoint.getName(), e);
             return ResponseUtils.toRegistryCenterException(service);
         } finally {
             totalCount.addAndGet(1);
         }
+        LOG.info("[Kubernetes] endpoints for service {} from k8s is {}", service, v1EndpointsList);
         List<V1Endpoints> endpointsList = v1EndpointsList.getItems();
         V1Endpoints svcEndpoints = null;
         for (V1Endpoints v1Endpoints : endpointsList) {
@@ -149,12 +151,13 @@ public class KubernetesRegistryCenter extends AbstractRegistryCenter {
                         continue;
                     }
                     ServiceProto.Instance.Builder instanceBuilder = ServiceProto.Instance.newBuilder();
-                    instanceBuilder.setId(ResponseUtils.toStringValue(ip)).setPort(ResponseUtils.toUInt32Value(port));
+                    instanceBuilder.setHost(ResponseUtils.toStringValue(ip)).setPort(ResponseUtils.toUInt32Value(port));
                     if (null != protocol) {
                         instanceBuilder.setProtocol(ResponseUtils.toStringValue(protocol));
                     }
                     instanceBuilder.setHealthy(ResponseUtils.toBooleanValue(true));
                     instanceBuilder.setIsolate(ResponseUtils.toBooleanValue(false));
+                    instanceBuilder.setWeight(ResponseUtils.toUInt32Value(100));
                     instances.add(instanceBuilder.build());
                 }
             }
@@ -165,7 +168,12 @@ public class KubernetesRegistryCenter extends AbstractRegistryCenter {
 
     private Map<String, String> queryMetadata(V1ObjectReference targetRef, CoreV1Api coreV1Api) throws ApiException {
         Map<String, String> metadata = new HashMap<>();
-        if (null == targetRef || !StringUtils.hasText(targetRef.getKind()) ||
+        if (null == targetRef) {
+            return metadata;
+        }
+        LOG.info("[Kubernetes] query metadata for targetRef name {}, kind {}, namespace {}",
+                targetRef.getName(), targetRef.getKind(), targetRef.getNamespace());
+        if (!StringUtils.hasText(targetRef.getKind()) ||
                 !"pod".equals(targetRef.getKind().toLowerCase())) {
             return metadata;
         }
@@ -183,6 +191,7 @@ public class KubernetesRegistryCenter extends AbstractRegistryCenter {
             totalCount.addAndGet(1);
         }
         V1ObjectMeta podMetadata = v1Pod.getMetadata();
+        LOG.info("[Kubernetes] pod metadata for name {} and namespace {} is {}", podName, podNamespace, podMetadata);
         if (null == podMetadata) {
             return metadata;
         }

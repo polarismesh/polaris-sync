@@ -15,15 +15,15 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.extension.utils;
+package cn.polarismesh.polaris.sync.reporter.plugins.balad;
 
-public interface DefaultValues {
+public interface ReportOptions {
 
-    long DEFAULT_INTERVAL_MS = 5 * 1000;
+    String KEY_NAMESPACE = "namespace";
 
-    long DEFAULT_FILE_PULL_MS = 30 * 1000;
+    String KEY_URI = "uri";
 
-    long DEFAULT_PULL_INTERVAL_MS = 5 * 60 * 1000;
+    String KEY_USER = "user";
 
-    String GROUP_NAME_DEFAULT = "default";
+    String KEY_PASSWORD = "password";
 }

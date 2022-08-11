@@ -9,7 +9,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>polaris-sync-core</artifactId>
+    <artifactId>polaris-sync-registry-core</artifactId>
     <name>Polaris Sync Core</name>
     <description>Polaris Sync Core JAR</description>
 
@@ -46,6 +46,11 @@
             <groupId>com.tencent.polaris</groupId>
             <artifactId>polaris-sync-extension</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.7</version>
         </dependency>
     </dependencies>
 </project>

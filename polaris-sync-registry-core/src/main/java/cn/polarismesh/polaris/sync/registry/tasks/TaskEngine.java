@@ -32,8 +32,8 @@ import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.Re
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Task;
 import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.registry.utils.DurationUtils;
-import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,10 +81,10 @@ public class TaskEngine implements FileListener {
         registryConfig = RegistryProto.Registry.newBuilder().build();
     }
 
-    public void init(String fullConfigFile) throws IOException {
-        RegistryProto.Registry config = ConfigUtils.parseFromFile(fullConfigFile);
+    public void init(byte[] strBytes) throws IOException {
+        RegistryProto.Registry config = ConfigUtils.parseFromContent(strBytes);
         if (!ConfigUtils.verifyTasks(config, registryTypeMap.keySet())) {
-            throw new IllegalArgumentException("invalid configuration for path " + fullConfigFile);
+            throw new IllegalArgumentException("invalid configuration content {} " + new String(strBytes, StandardCharsets.UTF_8));
         }
         reload(config);
     }
@@ -140,7 +140,6 @@ public class TaskEngine implements FileListener {
     }
 
     private void addWatchTask(Task syncTask) {
-        RegistryEndpoint source = syncTask.getSource();
         RegistrySet registrySet = getOrCreateRegistrySet(syncTask);
         if (null == registrySet) {
             LOG.error("[Core] adding watch task {}, fail to init registry", syncTask.getName());
@@ -220,6 +219,9 @@ public class TaskEngine implements FileListener {
         }
         List<Method> methods = registryConfig.getMethodsList();
         for (Task task : tasks) {
+            if (!task.getEnable()) {
+                continue;
+            }
             int[] counts = addTask(task, methods);
             watchTasks += counts[0];
             pullTasks += counts[1];
@@ -318,14 +320,6 @@ public class TaskEngine implements FileListener {
         return registrySet.getSrcRegistry();
     }
 
-    private NamedRegistryCenter getDstRegistry(String taskName) {
-        RegistrySet registrySet = taskRegistryMap.get(taskName);
-        if (null == registrySet) {
-            return null;
-        }
-        return registrySet.getDstRegistry();
-    }
-
     private RegistrySet getOrCreateRegistrySet(Task task) {
         RegistrySet registrySet = taskRegistryMap.get(task.getName());
         if (null != registrySet) {
@@ -363,18 +357,18 @@ public class TaskEngine implements FileListener {
     }
 
     @Override
-    public boolean onFileChanged(File file) {
+    public boolean onFileChanged(byte[] strBytes) {
         RegistryProto.Registry config;
-        String fullPath = file.getAbsolutePath();
+        String content = new String(strBytes, StandardCharsets.UTF_8);
         try {
-            config = ConfigUtils.parseFromFile(fullPath);
+            config = ConfigUtils.parseFromContent(strBytes);
         } catch (IOException e) {
-            LOG.error("[Core] fail to parse file {} to config proto", fullPath, e);
+            LOG.error("[Core] fail to parse to config proto, content {}", content, e);
             return false;
         }
 
         if (!ConfigUtils.verifyTasks(config, registryTypeMap.keySet())) {
-            LOG.error("invalid configuration for path {}", fullPath);
+            LOG.error("invalid configuration, content {}", content);
             return false;
         }
         reload(config);

@@ -88,7 +88,7 @@ public class WatchTask implements Runnable {
         if (!watchedServices.containsKey(serviceWithSource)) {
             return;
         }
-        Future<?> submit = watchExecutor.schedule(this, 1, TimeUnit.SECONDS);
+        Future<?> submit = watchExecutor.schedule(this, 10, TimeUnit.SECONDS);
         watchedServices.put(serviceWithSource, submit);
         LOG.info("[Core] service {} has been scheduled watched", serviceWithSource);
     }
