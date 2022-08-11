@@ -15,15 +15,27 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.extension.utils;
+package cn.polarismesh.polaris.sync.reporter.plugins.balad;
 
-public interface DefaultValues {
+import cn.polarismesh.polaris.sync.extension.report.ReportHandler;
+import cn.polarismesh.polaris.sync.extension.report.StatInfo;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget.TargetType;
 
-    long DEFAULT_INTERVAL_MS = 5 * 1000;
+public class BaladReportHandler  implements ReportHandler {
 
-    long DEFAULT_FILE_PULL_MS = 30 * 1000;
+    @Override
+    public TargetType getType() {
+        return TargetType.balad;
+    }
 
-    long DEFAULT_PULL_INTERVAL_MS = 5 * 60 * 1000;
+    @Override
+    public void init(ReportTarget reportTarget) {
 
-    String GROUP_NAME_DEFAULT = "default";
+    }
+
+    @Override
+    public void reportStat(StatInfo statInfo) {
+
+    }
 }

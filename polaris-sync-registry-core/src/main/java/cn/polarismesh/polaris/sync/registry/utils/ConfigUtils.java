@@ -29,14 +29,15 @@ import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.Re
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Task;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Parser;
-import java.io.File;
-import java.io.FileInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.zip.CRC32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
@@ -46,9 +47,8 @@ public class ConfigUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(ConfigUtils.class);
 
-    public static RegistryProto.Registry parseFromFile(String fileName) throws IOException {
-        File file = new File(fileName);
-        try (InputStreamReader reader = new InputStreamReader(new FileInputStream(file))) {
+    public static RegistryProto.Registry parseFromContent(byte[] strBytes) throws IOException {
+        try (InputStreamReader reader = new InputStreamReader(new ByteArrayInputStream(strBytes), StandardCharsets.UTF_8)) {
             Builder builder = Registry.newBuilder();
             Parser parser = JsonFormat.parser();
             parser.merge(reader, builder);
@@ -207,5 +207,10 @@ public class ConfigUtils {
         return !(oldMethods.size() == newMethods.size());
     }
 
+    public static long calcCrc32(byte[] strBytes) {
+        CRC32 crc32 = new CRC32();
+        crc32.update(strBytes);
+        return crc32.getValue();
+    }
 
 }

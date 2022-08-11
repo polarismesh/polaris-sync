@@ -36,7 +36,7 @@ public class PullTask implements Runnable {
 
     private static final Logger LOG = LoggerFactory.getLogger(PullTask.class);
 
-    private static final Map<Service, Collection<Group>> serviceToGroups = new HashMap<>();
+    private final Map<Service, Collection<Group>> serviceToGroups = new HashMap<>();
 
     private final NamedRegistryCenter source;
 

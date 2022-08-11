@@ -31,8 +31,8 @@ import cn.polarismesh.polaris.sync.registry.tasks.TaskEngine;
 import cn.polarismesh.polaris.sync.registry.tasks.TaskEngine.RegistrySet;
 import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.registry.utils.DurationUtils;
-import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -72,10 +72,10 @@ public class HealthCheckScheduler implements FileListener {
         healthCheckExecutor.shutdown();
     }
 
-    public void init(String fullConfigFile) throws IOException {
-        RegistryProto.Registry config = ConfigUtils.parseFromFile(fullConfigFile);
+    public void init(byte[] strBytes) throws IOException {
+        RegistryProto.Registry config = ConfigUtils.parseFromContent(strBytes);
         if (!ConfigUtils.verifyHealthCheck(config)) {
-            throw new IllegalArgumentException("invalid health check configuration for path " + fullConfigFile);
+            throw new IllegalArgumentException("invalid health check configuration for content " + new String(strBytes));
         }
         reload(config);
     }
@@ -98,7 +98,9 @@ public class HealthCheckScheduler implements FileListener {
             Set<String> newTasks = new HashSet<>();
             List<Task> tasksList = registryConfig.getTasksList();
             for (Task task : tasksList) {
-                newTasks.add(task.getName());
+                if (task.getEnable()) {
+                    newTasks.add(task.getName());
+                }
             }
             //compare the new add tasks
             for (String newTask : newTasks) {
@@ -146,13 +148,12 @@ public class HealthCheckScheduler implements FileListener {
     }
 
     @Override
-    public boolean onFileChanged(File file) {
+    public boolean onFileChanged(byte[] strBytes) {
         RegistryProto.Registry config;
-        String fullPath = file.getAbsolutePath();
         try {
-            config = ConfigUtils.parseFromFile(fullPath);
+            config = ConfigUtils.parseFromContent(strBytes);
         } catch (IOException e) {
-            LOG.error("[Health] fail to parse file {} to config proto", fullPath, e);
+            LOG.error("[Health] fail to parse to config proto, content {}", new String(strBytes, StandardCharsets.UTF_8), e);
             return false;
         }
         reload(config);

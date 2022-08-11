@@ -13,6 +13,7 @@
     <name>Polaris Sync Reporter Plugins</name>
     <modules>
         <module>reporter-file</module>
+        <module>reporter-balad</module>
     </modules>
 
     <packaging>pom</packaging>

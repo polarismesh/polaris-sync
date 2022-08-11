@@ -22,5 +22,5 @@ import java.util.EventListener;
 
 public interface FileListener extends EventListener {
 
-    boolean onFileChanged(File file);
+    boolean onFileChanged(byte[] strBytes);
 }

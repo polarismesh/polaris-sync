@@ -350,7 +350,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
             LOG.info("[Kong] targets pending to update are {}, upstream {}", targetsToUpdate, upstreamName);
             for (TargetObject targetObject : targetsToUpdate) {
                 String targetUrl = KongEndpointUtils.toTargetUrl(addressesList, upstreamName, targetObject.getTarget());
-                processTargetRequest(targetUrl, HttpMethod.PATCH, targetObject, "update");
+                processTargetRequest(targetUrl, HttpMethod.PUT, targetObject, "update");
                 targetPatchCount++;
             }
         }

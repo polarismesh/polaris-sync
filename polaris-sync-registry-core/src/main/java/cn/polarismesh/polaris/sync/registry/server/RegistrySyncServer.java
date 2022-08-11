@@ -25,13 +25,14 @@ import cn.polarismesh.polaris.sync.registry.config.WatchManager;
 import cn.polarismesh.polaris.sync.registry.healthcheck.HealthCheckScheduler;
 import cn.polarismesh.polaris.sync.registry.healthcheck.StatReportAggregator;
 import cn.polarismesh.polaris.sync.registry.tasks.TaskEngine;
+import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.util.FileCopyUtils;
 
 public class RegistrySyncServer {
 
@@ -58,7 +59,6 @@ public class RegistrySyncServer {
         this.reportHandlers = reportHandlers;
     }
 
-
     public void init() {
         taskEngine = new TaskEngine(registryCenters);
         statReportAggregator = new StatReportAggregator(reportHandlers);
@@ -68,50 +68,51 @@ public class RegistrySyncServer {
         listeners.add(healthCheckReporter);
         watchManager = new WatchManager(listeners);
 
-        String configPath = syncRegistryProperties.getConfigPath();
         String watchPath = syncRegistryProperties.getWatchPath();
-        File configFile = new File(configPath);
         File watchFile = new File(watchPath);
         boolean initByWatched = false;
+        long crcValue = 0;
+        LOG.info("[Core] try to init by watch file {}", watchPath);
         if (watchFile.exists()) {
-            LOG.info("[Core] try to init by watch file {}", watchPath);
             initByWatched = true;
             try {
-                taskEngine.init(watchPath);
+                byte[] strBytes = FileUtils.readFileToByteArray(watchFile);
+                crcValue = ConfigUtils.calcCrc32(strBytes);
+                taskEngine.init(strBytes);
                 LOG.info("[Core] engine init by watch file {}", watchPath);
-                healthCheckReporter.init(watchPath);
+                healthCheckReporter.init(strBytes);
                 LOG.info("[Core] health checker init by watch file {}", watchPath);
             } catch (IOException e) {
                 LOG.error("[Core] fail to init engine by watch file {}", watchPath, e);
                 initByWatched = false;
             }
+        } else {
+            LOG.info("[Core] watch file {} not exists", watchPath);
         }
-        if (!initByWatched) {
+        String configPath = syncRegistryProperties.getConfigPath();
+        File configFile = new File(configPath);
+        if (initByWatched) {
+            try {
+                FileUtils.copyFile(watchFile, configFile);
+            } catch (IOException e) {
+                LOG.error("[Core]fail to copy watchFile from {} to {}", watchPath, configPath, e);
+            }
+        } else {
             LOG.info("[Core] try to init by config file {}", configPath);
             if (!configFile.exists()) {
                 throw new RuntimeException("config file not found in " + configPath);
             }
             try {
-                taskEngine.init(configPath);
+                byte[] strBytes = FileUtils.readFileToByteArray(watchFile);
+                taskEngine.init(strBytes);
                 LOG.info("[Core] engine init by config file {}", configPath);
-                healthCheckReporter.init(configPath);
+                healthCheckReporter.init(strBytes);
                 LOG.info("[Core] health checker init by config file {}", configPath);
             } catch (IOException e) {
                 LOG.error("[Core] fail to init engine by config file {}", configPath, e);
             }
-        } else {
-            try {
-                FileCopyUtils.copy(watchFile, configFile);
-            } catch (IOException e) {
-                LOG.error("[Core]fail to copy file from {} to {}", watchPath, configPath, e);
-            }
         }
-        try {
-            watchManager.start(watchPath, configPath);
-        } catch (IOException e) {
-            throw new RuntimeException("fail to init watch manager", e);
-        }
-
+        watchManager.start(watchPath, crcValue, configPath);
     }
 
     public void destroy() {
