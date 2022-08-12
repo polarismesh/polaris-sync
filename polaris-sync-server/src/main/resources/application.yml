@@ -3,3 +3,8 @@ polaris:
     registry:
       watchPath: ${POLARIS_SYNC_REGISTRY_WATCHPATH}
       configPath: ${POLARIS_SYNC_REGISTRY_CONFIGPATH}
+logging:
+  config: classpath:logback-sync.xml
+  level:
+    root: INFO
+  path: ${POLARIS_SYNC_LOGGER_PATH:loggers}

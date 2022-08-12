@@ -3,6 +3,8 @@
 <configuration debug="false" scan="true" scanPeriod="30 seconds" packagingData="true">
     <contextName>polaris-sync</contextName>
 
+    <springProperty scope="context" name="log.path" source="logging.path"/>
+
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %p [%-5t:%c{2}] %m%n</pattern>
@@ -11,10 +13,10 @@
 
     <appender name="POLARIS_SYNC_STAT_LOG_FILE"
             class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>loggers/polaris-sync-stat.log</file>
+        <file>${log.path}/polaris-sync-stat.log</file>
 
         <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
-            <fileNamePattern>loggers/polaris-sync-stat.log.%i</fileNamePattern>
+            <fileNamePattern>${log.path}/polaris-sync-stat.log.%i</fileNamePattern>
             <maxIndex>7</maxIndex>
         </rollingPolicy>
 
@@ -29,10 +31,10 @@
 
 
     <appender name="POLARIS_SYNC_LOG_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>loggers/polaris-sync.log</file>
+        <file>${log.path}/polaris-sync.log</file>
 
         <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
-            <fileNamePattern>loggers/polaris-sync.log.%i</fileNamePattern>
+            <fileNamePattern>${log.path}/polaris-sync.log.%i</fileNamePattern>
             <maxIndex>7</maxIndex>
         </rollingPolicy>
 
@@ -45,18 +47,18 @@
         </encoder>
     </appender>
 
-    <!--    <logger name="com.tencent.polaris.sync" level="info"-->
-    <!--            additivity="false">-->
-    <!--        <appender-ref ref="POLARIS_SYNC_STAT_LOG_FILE"/>-->
-    <!--        <appender-ref ref="STDOUT"/>-->
-    <!--    </logger>-->
+    <logger name="cn.polarismesh.polaris.sync" level="${log.level:-info}"
+            additivity="false">
+        <appender-ref ref="POLARIS_SYNC_LOG_FILE"/>
+        <appender-ref ref="STDOUT"/>
+    </logger>
 
-    <logger name="sync-health-logger" level="info"
+    <logger name="sync-stat-logger" level="${log.level:-info}"
             additivity="false">
         <appender-ref ref="POLARIS_SYNC_STAT_LOG_FILE"/>
     </logger>
 
-    <root level="debug">
+    <root level="${log.root.level:-info}">
         <appender-ref ref="STDOUT"/>
     </root>
 </configuration>

@@ -23,6 +23,16 @@ public class ServiceObjectList {
 
     private List<ServiceObject> data;
 
+    private String next;
+
+    public String getNext() {
+        return next;
+    }
+
+    public void setNext(String next) {
+        this.next = next;
+    }
+
     public List<ServiceObject> getData() {
         return data;
     }
@@ -35,6 +45,7 @@ public class ServiceObjectList {
     public String toString() {
         return "ServiceObjectList{" +
                 "data=" + data +
+                ", next='" + next + '\'' +
                 '}';
     }
 }
