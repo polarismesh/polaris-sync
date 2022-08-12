@@ -70,7 +70,7 @@ public class RegistrySyncServer {
         listeners.add(statReportAggregator);
         watchManager = new WatchManager(listeners);
 
-        String watchPath = syncRegistryProperties.getWatchPath();
+        String watchPath = syncRegistryProperties.getConfigWatchPath();
         File watchFile = new File(watchPath);
         boolean initByWatched = false;
         long crcValue = 0;
@@ -94,7 +94,7 @@ public class RegistrySyncServer {
         } else {
             LOG.info("[Core] watch file {} not exists", watchPath);
         }
-        String configPath = syncRegistryProperties.getConfigPath();
+        String configPath = syncRegistryProperties.getConfigBackupPath();
         File configFile = new File(configPath);
         if (initByWatched) {
             try {

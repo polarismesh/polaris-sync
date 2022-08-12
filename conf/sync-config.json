@@ -1,0 +1,67 @@
+{
+  "tasks": [
+    {
+      "name": "ins-3ad0f6e7",
+      "enable": true,
+      "source": {
+        "name": "ins-3ad0f6e7",
+        "type": "nacos",
+        "product_name": "nacos(ins-3ad0f6e7)",
+        "addresses": [
+          "183.47.111.41:8848"
+        ]
+      },
+      "destination": {
+        "name": "kong",
+        "type": "kong",
+        "product_name": "tse-kong",
+        "addresses": [
+          "9.134.5.52:8001"
+        ]
+      },
+      "match": [
+        {
+          "namespace": "public",
+          "service": "DEFAULT_GROUP__nacos.test.3",
+          "groups": [
+            {
+              "name": "version-1",
+              "metadata": {
+                "version": "1.0.0"
+              }
+            },
+            {
+              "name": "version-2",
+              "metadata": {
+                "version": "2.0.0"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "methods": [
+    {
+      "type": "watch",
+      "enable": true
+    },
+    {
+      "type": "pull",
+      "enable": true,
+      "interval": "60s"
+    }
+  ],
+  "health_check": {
+    "enable": true
+  },
+  "report": {
+    "interval" : "1m",
+    "targets": [
+      {
+        "type": "file",
+        "enable": true
+      }
+    ]
+  }
+}

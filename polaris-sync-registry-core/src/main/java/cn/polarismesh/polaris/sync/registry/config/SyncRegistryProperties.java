@@ -26,32 +26,32 @@ import org.springframework.validation.annotation.Validated;
 public class SyncRegistryProperties {
 
     @NotEmpty
-    private String configPath;
+    private String configBackupPath;
 
     @NotEmpty
-    private String watchPath;
+    private String configWatchPath;
 
-    public String getConfigPath() {
-        return configPath;
+    public String getConfigBackupPath() {
+        return configBackupPath;
     }
 
-    public void setConfigPath(String configPath) {
-        this.configPath = configPath;
+    public void setConfigBackupPath(String configBackupPath) {
+        this.configBackupPath = configBackupPath;
     }
 
-    public String getWatchPath() {
-        return watchPath;
+    public String getConfigWatchPath() {
+        return configWatchPath;
     }
 
-    public void setWatchPath(String watchPath) {
-        this.watchPath = watchPath;
+    public void setConfigWatchPath(String configWatchPath) {
+        this.configWatchPath = configWatchPath;
     }
 
     @Override
     public String toString() {
         return "SyncRegistryProperties{" +
-                "configPath='" + configPath + '\'' +
-                ", watchPath='" + watchPath + '\'' +
+                "configBackupPath='" + configBackupPath + '\'' +
+                ", configWatchPath='" + configWatchPath + '\'' +
                 '}';
     }
 }

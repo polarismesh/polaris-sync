@@ -1,8 +1,8 @@
 polaris:
   sync:
     registry:
-      watchPath: ${POLARIS_SYNC_REGISTRY_WATCHPATH}
-      configPath: ${POLARIS_SYNC_REGISTRY_CONFIGPATH}
+      configWatchPath: ${POLARIS_SYNC_REGISTRY_CONFIG_WATCH_PATH:conf/sync-config.json}
+      configBackupPath: ${POLARIS_SYNC_REGISTRY_CONFIG_BACKUP_PATH:conf/sync-config-backup.json}
 logging:
   config: classpath:logback-sync.xml
   level:
