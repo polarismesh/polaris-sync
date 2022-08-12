@@ -38,7 +38,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
 
 @Component
 public class BaladReportHandler  implements ReportHandler {
@@ -87,7 +86,7 @@ public class BaladReportHandler  implements ReportHandler {
             }
             options.put(entry.getKey(), entry.getValue());
         }
-        restOperator = new RestOperator(new RestTemplate());
+        restOperator = new RestOperator();
         LOG.info("[Report] BaladReportHandler has been initialized, config {}", reportTarget);
     }
 

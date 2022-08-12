@@ -55,7 +55,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
 @Component
 public class PolarisRegistryCenter implements RegistryCenter {
@@ -70,8 +69,6 @@ public class PolarisRegistryCenter implements RegistryCenter {
 
     private final Object lock = new Object();
 
-    private final RestTemplate restTemplate = new RestTemplate();
-
     private RestOperator restOperator;
 
     @Override
@@ -82,7 +79,7 @@ public class PolarisRegistryCenter implements RegistryCenter {
     @Override
     public void init(RegistryInitRequest request) {
         this.registryInitRequest = request;
-        restOperator = new RestOperator(restTemplate);
+        restOperator = new RestOperator();
     }
 
     @Override
