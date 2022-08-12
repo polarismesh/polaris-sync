@@ -23,6 +23,7 @@ import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Match;
+import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import java.util.Collection;
@@ -46,6 +47,9 @@ public class PullTask implements Runnable {
         this.source = source;
         this.destination = destination;
         for (Match match : matches) {
+            if (ConfigUtils.isEmptyMatch(match)) {
+                continue;
+            }
             serviceToGroups.put(
                     new Service(match.getNamespace(), match.getService()), verifyGroups(match.getGroupsList()));
         }

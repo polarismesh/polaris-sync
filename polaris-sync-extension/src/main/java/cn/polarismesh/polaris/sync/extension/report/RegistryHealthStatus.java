@@ -36,6 +36,12 @@ public class RegistryHealthStatus {
         this.errorCount = new AtomicInteger(errorCount);
     }
 
+    public RegistryHealthStatus(Dimension dimension, int totalCount, int errorCount) {
+        this.dimension = dimension;
+        this.totalCount = new AtomicInteger(totalCount);
+        this.errorCount = new AtomicInteger(errorCount);
+    }
+
     public Dimension getDimension() {
         return dimension;
     }

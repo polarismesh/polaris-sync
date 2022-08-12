@@ -62,8 +62,7 @@ public class FileReportHandler implements ReportHandler {
                 reportInfoStr.append(String
                         .format("%-48s|%12s|%12s|%12s|%12s|\n", dimension.getName(),
                                 dimension.getRegistryType().name(), dimension.getProductionName(),
-                                registryHealthStatus.getAndDeleteTotalCount(),
-                                registryHealthStatus.getAndDeleteErrorCount()));
+                                registryHealthStatus.getTotalCount(), registryHealthStatus.getErrorCount()));
             }
         }
         HEALTH_LOG.info(reportInfoStr.toString());

@@ -26,6 +26,9 @@ import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry.Builder;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Report;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget.TargetType;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Task;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Parser;
@@ -56,7 +59,29 @@ public class ConfigUtils {
         }
     }
 
+    public static boolean isEmptyMatch(Match match) {
+        return !StringUtils.hasText(match.getNamespace()) && !StringUtils.hasText(match.getService()) && match.getGroupsCount() == 0;
+    }
+
     public static boolean verifyHealthCheck(RegistryProto.Registry registry) {
+        return true;
+    }
+
+    public static boolean verifyReport(RegistryProto.Registry registry) {
+        Report report = registry.getReport();
+        if (null == report) {
+            return true;
+        }
+        List<ReportTarget> targetsList = report.getTargetsList();
+        for (ReportTarget reportTarget : targetsList) {
+            if (!reportTarget.getEnable()) {
+                continue;
+            }
+            if (reportTarget.getType() == TargetType.unknown) {
+                LOG.error("[Core] target type name is unknown");
+                return false;
+            }
+        }
         return true;
     }
 
@@ -66,6 +91,10 @@ public class ConfigUtils {
         Set<String> taskNames = new HashSet<>();
         boolean hasTask = false;
         for (Task task : tasks) {
+            if (!task.getEnable()) {
+                continue;
+            }
+            hasTask = true;
             String name = task.getName();
             if (!StringUtils.hasText(name)) {
                 LOG.error("[Core] task name is empty");
@@ -95,9 +124,6 @@ public class ConfigUtils {
             List<Match> matchList = task.getMatchList();
             if (!verifyMatch(matchList, name)) {
                 return false;
-            }
-            if (task.getEnable()) {
-                hasTask = true;
             }
         }
         boolean hasMethod = false;
@@ -131,6 +157,9 @@ public class ConfigUtils {
             return true;
         }
         for (Match match : matches) {
+            if (isEmptyMatch(match)) {
+                continue;
+            }
             String namespace = match.getNamespace();
             String service = match.getService();
             List<Group> groups = match.getGroupsList();

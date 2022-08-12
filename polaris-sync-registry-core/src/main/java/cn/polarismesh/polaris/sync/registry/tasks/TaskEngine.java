@@ -81,10 +81,9 @@ public class TaskEngine implements FileListener {
         registryConfig = RegistryProto.Registry.newBuilder().build();
     }
 
-    public void init(byte[] strBytes) throws IOException {
-        RegistryProto.Registry config = ConfigUtils.parseFromContent(strBytes);
+    public void init(RegistryProto.Registry config) {
         if (!ConfigUtils.verifyTasks(config, registryTypeMap.keySet())) {
-            throw new IllegalArgumentException("invalid configuration content {} " + new String(strBytes, StandardCharsets.UTF_8));
+            throw new IllegalArgumentException("invalid configuration content " + config.toString());
         }
         reload(config);
     }
@@ -148,6 +147,9 @@ public class TaskEngine implements FileListener {
         NamedRegistryCenter sourceRegistry = registrySet.getSrcRegistry();
         NamedRegistryCenter destRegistry = registrySet.getDstRegistry();
         for (RegistryProto.Match match : syncTask.getMatchList()) {
+            if (ConfigUtils.isEmptyMatch(match)) {
+                continue;
+            }
             WatchTask watchTask = new WatchTask(watchedServices, sourceRegistry, destRegistry, match,
                     registerExecutor, watchExecutor);
             Future<?> submit = watchExecutor.schedule(watchTask, 1, TimeUnit.SECONDS);
@@ -170,6 +172,9 @@ public class TaskEngine implements FileListener {
         NamedRegistryCenter sourceRegistry = getSrcRegistry(syncTask.getName());
         if (null != sourceRegistry) {
             for (RegistryProto.Match match : syncTask.getMatchList()) {
+                if (ConfigUtils.isEmptyMatch(match)) {
+                    continue;
+                }
                 UnwatchTask unwatchTask = new UnwatchTask(sourceRegistry, match);
                 ServiceWithSource serviceWithSource = new ServiceWithSource(source.getName(), unwatchTask.getService());
                 Future<?> future = watchedServices.remove(serviceWithSource);
