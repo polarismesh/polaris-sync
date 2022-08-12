@@ -45,7 +45,7 @@ public class BaladReportHandler  implements ReportHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(BaladReportHandler.class);
 
-    private String uri;
+    private String url;
 
     private String namespace;
 
@@ -63,10 +63,10 @@ public class BaladReportHandler  implements ReportHandler {
     @Override
     public void init(ReportTarget reportTarget) {
         Map<String, String> optionsMap = reportTarget.getOptionsMap();
-        if (optionsMap.containsKey(ReportOptions.KEY_URI)) {
-            uri = String.format("http://%s", optionsMap.get(ReportOptions.KEY_URI));
+        if (optionsMap.containsKey(ReportOptions.KEY_URL)) {
+            url = String.format("http://%s", optionsMap.get(ReportOptions.KEY_URL));
         }
-        if (!StringUtils.hasText(uri)) {
+        if (!StringUtils.hasText(url)) {
             LOG.error("[Balad] balad report is inactived due to uri empty");
             configValid = false;
             return;
@@ -82,7 +82,7 @@ public class BaladReportHandler  implements ReportHandler {
         configValid = true;
         options = new HashMap<>();
         for (Map.Entry<String, String> entry : optionsMap.entrySet()) {
-            if (entry.getKey().equals(ReportOptions.KEY_URI) || entry.getKey().equals(ReportOptions.KEY_NAMESPACE)) {
+            if (entry.getKey().equals(ReportOptions.KEY_URL) || entry.getKey().equals(ReportOptions.KEY_NAMESPACE)) {
                 continue;
             }
             options.put(entry.getKey(), entry.getValue());
@@ -108,14 +108,14 @@ public class BaladReportHandler  implements ReportHandler {
         }
         String jsonText = RestUtils.marshalJsonText(batches.toArray(new Batch[0]));
         RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(
-                uri, HttpMethod.POST, RestUtils.getRequestEntity("", jsonText), String.class);
+                url, HttpMethod.POST, RestUtils.getRequestEntity("", jsonText), String.class);
         if (restResponse.hasNormalResponse()) {
-            LOG.info("[Balad] success to report metric to balad {}", uri);
+            LOG.info("[Balad] success to report metric to balad {}", url);
         } else {
             if (restResponse.hasServerError()) {
-                LOG.error("[Balad] server error to report metric to {}", uri, restResponse.getException());
+                LOG.error("[Balad] server error to report metric to {}", url, restResponse.getException());
             } else {
-                LOG.error("[Balad] client error to report metric to {}, code {}, info {}", uri,
+                LOG.error("[Balad] client error to report metric to {}, code {}, info {}", url,
                         restResponse.getRawStatusCode(), restResponse.getStatusText());
             }
         }
