@@ -24,6 +24,7 @@ import cn.polarismesh.polaris.sync.registry.config.SyncRegistryProperties;
 import cn.polarismesh.polaris.sync.registry.config.WatchManager;
 import cn.polarismesh.polaris.sync.registry.healthcheck.HealthCheckScheduler;
 import cn.polarismesh.polaris.sync.registry.healthcheck.StatReportAggregator;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import cn.polarismesh.polaris.sync.registry.tasks.TaskEngine;
 import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
 import java.io.File;
@@ -78,11 +79,14 @@ public class RegistrySyncServer {
             try {
                 byte[] strBytes = FileUtils.readFileToByteArray(watchFile);
                 crcValue = ConfigUtils.calcCrc32(strBytes);
-                taskEngine.init(strBytes);
+                RegistryProto.Registry config = ConfigUtils.parseFromContent(strBytes);
+                taskEngine.init(config);
                 LOG.info("[Core] engine init by watch file {}", watchPath);
-                healthCheckReporter.init(strBytes);
+                healthCheckReporter.init(config);
                 LOG.info("[Core] health checker init by watch file {}", watchPath);
-            } catch (IOException e) {
+                statReportAggregator.init(config);
+                LOG.info("[Core] stat reporter init by watch file {}", watchPath);
+            } catch (Exception e) {
                 LOG.error("[Core] fail to init engine by watch file {}", watchPath, e);
                 initByWatched = false;
             }
@@ -104,11 +108,14 @@ public class RegistrySyncServer {
             }
             try {
                 byte[] strBytes = FileUtils.readFileToByteArray(watchFile);
-                taskEngine.init(strBytes);
+                RegistryProto.Registry config = ConfigUtils.parseFromContent(strBytes);
+                taskEngine.init(config);
                 LOG.info("[Core] engine init by config file {}", configPath);
-                healthCheckReporter.init(strBytes);
+                healthCheckReporter.init(config);
                 LOG.info("[Core] health checker init by config file {}", configPath);
-            } catch (IOException e) {
+                statReportAggregator.init(config);
+                LOG.info("[Core] stat reporter init by watch file {}", watchPath);
+            } catch (Exception e) {
                 LOG.error("[Core] fail to init engine by config file {}", configPath, e);
             }
         }

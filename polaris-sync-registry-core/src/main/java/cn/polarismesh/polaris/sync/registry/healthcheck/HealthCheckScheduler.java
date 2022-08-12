@@ -72,10 +72,9 @@ public class HealthCheckScheduler implements FileListener {
         healthCheckExecutor.shutdown();
     }
 
-    public void init(byte[] strBytes) throws IOException {
-        RegistryProto.Registry config = ConfigUtils.parseFromContent(strBytes);
+    public void init(RegistryProto.Registry config) {
         if (!ConfigUtils.verifyHealthCheck(config)) {
-            throw new IllegalArgumentException("invalid health check configuration for content " + new String(strBytes));
+            throw new IllegalArgumentException("invalid health check configuration for content " + config.toString());
         }
         reload(config);
     }

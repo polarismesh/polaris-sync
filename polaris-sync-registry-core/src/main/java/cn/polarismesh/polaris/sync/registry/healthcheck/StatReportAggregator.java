@@ -22,59 +22,168 @@ import cn.polarismesh.polaris.sync.extension.report.RegistryHealthStatus;
 import cn.polarismesh.polaris.sync.extension.report.RegistryHealthStatus.Dimension;
 import cn.polarismesh.polaris.sync.extension.report.ReportHandler;
 import cn.polarismesh.polaris.sync.extension.report.StatInfo;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Report;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget.TargetType;
+import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
 
 public class StatReportAggregator {
 
-    private final List<ReportHandler> reportHandlers;
+    private static final Logger LOG = LoggerFactory.getLogger(StatReportAggregator.class);
 
-    private final ScheduledExecutorService reportExecutor = Executors
-            .newSingleThreadScheduledExecutor(new NamedThreadFactory("report-worker"));
+    private ScheduledExecutorService reportExecutor;
+
+    private final Object reloadLock = new Object();
+
+    private final Map<TargetType, Class<? extends ReportHandler>> reportHandlerTypeMap = new HashMap<>();
+
+    private final Map<TargetType, ReportHandler> reportHandlerMap = new HashMap<>();
 
     private final Map<Dimension, RegistryHealthStatus> healthStatusCounts = new ConcurrentHashMap<>();
 
+    private final Object clearLock = new Object();
+
+    private final Set<Dimension> dimensionsToClear = new HashSet<>();
+
+    private Collection<ReportTarget> lastReportTargets = new HashSet<>();
+
     public StatReportAggregator(List<ReportHandler> reportHandlers) {
-        this.reportHandlers = reportHandlers;
+        for (ReportHandler reportHandler : reportHandlers) {
+            reportHandlerTypeMap.put(reportHandler.getType(), reportHandler.getClass());
+        }
+    }
+
+    public void init(Registry registryConfig) {
+        if (!ConfigUtils.verifyReport(registryConfig)) {
+            throw new IllegalArgumentException("invalid report configuration for content " + registryConfig.toString());
+        }
+        reload(registryConfig);
+        reportExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("report-worker"));
         reportExecutor.scheduleWithFixedDelay(new Runnable() {
             @Override
             public void run() {
-                if (CollectionUtils.isEmpty(StatReportAggregator.this.reportHandlers)) {
-                    return;
+                List<ReportHandler> reportHandlers;
+                synchronized (reloadLock) {
+                    if (CollectionUtils.isEmpty(StatReportAggregator.this.reportHandlerMap)) {
+                        return;
+                    }
+                    reportHandlers = new ArrayList<>(reportHandlerMap.values());
+                }
+                clearUselessDimensions();
+                List<RegistryHealthStatus> registryHealthStatuses = new ArrayList<>();
+                for (RegistryHealthStatus registryHealthStatus : healthStatusCounts.values()) {
+                    RegistryHealthStatus newRegistryHealthStatus = new RegistryHealthStatus(
+                            registryHealthStatus.getDimension(),
+                            registryHealthStatus.getAndDeleteTotalCount(),
+                            registryHealthStatus.getAndDeleteErrorCount());
+                    registryHealthStatuses.add(newRegistryHealthStatus);
+
                 }
                 StatInfo statInfo = new StatInfo();
-                List<RegistryHealthStatus> registryHealthStatuses = new ArrayList<>(healthStatusCounts.values());
                 statInfo.setRegistryHealthStatusList(registryHealthStatuses);
-                for (ReportHandler reportHandler : StatReportAggregator.this.reportHandlers) {
+                for (ReportHandler reportHandler : reportHandlers) {
                     reportHandler.reportStat(statInfo);
                 }
+
             }
         }, 60 * 1000, 60 * 1000, TimeUnit.MILLISECONDS);
     }
 
-    public void deleteDimensions(Collection<Dimension> dimensions) {
-        for (Dimension dimension : dimensions) {
-            healthStatusCounts.remove(dimension);
+    public void reload(Registry registryConfig) {
+        Report report = registryConfig.getReport();
+        Collection<ReportTarget> reportTargets = new HashSet<>();
+        if (null != report && !CollectionUtils.isEmpty(report.getTargetsList())) {
+            reportTargets.addAll(report.getTargetsList());
+        }
+        synchronized (reloadLock) {
+            if (reportTargets.equals(lastReportTargets)) {
+                return;
+            }
+            lastReportTargets = reportTargets;
+            for (ReportTarget reportTarget : reportTargets) {
+                if (!reportTarget.getEnable()) {
+                    continue;
+                }
+                TargetType type = reportTarget.getType();
+                Class<? extends ReportHandler> aClass = reportHandlerTypeMap.get(type);
+                if (null == aClass) {
+                    LOG.error("[Report] report target type {} not found", type);
+                    continue;
+                }
+                reportHandlerMap.clear();
+                ReportHandler reportHandler = createReportHandler(aClass);
+                if (null != reportHandler) {
+                    reportHandlerMap.put(type, reportHandler);
+                }
+            }
+        }
+    }
+
+    private ReportHandler createReportHandler(Class<? extends ReportHandler> aClass) {
+        ReportHandler reportHandler;
+        try {
+            reportHandler = aClass.newInstance();
+        } catch (Exception e) {
+            LOG.error("[Report] fail to create instance for class {}", aClass.getCanonicalName(), e);
+            return null;
+        }
+        return reportHandler;
+    }
+
+    public void clearUselessDimensions() {
+        // mark and clear dimensions
+        Set<Dimension> newDimensionsToClear = new HashSet<>();
+        for (Map.Entry<Dimension, RegistryHealthStatus> entry: healthStatusCounts.entrySet()) {
+            RegistryHealthStatus value = entry.getValue();
+            if (value.getTotalCount() == 0 && value.getErrorCount() == 0) {
+                newDimensionsToClear.add(entry.getKey());
+            }
+        }
+        synchronized (clearLock) {
+            for (Dimension dimension : newDimensionsToClear) {
+                if (dimensionsToClear.contains(dimension)) {
+                    //重复检查删除
+                    healthStatusCounts.remove(dimension);
+                    dimensionsToClear.remove(dimension);
+                    LOG.info("[Report] report dimension {} has been cleared", dimension);
+                }
+            }
         }
     }
 
     public void reportHealthStatus(RegistryHealthStatus registryHealthStatus) {
         RegistryHealthStatus lastHealthStatus = healthStatusCounts
                 .putIfAbsent(registryHealthStatus.getDimension(), registryHealthStatus);
-        if (null == lastHealthStatus || lastHealthStatus == registryHealthStatus) {
+        if (null == lastHealthStatus) {
+            return;
+        }
+        synchronized (clearLock) {
+            dimensionsToClear.remove(lastHealthStatus.getDimension());
+        }
+        if (lastHealthStatus == registryHealthStatus) {
             return;
         }
         lastHealthStatus.addValues(registryHealthStatus.getTotalCount(), registryHealthStatus.getErrorCount());
     }
 
     public void destroy() {
-        reportExecutor.shutdown();
+        if (null != reportExecutor) {
+            reportExecutor.shutdown();
+        }
     }
 }
