@@ -44,7 +44,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -468,48 +467,4 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
         commonCreateOrUpdateRequest("target", targetUrl, method, targetObject, operation);
     }
 
-    public static class ServiceGroup {
-
-        final Service service;
-        final String groupName;
-
-        public ServiceGroup(Service service, String groupName) {
-            this.service = service;
-            this.groupName = groupName;
-        }
-
-        public Service getService() {
-            return service;
-        }
-
-        public String getGroupName() {
-            return groupName;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (!(o instanceof ServiceGroup)) {
-                return false;
-            }
-            ServiceGroup that = (ServiceGroup) o;
-            return Objects.equals(service, that.service) &&
-                    Objects.equals(groupName, that.groupName);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(service, groupName);
-        }
-
-        @Override
-        public String toString() {
-            return "ServiceGroup{" +
-                    "service=" + service +
-                    ", groupName='" + groupName + '\'' +
-                    '}';
-        }
-    }
 }

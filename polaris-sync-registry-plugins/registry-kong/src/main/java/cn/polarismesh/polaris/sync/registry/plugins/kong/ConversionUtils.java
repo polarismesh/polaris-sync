@@ -22,8 +22,8 @@ import static cn.polarismesh.polaris.sync.common.rest.RestUtils.urlEncode;
 
 import cn.polarismesh.polaris.sync.common.rest.HostAndPort;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
+import cn.polarismesh.polaris.sync.extension.registry.ServiceGroup;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
-import cn.polarismesh.polaris.sync.registry.plugins.kong.KongRegistryCenter.ServiceGroup;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.ServiceObject;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.ServiceObjectList;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.TargetObject;

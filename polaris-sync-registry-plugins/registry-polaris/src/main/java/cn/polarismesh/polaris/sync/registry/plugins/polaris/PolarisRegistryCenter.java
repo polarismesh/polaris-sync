@@ -23,6 +23,7 @@ import cn.polarismesh.polaris.sync.extension.registry.Health;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
+import cn.polarismesh.polaris.sync.extension.registry.WatchEvent;
 import cn.polarismesh.polaris.sync.extension.utils.CommonUtils;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
@@ -125,15 +126,14 @@ public class PolarisRegistryCenter implements RegistryCenter {
                     service, registryInitRequest.getRegistryEndpoint().getName(), e);
             return ResponseUtils.toRegistryClientException(service);
         }
-        List<ServiceProto.Instance> outInstances = convertPolarisInstances(allInstance, group);
+        List<ServiceProto.Instance> outInstances = convertPolarisInstances(allInstance.getInstances(), group);
         DiscoverResponse.Builder builder = ResponseUtils
                 .toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE);
         builder.addAllInstances(outInstances);
         return builder.build();
     }
 
-    private List<ServiceProto.Instance> convertPolarisInstances(InstancesResponse allInstance, Group group) {
-        Instance[] instances = allInstance.getInstances();
+    private List<ServiceProto.Instance> convertPolarisInstances(Instance[] instances, Group group) {
         Map<String, String> filters = (null == group ? null : group.getMetadataMap());
         List<ServiceProto.Instance> polarisInstances = new ArrayList<>();
         if (null == instances) {
@@ -175,8 +175,13 @@ public class PolarisRegistryCenter implements RegistryCenter {
         ServiceListener serviceListener = new ServiceListener() {
             @Override
             public void onEvent(ServiceChangeEvent event) {
-                //TODO:
-                //  eventListener.onEvent();
+                List<Instance> allInstances = event.getAddInstances();
+                List<ServiceProto.Instance> outInstances = convertPolarisInstances(
+                        allInstances.toArray(new Instance[0]), null);
+                DiscoverResponse.Builder builder = ResponseUtils
+                        .toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE);
+                builder.addAllInstances(outInstances);
+                eventListener.onEvent(new WatchEvent(builder.build()));
             }
         };
         watchServiceRequest.setListeners(Collections.singletonList(serviceListener));

@@ -31,7 +31,7 @@ public class NamedRegistryCenter {
             RegistryCenter registry) {
         this.name = name;
         this.productName = productName;
-        this.registry = registry;
+        this.registry = new RegistryCenterWrapper(registry);
     }
 
     public String getProductName() {
