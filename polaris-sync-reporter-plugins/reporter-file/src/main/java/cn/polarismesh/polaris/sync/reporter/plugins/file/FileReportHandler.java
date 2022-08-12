@@ -56,7 +56,7 @@ public class FileReportHandler implements ReportHandler {
         } else {
             reportInfoStr.append("\n");
             reportInfoStr.append(String
-                    .format("%-48s|%12s|%12s|%12s|%12s|\n", "", "Type", "Product", "Total", "Error"));
+                    .format("%-48s|%12s|%12s|%12s|%12s|\n", "Name", "Type", "Detail", "Total", "Error"));
             for (RegistryHealthStatus registryHealthStatus : registryHealthStatusList) {
                 Dimension dimension = registryHealthStatus.getDimension();
                 reportInfoStr.append(String
