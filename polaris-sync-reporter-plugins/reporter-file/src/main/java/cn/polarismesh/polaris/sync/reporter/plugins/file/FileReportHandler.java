@@ -34,6 +34,8 @@ import org.springframework.util.CollectionUtils;
 @Component
 public class FileReportHandler implements ReportHandler {
 
+    private static final Logger LOG = LoggerFactory.getLogger(FileReportHandler.class);
+
     private static final Logger HEALTH_LOG = LoggerFactory.getLogger("sync-stat-logger");
 
     @Override
@@ -43,7 +45,7 @@ public class FileReportHandler implements ReportHandler {
 
     @Override
     public void init(ReportTarget reportTarget) {
-
+        LOG.info("[Report] FileReportHandler has been initialized");
     }
 
     @Override

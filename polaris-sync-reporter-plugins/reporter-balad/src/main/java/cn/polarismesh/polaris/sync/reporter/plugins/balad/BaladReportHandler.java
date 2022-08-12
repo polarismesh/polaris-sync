@@ -88,6 +88,7 @@ public class BaladReportHandler  implements ReportHandler {
             options.put(entry.getKey(), entry.getValue());
         }
         restOperator = new RestOperator(new RestTemplate());
+        LOG.info("[Report] BaladReportHandler has been initialized");
     }
 
 

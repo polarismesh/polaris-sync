@@ -128,9 +128,11 @@ public class StatReportAggregator {
                 reportHandlerMap.clear();
                 ReportHandler reportHandler = createReportHandler(aClass);
                 if (null != reportHandler) {
+                    reportHandler.init(reportTarget);
                     reportHandlerMap.put(type, reportHandler);
                 }
             }
+            LOG.info("[Report] success to reload report config, targets {}", reportHandlerMap.keySet());
         }
     }
 
