@@ -67,6 +67,7 @@ public class RegistrySyncServer {
         List<FileListener> listeners = new ArrayList<>();
         listeners.add(taskEngine);
         listeners.add(healthCheckReporter);
+        listeners.add(statReportAggregator);
         watchManager = new WatchManager(listeners);
 
         String watchPath = syncRegistryProperties.getWatchPath();

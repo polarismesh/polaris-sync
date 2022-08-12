@@ -22,11 +22,15 @@ import cn.polarismesh.polaris.sync.extension.report.RegistryHealthStatus;
 import cn.polarismesh.polaris.sync.extension.report.RegistryHealthStatus.Dimension;
 import cn.polarismesh.polaris.sync.extension.report.ReportHandler;
 import cn.polarismesh.polaris.sync.extension.report.StatInfo;
+import cn.polarismesh.polaris.sync.registry.config.FileListener;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Report;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget.TargetType;
 import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -42,7 +46,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
 
-public class StatReportAggregator {
+public class StatReportAggregator implements FileListener {
 
     private static final Logger LOG = LoggerFactory.getLogger(StatReportAggregator.class);
 
@@ -187,5 +191,18 @@ public class StatReportAggregator {
         if (null != reportExecutor) {
             reportExecutor.shutdown();
         }
+    }
+
+    @Override
+    public boolean onFileChanged(byte[] strBytes) {
+        RegistryProto.Registry config;
+        try {
+            config = ConfigUtils.parseFromContent(strBytes);
+        } catch (IOException e) {
+            LOG.error("[Report] fail to parse to config proto, content {}", new String(strBytes, StandardCharsets.UTF_8), e);
+            return false;
+        }
+        reload(config);
+        return true;
     }
 }
