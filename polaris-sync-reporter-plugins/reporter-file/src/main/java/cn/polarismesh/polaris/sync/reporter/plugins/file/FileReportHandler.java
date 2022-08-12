@@ -45,7 +45,7 @@ public class FileReportHandler implements ReportHandler {
 
     @Override
     public void init(ReportTarget reportTarget) {
-        LOG.info("[Report] FileReportHandler has been initialized");
+        LOG.info("[Report] FileReportHandler has been initialized, config {}", reportTarget);
     }
 
     @Override
