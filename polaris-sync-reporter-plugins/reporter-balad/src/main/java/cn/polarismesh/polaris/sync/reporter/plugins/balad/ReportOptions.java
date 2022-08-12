@@ -21,7 +21,7 @@ public interface ReportOptions {
 
     String KEY_NAMESPACE = "namespace";
 
-    String KEY_URI = "uri";
+    String KEY_URL = "url";
 
     String KEY_REGISTRY = "registryid";
 
