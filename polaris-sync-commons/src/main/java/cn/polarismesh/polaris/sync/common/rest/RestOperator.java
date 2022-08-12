@@ -17,22 +17,32 @@
 
 package cn.polarismesh.polaris.sync.common.rest;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Random;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.http.client.reactive.HttpComponentsClientHttpConnector;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 public class RestOperator {
 
+    private static final int DEFAULT_HTTP_TIMEOUT = 5000;
+
+    private static final int DEFAULT_HTTP_READ_TIMEOUT = 10000;
+
     private final RestTemplate restTemplate;
 
-    public RestOperator(RestTemplate restTemplate) {
-        Assert.notNull(restTemplate, "restTemplate should not be null");
-        this.restTemplate = restTemplate;
+    public RestOperator() {
+        RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
+        restTemplateBuilder.setConnectTimeout(Duration.ofMillis(DEFAULT_HTTP_TIMEOUT))
+                .setReadTimeout(Duration.ofMillis(DEFAULT_HTTP_READ_TIMEOUT));
+        restTemplate = restTemplateBuilder.build();
     }
 
     public static String pickAddress(List<String> addresses) {

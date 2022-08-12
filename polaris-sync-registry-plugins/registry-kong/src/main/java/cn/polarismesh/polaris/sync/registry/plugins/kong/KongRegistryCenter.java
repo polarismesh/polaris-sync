@@ -53,7 +53,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
 
 @Component
 public class KongRegistryCenter extends AbstractRegistryCenter {
@@ -61,8 +60,6 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
     private static final Logger LOG = LoggerFactory.getLogger(KongRegistryCenter.class);
 
     private RegistryInitRequest registryInitRequest;
-
-    private final RestTemplate restTemplate = new RestTemplate();
 
     private String token;
 
@@ -77,7 +74,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
     public void init(RegistryInitRequest registryInitRequest) {
         this.registryInitRequest = registryInitRequest;
         this.token = registryInitRequest.getRegistryEndpoint().getToken();
-        restOperator = new RestOperator(restTemplate);
+        restOperator = new RestOperator();
     }
 
     @Override
