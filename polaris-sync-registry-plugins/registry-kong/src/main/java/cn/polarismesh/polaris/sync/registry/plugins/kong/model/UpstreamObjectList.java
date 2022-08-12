@@ -23,6 +23,16 @@ public class UpstreamObjectList {
 
     private List<UpstreamObject> data;
 
+    private String next;
+
+    public String getNext() {
+        return next;
+    }
+
+    public void setNext(String next) {
+        this.next = next;
+    }
+
     public List<UpstreamObject> getData() {
         return data;
     }
@@ -33,8 +43,9 @@ public class UpstreamObjectList {
 
     @Override
     public String toString() {
-        return "UpstreamList{" +
+        return "UpstreamObjectList{" +
                 "data=" + data +
+                ", next='" + next + '\'' +
                 '}';
     }
 }

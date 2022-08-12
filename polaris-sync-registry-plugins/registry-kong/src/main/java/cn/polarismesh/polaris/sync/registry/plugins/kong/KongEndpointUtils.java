@@ -21,24 +21,10 @@ package cn.polarismesh.polaris.sync.registry.plugins.kong;
 import static cn.polarismesh.polaris.sync.common.rest.RestOperator.pickAddress;
 
 import java.util.List;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.util.StringUtils;
 
 public class KongEndpointUtils {
 
-    public static <T> HttpEntity<T> getRequestEntity(String token, T object) {
-        HttpHeaders headers = new HttpHeaders();
-        if (StringUtils.hasText(token)) {
-            headers.add("authorization", token);
-        }
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        return new HttpEntity<T>(object, headers);
-    }
-
-    public static String toUpstreamsUrl(List<String> addresses) {
-        String address = pickAddress(addresses);
+    public static String toUpstreamsUrl(String address) {
         return String.format("http://%s/upstreams", address);
     }
 
@@ -47,9 +33,14 @@ public class KongEndpointUtils {
         return String.format("http://%s/upstreams/%s", address, upstreamName);
     }
 
-    public static String toTargetsUrl(List<String> addresses, String upstreamName) {
+    public static String toTargetsWriteUrl(List<String> addresses, String upstreamName) {
         String address = pickAddress(addresses);
         return String.format("http://%s/upstreams/%s/targets", address, upstreamName);
+    }
+
+    public static String toTargetsReadUrl(List<String> addresses, String upstreamName) {
+        String address = pickAddress(addresses);
+        return String.format("http://%s/upstreams/%s/targets/all", address, upstreamName);
     }
 
     public static String toTargetUrl(List<String> addresses, String upstreamName, String target) {
@@ -57,8 +48,7 @@ public class KongEndpointUtils {
         return String.format("http://%s/upstreams/%s/targets/%s", address, upstreamName, target);
     }
 
-    public static String toServicesUrl(List<String> addresses) {
-        String address = pickAddress(addresses);
+    public static String toServicesUrl(String address) {
         return String.format("http://%s/services", address);
     }
 

@@ -4,6 +4,3 @@ server:
 spring:
   application:
     name: PolarisSyncServer
-logging:
-  level:
-    root: INFO

@@ -23,7 +23,11 @@ public interface ReportOptions {
 
     String KEY_URI = "uri";
 
-    String KEY_USER = "user";
+    String KEY_REGISTRY = "registryid";
 
-    String KEY_PASSWORD = "password";
+    String METRIC_KEY_TOTAL = "registry_check_total";
+
+    String METRIC_KEY_SUCCESS = "registry_check_success_total";
+
+    String METRIC_KEY_ERROR = "registry_check_error_total";
 }

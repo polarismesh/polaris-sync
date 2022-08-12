@@ -17,6 +17,9 @@
 
 package cn.polarismesh.polaris.sync.registry.plugins.kong;
 
+import static cn.polarismesh.polaris.sync.common.rest.RestUtils.urlDecode;
+import static cn.polarismesh.polaris.sync.common.rest.RestUtils.urlEncode;
+
 import cn.polarismesh.polaris.sync.common.rest.HostAndPort;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
@@ -27,16 +30,8 @@ import cn.polarismesh.polaris.sync.registry.plugins.kong.model.TargetObject;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.TargetObjectList;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.UpstreamObject;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.UpstreamObjectList;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import com.tencent.polaris.client.pb.ServiceProto.Instance.Builder;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -191,44 +186,5 @@ public class ConversionUtils {
         return urlEncode(name);
     }
 
-    public static String urlEncode(String value) {
-        try {
-            return URLEncoder.encode(value, StandardCharsets.UTF_8.toString());
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-        return value;
-    }
-
-    public static String urlDecode(String value) {
-        try {
-            return URLDecoder.decode(value, StandardCharsets.UTF_8.toString());
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-        return value;
-    }
-
-    public static String marshalJsonText(Object value) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.setSerializationInclusion(Include.NON_EMPTY);
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
-            LOG.error("[Core] fail to serialize object {}", value, e);
-        }
-        return "";
-    }
-
-    public static <T> T unmarshalJsonText(String jsonText, Class<T> clazz) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        try {
-            return objectMapper.readValue(jsonText, clazz);
-        } catch (JsonProcessingException e) {
-            LOG.error("[Core] fail to parse json {} to clazz {}", jsonText, clazz.getCanonicalName(), e);
-        }
-        return null;
-    }
 
 }

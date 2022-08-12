@@ -55,6 +55,11 @@
             <artifactId>reporter-file</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.tencent.polaris</groupId>
+            <artifactId>reporter-balad</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

@@ -34,7 +34,7 @@ import org.springframework.util.CollectionUtils;
 @Component
 public class FileReportHandler implements ReportHandler {
 
-    private static final Logger HEALTH_LOG = LoggerFactory.getLogger("sync-health-logger");
+    private static final Logger HEALTH_LOG = LoggerFactory.getLogger("sync-stat-logger");
 
     @Override
     public TargetType getType() {

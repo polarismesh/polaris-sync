@@ -17,8 +17,11 @@
 
 package cn.polarismesh.polaris.sync.registry.plugins.kong;
 
+import static cn.polarismesh.polaris.sync.common.rest.RestOperator.pickAddress;
+
 import cn.polarismesh.polaris.sync.common.rest.RestOperator;
 import cn.polarismesh.polaris.sync.common.rest.RestResponse;
+import cn.polarismesh.polaris.sync.common.rest.RestUtils;
 import cn.polarismesh.polaris.sync.extension.registry.AbstractRegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
@@ -36,6 +39,7 @@ import com.google.protobuf.ProtocolStringList;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse.DiscoverResponseType;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -48,6 +52,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 @Component
@@ -92,9 +97,9 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
         String sourceName = registryInitRequest.getSourceName();
         String upstreamName = ConversionUtils.getUpstreamName(service, group.getName(), sourceName);
         ProtocolStringList addressesList = registryInitRequest.getRegistryEndpoint().getAddressesList();
-        String targetsUrl = KongEndpointUtils.toTargetsUrl(addressesList, upstreamName);
+        String targetsUrl = KongEndpointUtils.toTargetsReadUrl(addressesList, upstreamName);
         RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(
-                targetsUrl, HttpMethod.GET, KongEndpointUtils.getRequestEntity(token, null), String.class);
+                targetsUrl, HttpMethod.GET, RestUtils.getRequestEntity(token, null), String.class);
         processHealthCheck(restResponse);
         if (restResponse.hasServerError()) {
             LOG.error("[Kong] server error to query target {}", targetsUrl, restResponse.getException());
@@ -110,8 +115,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
             return ResponseUtils.toRegistryClientException(service);
         }
         ResponseEntity<String> strEntity = restResponse.getResponseEntity();
-        TargetObjectList targetObjectList = ConversionUtils
-                .unmarshalJsonText(strEntity.getBody(), TargetObjectList.class);
+        TargetObjectList targetObjectList = RestUtils.unmarshalJsonText(strEntity.getBody(), TargetObjectList.class);
         if (null == targetObjectList) {
             LOG.error("[Kong] invalid response to query target from {}, reason {}", targetsUrl, strEntity.getBody());
             return ResponseUtils.toRegistryClientException(service);
@@ -137,31 +141,55 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
         throw new UnsupportedOperationException("unwatch is not supported in kong");
     }
 
-    @Override
-    public void updateServices(Collection<Service> services) {
-        ProtocolStringList addressesList = registryInitRequest.getRegistryEndpoint().getAddressesList();
-        //query all services in the source
-        String servicesUrl = KongEndpointUtils.toServicesUrl(addressesList);
+    private boolean resolveAllServices(String address, String nextUrl, List<ServiceObject> services) {
+        String servicesUrl;
+        if (StringUtils.hasText(nextUrl)) {
+            servicesUrl = nextUrl;
+        } else {
+            servicesUrl = KongEndpointUtils.toServicesUrl(address);
+        }
         RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(
-                servicesUrl, HttpMethod.GET, KongEndpointUtils.getRequestEntity(token, null), String.class);
+                servicesUrl, HttpMethod.GET, RestUtils.getRequestEntity(token, null), String.class);
         processHealthCheck(restResponse);
         if (restResponse.hasServerError()) {
             LOG.error("[Kong] server error to query services {}", servicesUrl, restResponse.getException());
-            return;
+            return false;
         }
         if (restResponse.hasTextError()) {
             LOG.warn("[Kong] text error to query services {}, code {}, reason {}",
                     servicesUrl, restResponse.getRawStatusCode(), restResponse.getStatusText());
-            return;
+            return false;
         }
         ResponseEntity<String> queryEntity = restResponse.getResponseEntity();
-        ServiceObjectList serviceObjectList = ConversionUtils
-                .unmarshalJsonText(queryEntity.getBody(), ServiceObjectList.class);
+        ServiceObjectList serviceObjectList = RestUtils.unmarshalJsonText(queryEntity.getBody(), ServiceObjectList.class);
         if (null == serviceObjectList) {
             LOG.error("[Kong] invalid response to query services from {}, reason {}", servicesUrl,
                     queryEntity.getBody());
+            return false;
+        }
+        services.addAll(serviceObjectList.getData());
+        if (StringUtils.hasText(serviceObjectList.getNext())) {
+            nextUrl = replaceHostPort(serviceObjectList.getNext(), address);
+            if (!StringUtils.hasText(nextUrl)) {
+                return false;
+            }
+            return resolveAllServices(address, nextUrl, services);
+        }
+        return true;
+    }
+
+    @Override
+    public void updateServices(Collection<Service> services) {
+        ProtocolStringList addressesList = registryInitRequest.getRegistryEndpoint().getAddressesList();
+        String address = pickAddress(addressesList);
+        //query all services in the source
+        List<ServiceObject> serviceObjects = new ArrayList<>();
+        if (!resolveAllServices(address, "", serviceObjects)) {
+            LOG.error("[Kong] fail to query all services, address {}", address);
             return;
         }
+        ServiceObjectList serviceObjectList = new ServiceObjectList();
+        serviceObjectList.setData(serviceObjects);
         String sourceName = registryInitRequest.getSourceName();
         String sourceType = registryInitRequest.getSourceType();
         Map<Service, ServiceObject> serviceObjectMap = ConversionUtils.parseServiceObjects(serviceObjectList,
@@ -187,6 +215,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
         int serviceDeleteCount = 0;
         if (!servicesToCreate.isEmpty()) {
             LOG.info("[Kong] services pending to create are {}", servicesToCreate);
+            String servicesUrl = KongEndpointUtils.toServicesUrl(address);
             for (ServiceObject serviceObject : servicesToCreate) {
                 processServiceRequest(servicesUrl, HttpMethod.POST, serviceObject, "create");
                 serviceAddCount++;
@@ -203,32 +232,68 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
         LOG.info("[Kong] success to update services, add {}, delete {}", serviceAddCount, serviceDeleteCount);
     }
 
-    @Override
-    public void updateGroups(Service service, Collection<Group> groups) {
-        ProtocolStringList addressesList = registryInitRequest.getRegistryEndpoint().getAddressesList();
-        //query all services in the source
-        String upstreamsUrl = KongEndpointUtils.toUpstreamsUrl(addressesList);
+    private static final String SCHEME = "http://";
+
+    private String replaceHostPort(String url, String address) {
+        if (!url.startsWith(SCHEME)) {
+            LOG.error("[Kong] invalid next url {}", url);
+            return "";
+        }
+        String rest = url.substring(SCHEME.length());
+        rest = rest.substring(rest.indexOf("/"));
+        return SCHEME + address + rest;
+    }
+
+    private boolean resolveAllUpstreams(String address, String nextUrl, List<UpstreamObject> upstreams) {
+        String upstreamsUrl;
+        if (StringUtils.hasText(nextUrl)) {
+            upstreamsUrl = nextUrl;
+        } else {
+            upstreamsUrl = KongEndpointUtils.toUpstreamsUrl(address);
+        }
         RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(
-                upstreamsUrl, HttpMethod.GET, KongEndpointUtils.getRequestEntity(token, null), String.class);
+                upstreamsUrl, HttpMethod.GET, RestUtils.getRequestEntity(token, null), String.class);
         processHealthCheck(restResponse);
         if (restResponse.hasServerError()) {
             LOG.error("[Kong] server error to query upstreams {}", upstreamsUrl, restResponse.getException());
-            return;
+            return false;
         }
         if (restResponse.hasTextError()) {
             LOG.warn("[Kong] text error to query upstreams {}, code {}, reason {}",
                     upstreamsUrl, restResponse.getRawStatusCode(), restResponse.getStatusText());
-            return;
+            return false;
         }
 
         ResponseEntity<String> queryEntity = restResponse.getResponseEntity();
-        UpstreamObjectList upstreamObjectList = ConversionUtils
-                .unmarshalJsonText(queryEntity.getBody(), UpstreamObjectList.class);
+        UpstreamObjectList upstreamObjectList = RestUtils.unmarshalJsonText(queryEntity.getBody(), UpstreamObjectList.class);
         if (null == upstreamObjectList) {
             LOG.error("[Kong] invalid response to query upstreams from {}, reason {}", upstreamsUrl,
                     queryEntity.getBody());
+            return false;
+        }
+        upstreams.addAll(upstreamObjectList.getData());
+        if (StringUtils.hasText(upstreamObjectList.getNext())) {
+            nextUrl = replaceHostPort(upstreamObjectList.getNext(), address);
+            if (!StringUtils.hasText(nextUrl)) {
+                return false;
+            }
+            return resolveAllUpstreams(address, nextUrl, upstreams);
+        }
+        return true;
+    }
+
+    @Override
+    public void updateGroups(Service service, Collection<Group> groups) {
+        ProtocolStringList addressesList = registryInitRequest.getRegistryEndpoint().getAddressesList();
+        String address = pickAddress(addressesList);
+        //query all upstreams in the source
+        List<UpstreamObject> upstreams = new ArrayList<>();
+        if (!resolveAllUpstreams(address, "", upstreams)) {
+            LOG.error("[Kong] fail to query all upstreams for service {}, address {}", service, address);
             return;
         }
+        UpstreamObjectList upstreamObjectList = new UpstreamObjectList();
+        upstreamObjectList.setData(upstreams);
         String sourceName = registryInitRequest.getSourceName();
         String sourceType = registryInitRequest.getSourceType();
         Map<String, UpstreamObject> upstreamObjectMap =
@@ -255,6 +320,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
         int upstreamDeleteCount = 0;
         if (!upstreamsToCreate.isEmpty()) {
             LOG.info("[Kong] upstreams pending to create are {}", upstreamsToCreate);
+            String upstreamsUrl = KongEndpointUtils.toUpstreamsUrl(address);
             for (UpstreamObject upstreamObject : upstreamsToCreate) {
                 processUpstreamRequest(upstreamsUrl, HttpMethod.POST, upstreamObject, "create");
                 upstreamAddCount++;
@@ -282,27 +348,26 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
         String sourceName = registryInitRequest.getSourceName();
         String upstreamName = ConversionUtils.getUpstreamName(service, group.getName(), sourceName);
         ProtocolStringList addressesList = registryInitRequest.getRegistryEndpoint().getAddressesList();
-        String targetsUrl = KongEndpointUtils.toTargetsUrl(addressesList, upstreamName);
+        String targetReadUrl = KongEndpointUtils.toTargetsReadUrl(addressesList, upstreamName);
 
         RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(
-                targetsUrl, HttpMethod.GET, KongEndpointUtils.getRequestEntity(token, null), String.class);
+                targetReadUrl, HttpMethod.GET, RestUtils.getRequestEntity(token, null), String.class);
         processHealthCheck(restResponse);
         if (restResponse.hasServerError()) {
-            LOG.error("[Kong] server error to query targets {}", targetsUrl, restResponse.getException());
+            LOG.error("[Kong] server error to query targets {}", targetReadUrl, restResponse.getException());
             return;
         }
         if (restResponse.hasTextError() && restResponse.getRawStatusCode() != 404) {
             LOG.warn("[Kong] text error to query targets {}, code {}, reason {}",
-                    targetsUrl, restResponse.getRawStatusCode(), restResponse.getStatusText());
+                    targetReadUrl, restResponse.getRawStatusCode(), restResponse.getStatusText());
             return;
         }
         TargetObjectList targetObjectList;
         if (restResponse.hasNormalResponse()) {
             ResponseEntity<String> strEntity = restResponse.getResponseEntity();
-            targetObjectList = ConversionUtils
-                    .unmarshalJsonText(strEntity.getBody(), TargetObjectList.class);
+            targetObjectList = RestUtils.unmarshalJsonText(strEntity.getBody(), TargetObjectList.class);
             if (null == targetObjectList) {
-                LOG.error("[Kong] invalid response to query targets {}, text {}", targetsUrl, strEntity.getBody());
+                LOG.error("[Kong] invalid response to query targets {}, text {}", targetReadUrl, strEntity.getBody());
                 return;
             }
         } else {
@@ -341,8 +406,9 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
         int targetDeleteCount = 0;
         if (!targetsToCreate.isEmpty()) {
             LOG.info("[Kong] targets pending to create are {}, upstream {}", targetsToCreate, upstreamName);
+            String targetWriteUrl = KongEndpointUtils.toTargetsWriteUrl(addressesList, upstreamName);
             for (TargetObject targetObject : targetsToCreate) {
-                processTargetRequest(targetsUrl, HttpMethod.POST, targetObject, "create");
+                processTargetRequest(targetWriteUrl, HttpMethod.POST, targetObject, "create");
                 targetAddCount++;
             }
         }
@@ -370,10 +436,10 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
             String name, String serviceUrl, HttpMethod method, T serviceObject, String operation) {
         String jsonText = "";
         if (null != serviceObject) {
-            jsonText = ConversionUtils.marshalJsonText(serviceObject);
+            jsonText = RestUtils.marshalJsonText(serviceObject);
         }
         RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(
-                serviceUrl, method, KongEndpointUtils.getRequestEntity(token, jsonText), String.class);
+                serviceUrl, method, RestUtils.getRequestEntity(token, jsonText), String.class);
         processHealthCheck(restResponse);
         if (restResponse.hasServerError()) {
             LOG.error("[Kong] server error to {} {} to {}, method {}, request {}",
