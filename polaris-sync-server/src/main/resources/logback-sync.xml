@@ -4,6 +4,7 @@
     <contextName>polaris-sync</contextName>
 
     <springProperty scope="context" name="log.path" source="logging.path"/>
+    <springProperty scope="context" name="log.level" source="logging.level.root"/>
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -53,12 +54,12 @@
         <appender-ref ref="STDOUT"/>
     </logger>
 
-    <logger name="sync-stat-logger" level="${log.level:-info}"
+    <logger name="sync-stat-logger" level="info"
             additivity="false">
         <appender-ref ref="POLARIS_SYNC_STAT_LOG_FILE"/>
     </logger>
 
-    <root level="${log.root.level:-info}">
+    <root level="${log.level:-info}">
         <appender-ref ref="STDOUT"/>
     </root>
 </configuration>
