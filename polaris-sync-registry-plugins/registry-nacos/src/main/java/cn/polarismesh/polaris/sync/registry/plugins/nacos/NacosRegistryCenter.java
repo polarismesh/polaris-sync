@@ -23,6 +23,7 @@ import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.registry.WatchEvent;
 import cn.polarismesh.polaris.sync.extension.utils.CommonUtils;
+import cn.polarismesh.polaris.sync.extension.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
@@ -93,6 +94,13 @@ public class NacosRegistryCenter implements RegistryCenter {
         }
     }
 
+    private static String toNamespaceId(String namespace) {
+        if (DefaultValues.EMPTY_NAMESPACE_HOLDER.equals(namespace)) {
+            return "";
+        }
+        return namespace;
+    }
+
     private NamingService getOrCreateNamingService(String namespace) {
         NamingService namingService = ns2NamingService.get(namespace);
         if (null != namingService) {
@@ -107,7 +115,7 @@ public class NacosRegistryCenter implements RegistryCenter {
             String address = String.join(",", registryEndpoint.getAddressesList());
             Properties properties = new Properties();
             properties.setProperty("serverAddr", address);
-            properties.setProperty("namespace", namespace);
+            properties.setProperty("namespace", toNamespaceId(namespace));
             if (StringUtils.hasText(registryEndpoint.getUser())) {
                 properties.setProperty("username", registryEndpoint.getUser());
             }

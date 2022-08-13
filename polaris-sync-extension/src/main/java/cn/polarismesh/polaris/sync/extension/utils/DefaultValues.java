@@ -26,4 +26,7 @@ public interface DefaultValues {
     long DEFAULT_PULL_INTERVAL_MS = 5 * 60 * 1000;
 
     String GROUP_NAME_DEFAULT = "default";
+
+    // EMPTY_NAMESPACE_HOLDER 空命名空间占位符
+    String EMPTY_NAMESPACE_HOLDER = "empty_ns";
 }

@@ -6,5 +6,5 @@ polaris:
 logging:
   config: classpath:logback-sync.xml
   level:
-    root: INFO
+    root: ${POLARIS_SYNC_LOGGER_LEVEL:info}
   path: ${POLARIS_SYNC_LOGGER_PATH:loggers}

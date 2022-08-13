@@ -101,6 +101,7 @@ public class StatReportAggregator implements FileListener {
                 StatInfo statInfo = new StatInfo();
                 statInfo.setRegistryHealthStatusList(registryHealthStatuses);
                 for (ReportHandler reportHandler : reportHandlers) {
+                    LOG.info("[Report] report stat metric to reporter {}", reportHandler.getType());
                     reportHandler.reportStat(statInfo);
                 }
 
@@ -119,6 +120,7 @@ public class StatReportAggregator implements FileListener {
                 return;
             }
             lastReportTargets = reportTargets;
+            reportHandlerMap.clear();
             for (ReportTarget reportTarget : reportTargets) {
                 if (!reportTarget.getEnable()) {
                     continue;
@@ -129,7 +131,6 @@ public class StatReportAggregator implements FileListener {
                     LOG.error("[Report] report target type {} not found", type);
                     continue;
                 }
-                reportHandlerMap.clear();
                 ReportHandler reportHandler = createReportHandler(aClass);
                 if (null != reportHandler) {
                     reportHandler.init(reportTarget);

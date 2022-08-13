@@ -68,6 +68,7 @@ public class FileReportHandler implements ReportHandler {
             }
         }
         HEALTH_LOG.info(reportInfoStr.toString());
+        LOG.info("[File] success to report metric to file");
     }
 
     private static String getCurrentDateStr() {
