@@ -62,7 +62,7 @@ public class StatReportAggregator implements FileListener {
 
     private final Object clearLock = new Object();
 
-    private final Set<Dimension> dimensionsToClear = new HashSet<>();
+    private Set<Dimension> dimensionsToClear = new HashSet<>();
 
     private Collection<ReportTarget> lastReportTargets = new HashSet<>();
 
@@ -170,6 +170,7 @@ public class StatReportAggregator implements FileListener {
                     LOG.info("[Report] report dimension {} has been cleared", dimension);
                 }
             }
+            dimensionsToClear = newDimensionsToClear;
         }
     }
 
