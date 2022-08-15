@@ -33,11 +33,12 @@ import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.registry.utils.DurationUtils;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
@@ -50,7 +51,7 @@ public class HealthCheckScheduler implements FileListener {
     private final ScheduledExecutorService healthCheckExecutor = Executors
             .newScheduledThreadPool(1, new NamedThreadFactory("health-check-worker"));
 
-    private Set<String> tasks = new HashSet<>();
+    private Map<String, ScheduledFuture<?>> tasks = new HashMap<>();
 
     private final AtomicBoolean enable = new AtomicBoolean(false);
 
@@ -79,33 +80,37 @@ public class HealthCheckScheduler implements FileListener {
         reload(config);
     }
 
+    private void clearTasks() {
+        if (!tasks.isEmpty()) {
+            for (Map.Entry<String, ScheduledFuture<?>> entry : tasks.entrySet()) {
+                LOG.info("[Health] cancel scheduled health check for task {}", entry.getKey());
+                entry.getValue().cancel(true);
+            }
+            tasks.clear();
+        }
+    }
+
     public void reload(Registry registryConfig) {
         synchronized (configLock) {
+            clearTasks();
             HealthCheck healthCheck = registryConfig.getHealthCheck();
             if (null == healthCheck) {
                 enable.set(false);
-                tasks.clear();
                 return;
             }
             boolean enable = healthCheck.getEnable();
             this.enable.set(enable);
             if (!enable) {
-                tasks.clear();
                 LOG.info("[Health] health check is disabled");
                 return;
             }
-            Set<String> newTasks = new HashSet<>();
+            Map<String, ScheduledFuture<?>> newTasks = new HashMap<>();
             List<Task> tasksList = registryConfig.getTasksList();
             for (Task task : tasksList) {
                 if (task.getEnable()) {
-                    newTasks.add(task.getName());
-                }
-            }
-            //compare the new add tasks
-            for (String newTask : newTasks) {
-                if (!tasks.contains(newTask)) {
-                    LOG.info("[Health] schedule health check for task {}", newTask);
-                    scheduleHealthCheckForTask(newTask);
+                    LOG.info("[Health] schedule health check for task {}", task.getName());
+                    ScheduledFuture<?> future = scheduleHealthCheckForTask(task.getName());
+                    newTasks.put(task.getName(), future);
                 }
             }
             tasks = newTasks;
@@ -114,8 +119,8 @@ public class HealthCheckScheduler implements FileListener {
         }
     }
 
-    private void scheduleHealthCheckForTask(String taskName) {
-        healthCheckExecutor.schedule(new Runnable() {
+    private ScheduledFuture<?> scheduleHealthCheckForTask(String taskName) {
+        return healthCheckExecutor.schedule(new Runnable() {
             @Override
             public void run() {
                 RegistrySet registrySet = taskEngine.getRegistrySet(taskName);
@@ -132,7 +137,7 @@ public class HealthCheckScheduler implements FileListener {
                 statReportAggregator.reportHealthStatus(srcHealthStatus);
                 statReportAggregator.reportHealthStatus(dstHealthStatus);
                 synchronized (configLock) {
-                    boolean scheduleNext = tasks.contains(taskName);
+                    boolean scheduleNext = tasks.containsKey(taskName);
                     if (scheduleNext) {
                         healthCheckExecutor.schedule(this, intervalMilli, TimeUnit.MILLISECONDS);
                     }
