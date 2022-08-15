@@ -101,7 +101,7 @@ public class StatReportAggregator implements FileListener {
                 StatInfo statInfo = new StatInfo();
                 statInfo.setRegistryHealthStatusList(registryHealthStatuses);
                 for (ReportHandler reportHandler : reportHandlers) {
-                    LOG.info("[Report] report stat metric to reporter {}", reportHandler.getType());
+                    LOG.debug("[Report] report stat metric to reporter {}", reportHandler.getType());
                     reportHandler.reportStat(statInfo);
                 }
 
