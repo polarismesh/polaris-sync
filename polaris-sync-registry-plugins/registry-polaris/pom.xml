@@ -14,11 +14,6 @@
     <dependencies>
         <dependency>
             <groupId>com.tencent.polaris</groupId>
-            <artifactId>polaris-discovery-factory</artifactId>
-            <version>${polaris.java.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.tencent.polaris</groupId>
             <artifactId>polaris-sync-extension</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -30,6 +25,16 @@
             <groupId>com.tencent.polaris</groupId>
             <artifactId>polaris-sync-commons</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java-util</artifactId>
+            <version>3.12.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.tencent.polaris</groupId>
+            <artifactId>polaris-discovery-factory</artifactId>
+            <version>${polaris.java.version}</version>
         </dependency>
     </dependencies>
 </project>

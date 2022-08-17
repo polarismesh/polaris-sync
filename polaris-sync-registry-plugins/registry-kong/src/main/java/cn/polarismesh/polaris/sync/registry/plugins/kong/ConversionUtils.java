@@ -24,6 +24,7 @@ import cn.polarismesh.polaris.sync.common.rest.HostAndPort;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.registry.ServiceGroup;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.ServiceObject;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.ServiceObjectList;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.TargetObject;
@@ -45,13 +46,13 @@ public class ConversionUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(ConversionUtils.class);
 
-    public static ServiceObject serviceToServiceObject(Service service, String currentSource, String sourceType) {
+    public static ServiceObject serviceToServiceObject(Service service, String currentSource, RegistryType sourceType) {
         ServiceObject serviceObject = new ServiceObject();
         serviceObject.setName(getServiceName(service, currentSource));
         serviceObject.setHost(getUpstreamName(service, KongConsts.GROUP_NAME_DEFAULT, currentSource));
         serviceObject.setPort(KongConsts.PORT_DEFAULT);
         List<String> tags = new ArrayList<>();
-        tags.add(sourceType);
+        tags.add(sourceType.name());
         tags.add(currentSource);
         tags.add(service.getNamespace());
         tags.add(service.getService());
@@ -121,11 +122,11 @@ public class ConversionUtils {
     }
 
     public static UpstreamObject groupToUpstreamObject(
-            String groupName, Service service, String currentSource, String sourceType) {
+            String groupName, Service service, String currentSource, RegistryType sourceType) {
         UpstreamObject upstreamObject = new UpstreamObject();
         upstreamObject.setName(getUpstreamName(service, groupName, currentSource));
         List<String> tags = new ArrayList<>();
-        tags.add(sourceType);
+        tags.add(sourceType.name());
         tags.add(currentSource);
         tags.add(service.getNamespace());
         tags.add(service.getService());

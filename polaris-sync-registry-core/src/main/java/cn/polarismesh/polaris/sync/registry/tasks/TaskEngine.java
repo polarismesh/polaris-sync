@@ -21,7 +21,7 @@ import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
-import cn.polarismesh.polaris.sync.extension.utils.DefaultValues;
+import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.registry.config.FileListener;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Method;
@@ -133,7 +133,7 @@ public class TaskEngine implements FileListener {
         NamedRegistryCenter destRegistry = registrySet.getDstRegistry();
         PullTask pullTask = new PullTask(sourceRegistry, destRegistry, syncTask.getMatchList());
         ScheduledFuture<?> future = pullExecutor
-                .scheduleAtFixedRate(pullTask, 0, intervalMilli, TimeUnit.MILLISECONDS);
+                .scheduleWithFixedDelay(pullTask, 0, intervalMilli, TimeUnit.MILLISECONDS);
         pulledServices.put(syncTask.getName(), future);
         LOG.info("[Core] task {} has been scheduled pulled", syncTask.getName());
     }
@@ -340,8 +340,8 @@ public class TaskEngine implements FileListener {
         if (null == destinationCenter) {
             return null;
         }
-        sourceCenter.init(new RegistryInitRequest(source.getName(), source.getType().name(), source));
-        destinationCenter.init(new RegistryInitRequest(source.getName(), source.getType().name(), destination));
+        sourceCenter.init(new RegistryInitRequest("", RegistryType.unknown, source));
+        destinationCenter.init(new RegistryInitRequest(source.getName(), source.getType(), destination));
         registrySet = new RegistrySet(new NamedRegistryCenter(
                 source.getName(), source.getProductName(), sourceCenter),
                 new NamedRegistryCenter(destination.getName(), destination.getProductName(), destinationCenter));

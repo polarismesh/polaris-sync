@@ -22,7 +22,7 @@ import static cn.polarismesh.polaris.sync.common.rest.RestOperator.pickAddress;
 import cn.polarismesh.polaris.sync.extension.registry.AbstractRegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
-import cn.polarismesh.polaris.sync.extension.utils.CommonUtils;
+import cn.polarismesh.polaris.sync.common.utils.CommonUtils;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
@@ -73,7 +73,14 @@ public class KubernetesRegistryCenter extends AbstractRegistryCenter {
     }
 
     private ApiClient createApiClient(String address) {
-        return Config.fromToken(String.format("https://%s", address), registryEndpoint.getToken(), false);
+        return Config.fromToken(getAddress(address), registryEndpoint.getToken(), false);
+    }
+
+    private static String getAddress(String address) {
+        if (address.startsWith("http://") || address.startsWith("https://")) {
+            return address;
+        }
+        return String.format("https://%s", address);
     }
 
     @Override
@@ -151,6 +158,8 @@ public class KubernetesRegistryCenter extends AbstractRegistryCenter {
                         continue;
                     }
                     ServiceProto.Instance.Builder instanceBuilder = ServiceProto.Instance.newBuilder();
+                    instanceBuilder.setNamespace(ResponseUtils.toStringValue(service.getNamespace()));
+                    instanceBuilder.setService(ResponseUtils.toStringValue(service.getService()));
                     instanceBuilder.setHost(ResponseUtils.toStringValue(ip)).setPort(ResponseUtils.toUInt32Value(port));
                     if (null != protocol) {
                         instanceBuilder.setProtocol(ResponseUtils.toStringValue(protocol));

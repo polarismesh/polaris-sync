@@ -24,7 +24,7 @@ import cn.polarismesh.polaris.sync.extension.registry.AbstractRegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.registry.WatchEvent;
-import cn.polarismesh.polaris.sync.extension.utils.CommonUtils;
+import cn.polarismesh.polaris.sync.common.utils.CommonUtils;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
@@ -128,11 +128,11 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
         List<HealthService> healthInstances = healthServices.getValue();
         DiscoverResponse.Builder builder = ResponseUtils
                 .toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE);
-        builder.addAllInstances(convertConsulInstance(healthInstances, group));
+        builder.addAllInstances(convertConsulInstance(service, healthInstances, group));
         return builder.build();
     }
 
-    private List<Instance> convertConsulInstance(List<HealthService> instances, Group group) {
+    private List<Instance> convertConsulInstance(Service service, List<HealthService> instances, Group group) {
         List<Instance> outInstances = new ArrayList<>();
         if (CollectionUtils.isEmpty(instances)) {
             return outInstances;
@@ -146,7 +146,8 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
                 continue;
             }
             Instance.Builder builder = Instance.newBuilder();
-            builder.setId(ResponseUtils.toStringValue(instance.getId()));
+            builder.setNamespace(ResponseUtils.toStringValue(service.getNamespace()));
+            builder.setService(ResponseUtils.toStringValue(service.getService()));
             builder.setHost(ResponseUtils.toStringValue(instance.getAddress()));
             builder.setPort(ResponseUtils.toUInt32Value(instance.getPort()));
             builder.putAllMetadata(instance.getMeta());
@@ -244,7 +245,7 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
                 List<HealthService> healthInstances = healthServices.getValue();
                 DiscoverResponse.Builder builder = ResponseUtils
                         .toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE);
-                builder.addAllInstances(convertConsulInstance(healthInstances, null));
+                builder.addAllInstances(convertConsulInstance(service, healthInstances, null));
                 eventListener.onEvent(new WatchEvent(builder.build()));
                 synchronized (lock) {
                     watched = watchedServices.containsKey(service);
