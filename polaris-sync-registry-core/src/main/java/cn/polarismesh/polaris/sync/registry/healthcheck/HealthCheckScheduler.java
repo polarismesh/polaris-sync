@@ -18,9 +18,9 @@
 package cn.polarismesh.polaris.sync.registry.healthcheck;
 
 import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
+import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.extension.registry.Health;
 import cn.polarismesh.polaris.sync.extension.report.RegistryHealthStatus;
-import cn.polarismesh.polaris.sync.extension.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.registry.config.FileListener;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.HealthCheck;
@@ -33,11 +33,14 @@ import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.registry.utils.DurationUtils;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
@@ -50,7 +53,7 @@ public class HealthCheckScheduler implements FileListener {
     private final ScheduledExecutorService healthCheckExecutor = Executors
             .newScheduledThreadPool(1, new NamedThreadFactory("health-check-worker"));
 
-    private Set<String> tasks = new HashSet<>();
+    private final Map<String, ScheduledFuture<?>> tasks = new HashMap<>();
 
     private final AtomicBoolean enable = new AtomicBoolean(false);
 
@@ -79,43 +82,62 @@ public class HealthCheckScheduler implements FileListener {
         reload(config);
     }
 
+    private void clearTasks() {
+        if (!tasks.isEmpty()) {
+            for (Map.Entry<String, ScheduledFuture<?>> entry : tasks.entrySet()) {
+                LOG.info("[Health] cancel scheduled health check for task {}", entry.getKey());
+                entry.getValue().cancel(true);
+            }
+            tasks.clear();
+        }
+    }
+
     public void reload(Registry registryConfig) {
         synchronized (configLock) {
             HealthCheck healthCheck = registryConfig.getHealthCheck();
             if (null == healthCheck) {
                 enable.set(false);
-                tasks.clear();
+                clearTasks();
                 return;
             }
             boolean enable = healthCheck.getEnable();
             this.enable.set(enable);
             if (!enable) {
-                tasks.clear();
                 LOG.info("[Health] health check is disabled");
+                clearTasks();
                 return;
             }
-            Set<String> newTasks = new HashSet<>();
+            long newIntervalMilli = DurationUtils
+                    .parseDurationMillis(healthCheck.getInterval(), DefaultValues.DEFAULT_INTERVAL_MS);
+            if (intervalMilli != newIntervalMilli) {
+                clearTasks();
+            }
+            intervalMilli = newIntervalMilli;
             List<Task> tasksList = registryConfig.getTasksList();
+            Set<String> taskNames = new HashSet<>();
             for (Task task : tasksList) {
                 if (task.getEnable()) {
-                    newTasks.add(task.getName());
+                    String taskName = task.getName();
+                    taskNames.add(taskName);
+                    if (!tasks.containsKey(taskName)) {
+                        LOG.info("[Health] schedule health check for task {}", taskName);
+                        ScheduledFuture<?> future = scheduleHealthCheckForTask(taskName);
+                        tasks.put(taskName, future);
+                    }
                 }
             }
-            //compare the new add tasks
-            for (String newTask : newTasks) {
-                if (!tasks.contains(newTask)) {
-                    LOG.info("[Health] schedule health check for task {}", newTask);
-                    scheduleHealthCheckForTask(newTask);
+            for (String name : tasks.keySet()) {
+                if (!taskNames.contains(name)) {
+                    ScheduledFuture<?> future = tasks.remove(name);
+                    LOG.info("[Health] cancel scheduled health check for task {}",name);
+                    future.cancel(true);
                 }
             }
-            tasks = newTasks;
-            intervalMilli = DurationUtils
-                    .parseDurationMillis(healthCheck.getInterval(), DefaultValues.DEFAULT_INTERVAL_MS);
         }
     }
 
-    private void scheduleHealthCheckForTask(String taskName) {
-        healthCheckExecutor.schedule(new Runnable() {
+    private ScheduledFuture<?> scheduleHealthCheckForTask(String taskName) {
+        return healthCheckExecutor.scheduleWithFixedDelay(new Runnable() {
             @Override
             public void run() {
                 RegistrySet registrySet = taskEngine.getRegistrySet(taskName);
@@ -131,14 +153,8 @@ public class HealthCheckScheduler implements FileListener {
                 RegistryHealthStatus dstHealthStatus = toRegistryHealthStatus(dstHealth, dstRegistry);
                 statReportAggregator.reportHealthStatus(srcHealthStatus);
                 statReportAggregator.reportHealthStatus(dstHealthStatus);
-                synchronized (configLock) {
-                    boolean scheduleNext = tasks.contains(taskName);
-                    if (scheduleNext) {
-                        healthCheckExecutor.schedule(this, intervalMilli, TimeUnit.MILLISECONDS);
-                    }
-                }
             }
-        }, intervalMilli, TimeUnit.MILLISECONDS);
+        }, intervalMilli, intervalMilli, TimeUnit.MILLISECONDS);
     }
 
     private static RegistryHealthStatus toRegistryHealthStatus(Health health, NamedRegistryCenter registry) {

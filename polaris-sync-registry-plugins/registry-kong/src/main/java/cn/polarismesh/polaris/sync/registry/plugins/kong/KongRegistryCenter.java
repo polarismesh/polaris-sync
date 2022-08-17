@@ -25,8 +25,6 @@ import cn.polarismesh.polaris.sync.common.rest.RestUtils;
 import cn.polarismesh.polaris.sync.extension.registry.AbstractRegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
-import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
-import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.ServiceObject;
@@ -37,7 +35,6 @@ import cn.polarismesh.polaris.sync.registry.plugins.kong.model.UpstreamObject;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.UpstreamObjectList;
 import com.google.protobuf.ProtocolStringList;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
-import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse.DiscoverResponseType;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -50,7 +47,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
+import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 @Component
@@ -71,6 +68,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
 
     @Override
     public void init(RegistryInitRequest registryInitRequest) {
+        Assert.hasText(registryInitRequest.getSourceName(), "source registry for kong is empty");
         this.registryInitRequest = registryInitRequest;
         this.token = registryInitRequest.getRegistryEndpoint().getToken();
         restOperator = new RestOperator();
@@ -90,41 +88,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
 
     @Override
     public DiscoverResponse listInstances(Service service, Group group) {
-        String sourceName = registryInitRequest.getSourceName();
-        String upstreamName = ConversionUtils.getUpstreamName(service, group.getName(), sourceName);
-        ProtocolStringList addressesList = registryInitRequest.getRegistryEndpoint().getAddressesList();
-        String targetsUrl = KongEndpointUtils.toTargetsReadUrl(addressesList, upstreamName);
-        RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(
-                targetsUrl, HttpMethod.GET, RestUtils.getRequestEntity(token, null), String.class);
-        processHealthCheck(restResponse);
-        if (restResponse.hasServerError()) {
-            LOG.error("[Kong] server error to query target {}", targetsUrl, restResponse.getException());
-            return ResponseUtils.toRegistryCenterException(service);
-        }
-        if (restResponse.hasTextError()) {
-            LOG.warn("[Kong] text error to query target {}, code {}, reason {}",
-                    targetsUrl, restResponse.getRawStatusCode(), restResponse.getStatusText());
-            if (restResponse.isNotFound()) {
-                return ResponseUtils.toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE)
-                        .build();
-            }
-            return ResponseUtils.toRegistryClientException(service);
-        }
-        ResponseEntity<String> strEntity = restResponse.getResponseEntity();
-        TargetObjectList targetObjectList = RestUtils.unmarshalJsonText(strEntity.getBody(), TargetObjectList.class);
-        if (null == targetObjectList) {
-            LOG.error("[Kong] invalid response to query target from {}, reason {}", targetsUrl, strEntity.getBody());
-            return ResponseUtils.toRegistryClientException(service);
-        }
-        DiscoverResponse.Builder builder = ResponseUtils
-                .toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE);
-        List<TargetObject> data = targetObjectList.getData();
-        if (!CollectionUtils.isEmpty(data)) {
-            for (TargetObject targetObject : data) {
-                builder.addInstances(ConversionUtils.parseTargetToInstance(targetObject));
-            }
-        }
-        return builder.build();
+        throw new UnsupportedOperationException("listInstances is not supported in kong");
     }
 
     @Override
@@ -148,7 +112,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
                 servicesUrl, HttpMethod.GET, RestUtils.getRequestEntity(token, null), String.class);
         processHealthCheck(restResponse);
         if (restResponse.hasServerError()) {
-            LOG.error("[Kong] server error to query services {}", servicesUrl, restResponse.getException());
+            LOG.error("[Kong] server error to query services {}, reason {}", servicesUrl, restResponse.getException().getMessage());
             return false;
         }
         if (restResponse.hasTextError()) {
@@ -187,7 +151,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
         ServiceObjectList serviceObjectList = new ServiceObjectList();
         serviceObjectList.setData(serviceObjects);
         String sourceName = registryInitRequest.getSourceName();
-        String sourceType = registryInitRequest.getSourceType();
+        RegistryType sourceType = registryInitRequest.getSourceType();
         Map<Service, ServiceObject> serviceObjectMap = ConversionUtils.parseServiceObjects(serviceObjectList,
                 sourceName);
         Set<ServiceObject> servicesToCreate = new HashSet<>();
@@ -251,7 +215,8 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
                 upstreamsUrl, HttpMethod.GET, RestUtils.getRequestEntity(token, null), String.class);
         processHealthCheck(restResponse);
         if (restResponse.hasServerError()) {
-            LOG.error("[Kong] server error to query upstreams {}", upstreamsUrl, restResponse.getException());
+            LOG.error("[Kong] server error to query upstreams {}, reason {}",
+                    upstreamsUrl, restResponse.getException().getMessage());
             return false;
         }
         if (restResponse.hasTextError()) {
@@ -291,7 +256,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
         UpstreamObjectList upstreamObjectList = new UpstreamObjectList();
         upstreamObjectList.setData(upstreams);
         String sourceName = registryInitRequest.getSourceName();
-        String sourceType = registryInitRequest.getSourceType();
+        RegistryType sourceType = registryInitRequest.getSourceType();
         Map<String, UpstreamObject> upstreamObjectMap =
                 ConversionUtils.parseUpstreamObjects(upstreamObjectList, service, sourceName);
         Set<UpstreamObject> upstreamsToCreate = new HashSet<>();
@@ -330,17 +295,14 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
                 upstreamDeleteCount++;
             }
         }
-        LOG.info("[Kong] success to update upstreams, add {}, delete {}", upstreamAddCount, upstreamDeleteCount);
+        LOG.info("[Kong] success to update upstreams for service {}, add {}, delete {}",
+                service,  upstreamAddCount, upstreamDeleteCount);
     }
 
     @Override
     public void updateInstances(Service service, Group group, Collection<Instance> instances) {
         LOG.info("[Kong] instances to update instances group {}, service {}, is {}, ",
                 group.getName(), service, instances);
-        //if (!registerGroup(service, group.getName())) {
-        //    LOG.warn("[Kong] updateInstances canceled by fail to regisger group");
-        //     return;
-        //}
         String sourceName = registryInitRequest.getSourceName();
         String upstreamName = ConversionUtils.getUpstreamName(service, group.getName(), sourceName);
         ProtocolStringList addressesList = registryInitRequest.getRegistryEndpoint().getAddressesList();
@@ -350,7 +312,8 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
                 targetReadUrl, HttpMethod.GET, RestUtils.getRequestEntity(token, null), String.class);
         processHealthCheck(restResponse);
         if (restResponse.hasServerError()) {
-            LOG.error("[Kong] server error to query targets {}", targetReadUrl, restResponse.getException());
+            LOG.error("[Kong] server error to query targets {}, reason {}",
+                    targetReadUrl, restResponse.getException().getMessage());
             return;
         }
         if (restResponse.hasTextError() && restResponse.getRawStatusCode() != 404) {
@@ -438,8 +401,8 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
                 serviceUrl, method, RestUtils.getRequestEntity(token, jsonText), String.class);
         processHealthCheck(restResponse);
         if (restResponse.hasServerError()) {
-            LOG.error("[Kong] server error to {} {} to {}, method {}, request {}",
-                    operation, name, serviceUrl, method.name(), jsonText, restResponse.getException());
+            LOG.error("[Kong] server error to {} {} to {}, method {}, request {}, reason {}",
+                    operation, name, serviceUrl, method.name(), jsonText, restResponse.getException().getMessage());
             return;
         }
         if (restResponse.hasTextError()) {

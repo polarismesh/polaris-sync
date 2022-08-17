@@ -1,0 +1,172 @@
+/*
+ * Tencent is pleased to support the open source community by making Polaris available.
+ *
+ * Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+ *
+ * Licensed under the BSD 3-Clause License (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://opensource.org/licenses/BSD-3-Clause
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ */
+
+package cn.polarismesh.polaris.sync.registry.plugins.polaris;
+
+import cn.polarismesh.polaris.sync.common.rest.RestOperator;
+import cn.polarismesh.polaris.sync.common.rest.RestResponse;
+import cn.polarismesh.polaris.sync.extension.registry.Service;
+import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
+import com.google.protobuf.util.JsonFormat;
+import com.google.protobuf.util.JsonFormat.Parser;
+import com.google.protobuf.util.JsonFormat.Printer;
+import com.tencent.polaris.client.pb.RequestProto.DiscoverRequest;
+import com.tencent.polaris.client.pb.RequestProto.DiscoverRequest.DiscoverRequestType;
+import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
+import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse.Builder;
+import com.tencent.polaris.client.pb.ServiceProto;
+import com.tencent.polaris.client.pb.ServiceProto.Instance;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
+
+public class PolarisRestUtils {
+
+    private static final Logger LOG = LoggerFactory.getLogger(PolarisRestUtils.class);
+
+    public static void createInstances(
+            RestOperator restOperator, Collection<ServiceProto.Instance> instances, RegistryEndpoint registryEndpoint) {
+        String instancesUrl = PolarisEndpointUtils.toInstancesUrl(registryEndpoint.getAddressesList());
+        operateInstances(instancesUrl, HttpMethod.POST, "create", restOperator, instances, registryEndpoint);
+    }
+
+    public static void updateInstances(
+            RestOperator restOperator, Collection<ServiceProto.Instance> instances, RegistryEndpoint registryEndpoint) {
+        String instancesUrl = PolarisEndpointUtils.toInstancesUrl(registryEndpoint.getAddressesList());
+        operateInstances(instancesUrl, HttpMethod.PUT, "update", restOperator, instances, registryEndpoint);
+    }
+
+    public static void deleteInstances(
+            RestOperator restOperator, Collection<ServiceProto.Instance> instances, RegistryEndpoint registryEndpoint) {
+        String instancesUrl = PolarisEndpointUtils.toInstancesDeleteUrl(registryEndpoint.getAddressesList());
+        operateInstances(instancesUrl, HttpMethod.POST, "delete", restOperator, instances, registryEndpoint);
+    }
+
+    private static void operateInstances(String instancesUrl, HttpMethod method, String operation,
+            RestOperator restOperator, Collection<ServiceProto.Instance> instances, RegistryEndpoint registryEndpoint) {
+        String jsonText = "[]";
+        if (null != instances) {
+            jsonText = marshalProtoInstancesJsonText(instances);
+        }
+        RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(
+                instancesUrl, method, getRequestEntity(registryEndpoint.getToken(), jsonText), String.class);
+        if (restResponse.hasServerError()) {
+            LOG.error("[Polaris] server error to {} instances to {}, method {}, request {}",
+                    operation, instancesUrl, method.name(), jsonText, restResponse.getException());
+            return;
+        }
+        if (restResponse.hasTextError()) {
+            LOG.warn("[Polaris] text error to {} instances to {}, method {}, request {}, code {}, reason {}",
+                    operation, instancesUrl, method.name(), jsonText, restResponse.getRawStatusCode(),
+                    restResponse.getStatusText());
+            return;
+        }
+        LOG.info("[Polaris] success to {} instances to {}, method {}, request {}", operation, instancesUrl, method.name(),
+                jsonText);
+    }
+
+    public static DiscoverResponse.Builder discoverAllInstances(
+            RestOperator restOperator, Service service, RegistryEndpoint registryEndpoint, List<String> httpAddresses) {
+        DiscoverRequest.Builder requestBuilder = DiscoverRequest.newBuilder();
+        requestBuilder.setType(DiscoverRequestType.INSTANCE);
+        ServiceProto.Service requestService = ServiceProto.Service.newBuilder()
+                .setNamespace(ResponseUtils.toStringValue(service.getNamespace()))
+                .setName(ResponseUtils.toStringValue(service.getService())).build();
+        requestBuilder.setService(requestService);
+        String jsonText = marshalProtoMessageJsonText(requestBuilder.build());
+        String discoverUrl = PolarisEndpointUtils.toDiscoverUrl(httpAddresses);
+        HttpMethod method = HttpMethod.POST;
+        RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(
+                discoverUrl, method, getRequestEntity(registryEndpoint.getToken(), jsonText), String.class);
+        if (restResponse.hasServerError()) {
+            LOG.error("[Polaris] server error to discover instances to {}, method {}, request {}, reason {}",
+                    discoverUrl, method.name(), jsonText, restResponse.getException().getMessage());
+            return null;
+        }
+        if (restResponse.hasTextError()) {
+            LOG.warn("[Polaris] text error to create instances to {}, method {}, request {}, code {}, reason {}",
+                    discoverUrl, method.name(), jsonText, restResponse.getRawStatusCode(),
+                    restResponse.getStatusText());
+            return null;
+        }
+        ResponseEntity<String> responseEntity = restResponse.getResponseEntity();
+        String body = responseEntity.getBody();
+        Builder responseBuilder = DiscoverResponse.newBuilder();
+        boolean result = unmarshalProtoMessage(body, responseBuilder);
+        if (!result) {
+            LOG.error("[Kong] invalid response to query instances from {}", discoverUrl);
+            return null;
+        }
+        return responseBuilder;
+    }
+
+    public static <T> HttpEntity<T> getRequestEntity(String token, T object) {
+        HttpHeaders headers = new HttpHeaders();
+        if (StringUtils.hasText(token)) {
+            headers.add("X-Polaris-Token", token);
+        }
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return new HttpEntity<T>(object, headers);
+    }
+
+    public static String marshalProtoInstancesJsonText(Collection<Instance> values) {
+        List<String> jsonValues = new ArrayList<>();
+        for (ServiceProto.Instance value : values) {
+            String jsonText = marshalProtoMessageJsonText(value);
+            if (null == jsonText) {
+                LOG.error("[Polaris] instance {}:{} marshaled failed, skip next operation",
+                        value.getHost().getValue(), value.getPort().getValue());
+                continue;
+            }
+            jsonValues.add(jsonText);
+        }
+        String text = String.join(",", jsonValues);
+        return "[" + text + "]";
+    }
+
+    public static String marshalProtoMessageJsonText(Message value) {
+        Printer printer = JsonFormat.printer();
+        try {
+            return printer.print(value);
+        } catch (InvalidProtocolBufferException e) {
+            LOG.error("[Core] fail to serialize object {}", value, e);
+        }
+        return null;
+    }
+
+    public static boolean unmarshalProtoMessage(String jsonText, Message.Builder builder) {
+        Parser parser = JsonFormat.parser().ignoringUnknownFields();
+        try {
+            parser.merge(jsonText, builder);
+            return true;
+        } catch (InvalidProtocolBufferException e) {
+            LOG.error("[Core] fail to deserialize jsonText {}", jsonText, e);
+            return false;
+        }
+    }
+}

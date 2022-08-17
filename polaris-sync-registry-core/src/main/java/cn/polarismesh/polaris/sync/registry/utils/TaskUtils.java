@@ -17,8 +17,8 @@
 
 package cn.polarismesh.polaris.sync.registry.utils;
 
-import cn.polarismesh.polaris.sync.extension.utils.CommonUtils;
-import cn.polarismesh.polaris.sync.extension.utils.DefaultValues;
+import cn.polarismesh.polaris.sync.common.utils.CommonUtils;
+import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import java.util.ArrayList;

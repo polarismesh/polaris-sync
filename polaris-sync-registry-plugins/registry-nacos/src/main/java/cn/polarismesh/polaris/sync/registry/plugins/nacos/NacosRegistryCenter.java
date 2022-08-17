@@ -22,8 +22,8 @@ import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.registry.WatchEvent;
-import cn.polarismesh.polaris.sync.extension.utils.CommonUtils;
-import cn.polarismesh.polaris.sync.extension.utils.DefaultValues;
+import cn.polarismesh.polaris.sync.common.utils.CommonUtils;
+import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
@@ -43,10 +43,12 @@ import com.tencent.polaris.client.pb.ServiceProto;
 import com.tencent.polaris.client.pb.ServiceProto.Instance.Builder;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
@@ -161,14 +163,14 @@ public class NacosRegistryCenter implements RegistryCenter {
                     service, registryEndpoint.getName(), e);
             return ResponseUtils.toRegistryClientException(service);
         }
-        List<ServiceProto.Instance> outInstances = convertNacosInstances(allInstances, group);
+        List<ServiceProto.Instance> outInstances = convertNacosInstances(service, allInstances, group);
         DiscoverResponse.Builder builder = ResponseUtils
                 .toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE);
         builder.addAllInstances(outInstances);
         return builder.build();
     }
 
-    private List<ServiceProto.Instance> convertNacosInstances(List<Instance> instances, Group group) {
+    private List<ServiceProto.Instance> convertNacosInstances(Service service, List<Instance> instances, Group group) {
         Map<String, String> filters = (null == group ? null : group.getMetadataMap());
         List<ServiceProto.Instance> polarisInstances = new ArrayList<>();
         for (Instance instance : instances) {
@@ -183,6 +185,8 @@ public class NacosRegistryCenter implements RegistryCenter {
             boolean enabled = instance.isEnabled();
             boolean healthy = instance.isHealthy();
             Builder builder = ServiceProto.Instance.newBuilder();
+            builder.setNamespace(ResponseUtils.toStringValue(service.getNamespace()));
+            builder.setService(ResponseUtils.toStringValue(service.getService()));
             builder.setWeight(ResponseUtils.toUInt32Value((int) weight));
             builder.putAllMetadata(metadata);
             builder.setHost(ResponseUtils.toStringValue(ip));
@@ -214,7 +218,7 @@ public class NacosRegistryCenter implements RegistryCenter {
                 }
                 NamingEvent namingEvent = (NamingEvent) event;
                 List<Instance> instances = namingEvent.getInstances();
-                List<ServiceProto.Instance> polarisInstances = convertNacosInstances(instances, null);
+                List<ServiceProto.Instance> polarisInstances = convertNacosInstances(service, instances, null);
                 DiscoverResponse.Builder builder = ResponseUtils
                         .toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE);
                 builder.addAllInstances(polarisInstances);
@@ -260,17 +264,26 @@ public class NacosRegistryCenter implements RegistryCenter {
 
     @Override
     public void updateServices(Collection<Service> services) {
-        throw new UnsupportedOperationException("updateServices not supported in nacos");
+        Set<String> namespaceIds = new HashSet<>();
+        for (Service service : services) {
+            namespaceIds.add(service.getNamespace());
+        }
+        if (namespaceIds.isEmpty() || (namespaceIds.size() == 1 &&
+                namespaceIds.iterator().next().equals(DefaultValues.EMPTY_NAMESPACE_HOLDER))) {
+            return;
+        }
+        //1. 先查询命名空间是否已经创建
+
     }
 
     @Override
     public void updateGroups(Service service, Collection<Group> groups) {
-        throw new UnsupportedOperationException("updateGroups not supported in nacos");
+
     }
 
     @Override
     public void updateInstances(Service service, Group group, Collection<ServiceProto.Instance> instances) {
-        throw new UnsupportedOperationException("updateInstances not supported in nacos");
+
     }
 
     @Override

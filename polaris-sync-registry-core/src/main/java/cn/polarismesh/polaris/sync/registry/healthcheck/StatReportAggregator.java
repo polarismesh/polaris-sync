@@ -62,7 +62,7 @@ public class StatReportAggregator implements FileListener {
 
     private final Object clearLock = new Object();
 
-    private final Set<Dimension> dimensionsToClear = new HashSet<>();
+    private Set<Dimension> dimensionsToClear = new HashSet<>();
 
     private Collection<ReportTarget> lastReportTargets = new HashSet<>();
 
@@ -101,7 +101,7 @@ public class StatReportAggregator implements FileListener {
                 StatInfo statInfo = new StatInfo();
                 statInfo.setRegistryHealthStatusList(registryHealthStatuses);
                 for (ReportHandler reportHandler : reportHandlers) {
-                    LOG.info("[Report] report stat metric to reporter {}", reportHandler.getType());
+                    LOG.debug("[Report] report stat metric to reporter {}", reportHandler.getType());
                     reportHandler.reportStat(statInfo);
                 }
 
@@ -170,6 +170,7 @@ public class StatReportAggregator implements FileListener {
                     LOG.info("[Report] report dimension {} has been cleared", dimension);
                 }
             }
+            dimensionsToClear = newDimensionsToClear;
         }
     }
 

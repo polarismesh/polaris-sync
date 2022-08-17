@@ -15,18 +15,22 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.extension.utils;
+package cn.polarismesh.polaris.sync.registry.plugins.nacos;
 
-public interface DefaultValues {
+import static cn.polarismesh.polaris.sync.common.rest.RestOperator.pickAddress;
 
-    long DEFAULT_INTERVAL_MS = 5 * 1000;
+import java.util.List;
 
-    long DEFAULT_FILE_PULL_MS = 30 * 1000;
+public class NacosEndpointUtils {
 
-    long DEFAULT_PULL_INTERVAL_MS = 5 * 60 * 1000;
+    public static String toNamespacesUrl(List<String> addresses) {
+        String address = pickAddress(addresses);
+        return String.format("http://%s/nacos/v1/console/namespaces", address);
+    }
 
-    String GROUP_NAME_DEFAULT = "default";
+    public static String toAuthUrl(List<String> addresses) {
+        String address = pickAddress(addresses);
+        return String.format("http://%s/nacos/nacos/v1/auth/login", address);
+    }
 
-    // EMPTY_NAMESPACE_HOLDER 空命名空间占位符
-    String EMPTY_NAMESPACE_HOLDER = "empty_ns";
 }

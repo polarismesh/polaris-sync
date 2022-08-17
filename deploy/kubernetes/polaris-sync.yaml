@@ -1,0 +1,48 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: polaris-sync
+  name: polaris-sync
+  namespace: polaris-system
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  selector:
+    matchLabels:
+      app: polaris-sync
+  serviceName: polaris-sync
+  template:
+    metadata:
+      labels:
+        app: polaris-sync
+    spec:
+      containers:
+        - env:
+          - name: POLARIS_SYNC_REGISTRY_WATCHPATH
+            value: /data/sync/watch/polaris-sync.json
+          - name: POLARIS_SYNC_REGISTRY_CONFIGPATH
+            value: /data/sync/config/polaris-sync.json
+          image: polarismesh/polaris-sync:latest
+          imagePullPolicy: Always
+          name: polaris-sync
+          resources:
+            limits:
+              cpu: "500m"
+              memory: 1000Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /data/sync/watch
+              name: polaris-sync-config
+      restartPolicy: Always
+      volumes:
+        - configMap:
+            defaultMode: 420
+            name: polaris-sync-config
+          name: polaris-sync-config
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate

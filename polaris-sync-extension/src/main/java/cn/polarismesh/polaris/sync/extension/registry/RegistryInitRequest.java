@@ -18,23 +18,24 @@
 package cn.polarismesh.polaris.sync.extension.registry;
 
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
 
 public class RegistryInitRequest {
 
     private final String sourceName;
 
-    private final String sourceType;
+    private final RegistryType sourceType;
 
     private final RegistryEndpoint registryEndpoint;
 
-    public RegistryInitRequest(String sourceName,String sourceType,
+    public RegistryInitRequest(String sourceName,RegistryType sourceType,
             RegistryEndpoint registryEndpoint) {
         this.sourceName = sourceName;
         this.sourceType = sourceType;
         this.registryEndpoint = registryEndpoint;
     }
 
-    public String getSourceType() {
+    public RegistryType getSourceType() {
         return sourceType;
     }
 

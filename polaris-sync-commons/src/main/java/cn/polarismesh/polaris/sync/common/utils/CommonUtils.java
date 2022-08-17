@@ -15,9 +15,11 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.extension.utils;
+package cn.polarismesh.polaris.sync.common.utils;
 
+import java.util.Collections;
 import java.util.Map;
+import org.apache.commons.lang.StringUtils;
 
 public class CommonUtils {
 
@@ -43,5 +45,37 @@ public class CommonUtils {
             }
         }
         return matched;
+    }
+
+    public static boolean isSyncedByCurrentSource(Map<String, String> metadataMap, String srcName) {
+        String value = metadataMap.get(DefaultValues.META_SYNC);
+        return null != value && value.equals(srcName);
+    }
+
+    public static Map<String, String> defaultMap(Map<String, String> metadata) {
+        if (null == metadata) {
+            return Collections.emptyMap();
+        }
+        return metadata;
+    }
+
+    public static boolean metadataEquals(Map<String, String> srcMetadata, Map<String, String> dstMetadata) {
+        srcMetadata = defaultMap(srcMetadata);
+        dstMetadata = defaultMap(dstMetadata);
+        if (srcMetadata.size() != dstMetadata.size()) {
+            return false;
+        }
+        for (Map.Entry<String, String> entry : srcMetadata.entrySet()) {
+            String key = entry.getKey();
+            if (!dstMetadata.containsKey(key)) {
+                return false;
+            }
+            String srcValue = entry.getValue();
+            String dstValue = dstMetadata.get(key);
+            if (!StringUtils.equals(srcValue, dstValue)) {
+                return false;
+            }
+        }
+        return true;
     }
 }

@@ -18,11 +18,10 @@
 package cn.polarismesh.polaris.sync.registry.config;
 
 import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
-import cn.polarismesh.polaris.sync.extension.utils.DefaultValues;
+import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.Executors;

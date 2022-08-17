@@ -15,15 +15,20 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.registry.plugins.kong;
+package cn.polarismesh.polaris.sync.common.utils;
 
-import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
+public interface DefaultValues {
 
-public interface KongConsts {
+    long DEFAULT_INTERVAL_MS = 5 * 1000;
 
-    String GROUP_NAME_DEFAULT = DefaultValues.GROUP_NAME_DEFAULT;
+    long DEFAULT_FILE_PULL_MS = 30 * 1000;
 
-    int PORT_DEFAULT = 80;
+    long DEFAULT_PULL_INTERVAL_MS = 5 * 60 * 1000;
 
-    String PROTOCOL_DEFAULT = "http";
+    String GROUP_NAME_DEFAULT = "default";
+
+    // EMPTY_NAMESPACE_HOLDER 空命名空间占位符
+    String EMPTY_NAMESPACE_HOLDER = "empty_ns";
+
+    String META_SYNC = "__sync__";
 }
