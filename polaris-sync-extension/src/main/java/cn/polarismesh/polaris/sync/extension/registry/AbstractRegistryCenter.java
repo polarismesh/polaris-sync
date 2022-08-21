@@ -17,6 +17,10 @@
 
 package cn.polarismesh.polaris.sync.extension.registry;
 
+import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
+import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
+import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
+import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse.DiscoverResponseType;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class AbstractRegistryCenter implements RegistryCenter {
@@ -33,5 +37,17 @@ public abstract class AbstractRegistryCenter implements RegistryCenter {
         totalCount.addAndGet(-totalCountValue);
         serverErrorCount.addAndGet(-errorCountValue);
         return new Health(totalCountValue, errorCountValue);
+    }
+
+    @Override
+    public DiscoverResponse listNamespaces() {
+        return ResponseUtils.toDiscoverResponse(
+                null, StatusCodes.SUCCESS, DiscoverResponseType.NAMESPACES).build();
+    }
+
+    @Override
+    public DiscoverResponse listServices(String namespace) {
+        return ResponseUtils.toDiscoverResponse(
+                new Service(namespace, ""), StatusCodes.SUCCESS, DiscoverResponseType.SERVICES).build();
     }
 }

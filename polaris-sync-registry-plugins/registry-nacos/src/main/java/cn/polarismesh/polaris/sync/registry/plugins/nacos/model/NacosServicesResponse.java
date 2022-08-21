@@ -15,27 +15,38 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.registry.plugins.nacos;
-
-import static cn.polarismesh.polaris.sync.common.rest.RestOperator.pickAddress;
+package cn.polarismesh.polaris.sync.registry.plugins.nacos.model;
 
 import java.util.List;
 
-public class NacosEndpointUtils {
+public class NacosServicesResponse {
 
-    public static String toNamespacesUrl(List<String> addresses) {
-        String address = pickAddress(addresses);
-        return String.format("http://%s/nacos/v1/console/namespaces", address);
+    private int count;
+
+    private List<NacosServiceView> serviceList;
+
+    public int getCount() {
+        return count;
     }
 
-    public static String toServicesUrl(List<String> addresses) {
-        String address = pickAddress(addresses);
-        return String.format("http://%s/nacos/v1/ns/catalog/services", address);
+    public void setCount(int count) {
+        this.count = count;
     }
 
-    public static String toAuthUrl(List<String> addresses) {
-        String address = pickAddress(addresses);
-        return String.format("http://%s/nacos/v1/auth/login", address);
+    public List<NacosServiceView> getServiceList() {
+        return serviceList;
     }
 
+    public void setServiceList(
+            List<NacosServiceView> serviceList) {
+        this.serviceList = serviceList;
+    }
+
+    @Override
+    public String toString() {
+        return "NacosServices{" +
+                "count=" + count +
+                ", serviceList=" + serviceList +
+                '}';
+    }
 }

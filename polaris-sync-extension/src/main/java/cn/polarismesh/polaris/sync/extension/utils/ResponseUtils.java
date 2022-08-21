@@ -28,12 +28,38 @@ import com.tencent.polaris.client.pb.ServiceProto;
 
 public class ResponseUtils {
 
+    public static int normalizeStatusCode(int statusCode) {
+        return statusCode * 1000;
+    }
+
+
+    public static int getHttpStatusCode(DiscoverResponse discoverResponse) {
+        return discoverResponse.getCode().getValue() / 1000;
+    }
+
+
     public static DiscoverResponse toRegistryCustomizeException(Service service, int code) {
         return toDiscoverResponse(service, code, DiscoverResponseType.INSTANCE).build();
     }
 
-    public static DiscoverResponse toRegistryCenterException(Service service) {
-        return toDiscoverResponse(service, StatusCodes.SERVER_EXCEPTION, DiscoverResponseType.INSTANCE).build();
+    public static DiscoverResponse toLoginException(Service service, DiscoverResponseType type) {
+        return toDiscoverResponse(service, StatusCodes.LOGIN_EXCEPTION, type).build();
+    }
+
+    public static DiscoverResponse toNotFoundException(Service service, DiscoverResponseType type) {
+        return toDiscoverResponse(service, StatusCodes.NOT_FOUND_EXCEPTION, type).build();
+    }
+
+    public static DiscoverResponse toInvalidResponseException(Service service, DiscoverResponseType type) {
+        return toDiscoverResponse(service, StatusCodes.INVALID_RESPONSE_EXCEPTION, type).build();
+    }
+
+    public static DiscoverResponse toConnectException(Service service, DiscoverResponseType type) {
+        return toDiscoverResponse(service, StatusCodes.CONNECT_EXCEPTION, type).build();
+    }
+
+    public static DiscoverResponse toConnectException(Service service) {
+        return toDiscoverResponse(service, StatusCodes.CONNECT_EXCEPTION, DiscoverResponseType.INSTANCE).build();
     }
 
     public static DiscoverResponse toRegistryClientException(Service service) {
@@ -42,9 +68,11 @@ public class ResponseUtils {
 
     public static DiscoverResponse.Builder toDiscoverResponse(Service service, int code, DiscoverResponseType type) {
         Builder builder = DiscoverResponse.newBuilder();
-        builder.setService(
-                ServiceProto.Service.newBuilder().setName(toStringValue(service.getService()))
-                        .setNamespace(toStringValue(service.getNamespace())).build());
+        if (null != service) {
+            builder.setService(
+                    ServiceProto.Service.newBuilder().setName(toStringValue(service.getService()))
+                            .setNamespace(toStringValue(service.getNamespace())).build());
+        }
         builder.setCode(toUInt32Value(code));
         builder.setType(type);
         return builder;

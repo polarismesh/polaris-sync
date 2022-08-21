@@ -30,7 +30,7 @@ import com.google.protobuf.util.JsonFormat.Printer;
 import com.tencent.polaris.client.pb.RequestProto.DiscoverRequest;
 import com.tencent.polaris.client.pb.RequestProto.DiscoverRequest.DiscoverRequestType;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
-import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse.Builder;
+import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse.DiscoverResponseType;
 import com.tencent.polaris.client.pb.ServiceProto;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import java.util.ArrayList;
@@ -90,8 +90,8 @@ public class PolarisRestUtils {
                 jsonText);
     }
 
-    public static DiscoverResponse.Builder discoverAllInstances(
-            RestOperator restOperator, Service service, RegistryEndpoint registryEndpoint, List<String> httpAddresses) {
+    public static DiscoverResponse discoverAllInstances(RestOperator restOperator, Service service,
+            RegistryEndpoint registryEndpoint, List<String> httpAddresses, DiscoverResponse.Builder builder) {
         DiscoverRequest.Builder requestBuilder = DiscoverRequest.newBuilder();
         requestBuilder.setType(DiscoverRequestType.INSTANCE);
         ServiceProto.Service requestService = ServiceProto.Service.newBuilder()
@@ -106,23 +106,22 @@ public class PolarisRestUtils {
         if (restResponse.hasServerError()) {
             LOG.error("[Polaris] server error to discover instances to {}, method {}, request {}, reason {}",
                     discoverUrl, method.name(), jsonText, restResponse.getException().getMessage());
-            return null;
+            return ResponseUtils.toConnectException(service, DiscoverResponseType.INSTANCE);
         }
         if (restResponse.hasTextError()) {
             LOG.warn("[Polaris] text error to create instances to {}, method {}, request {}, code {}, reason {}",
-                    discoverUrl, method.name(), jsonText, restResponse.getRawStatusCode(),
-                    restResponse.getStatusText());
-            return null;
+                    discoverUrl, method.name(), jsonText, restResponse.getRawStatusCode(), restResponse.getStatusText());
+            return ResponseUtils.toDiscoverResponse(service, ResponseUtils.normalizeStatusCode(
+                    restResponse.getRawStatusCode()), DiscoverResponseType.INSTANCE).build();
         }
         ResponseEntity<String> responseEntity = restResponse.getResponseEntity();
         String body = responseEntity.getBody();
-        Builder responseBuilder = DiscoverResponse.newBuilder();
-        boolean result = unmarshalProtoMessage(body, responseBuilder);
+        boolean result = unmarshalProtoMessage(body, builder);
         if (!result) {
             LOG.error("[Kong] invalid response to query instances from {}", discoverUrl);
-            return null;
+            return ResponseUtils.toInvalidResponseException(service, DiscoverResponseType.INSTANCE);
         }
-        return responseBuilder;
+        return null;
     }
 
     public static <T> HttpEntity<T> getRequestEntity(String token, T object) {

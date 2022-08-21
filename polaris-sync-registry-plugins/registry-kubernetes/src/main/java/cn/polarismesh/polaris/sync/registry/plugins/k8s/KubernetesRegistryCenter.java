@@ -103,7 +103,7 @@ public class KubernetesRegistryCenter extends AbstractRegistryCenter {
             serverErrorCount.addAndGet(1);
             LOG.error("[Kubernetes] fail to getAllInstances for service {}, address {}, registry {}",
                     service, apiServerAddress, registryEndpoint.getName(), e);
-            return ResponseUtils.toRegistryCenterException(service);
+            return ResponseUtils.toConnectException(service);
         } finally {
             totalCount.addAndGet(1);
         }
@@ -145,7 +145,7 @@ public class KubernetesRegistryCenter extends AbstractRegistryCenter {
                 try {
                     metadataMap = queryMetadata(targetRef, coreV1Api);
                 } catch (ApiException e) {
-                    return ResponseUtils.toRegistryCenterException(service);
+                    return ResponseUtils.toConnectException(service);
                 }
                 boolean matched = CommonUtils.matchMetadata(metadataMap, filters);
                 if (!matched) {

@@ -137,4 +137,8 @@ public class RegistrySyncServer {
             statReportAggregator.destroy();
         }
     }
+
+    public TaskEngine getTaskEngine() {
+        return taskEngine;
+    }
 }

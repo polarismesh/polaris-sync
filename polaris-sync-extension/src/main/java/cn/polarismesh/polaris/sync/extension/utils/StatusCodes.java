@@ -21,7 +21,14 @@ public interface StatusCodes {
 
     int SUCCESS = 200000;
 
-    int SERVER_EXCEPTION = 500000;
+    int LOGIN_EXCEPTION = 403000;
+
+    int NOT_FOUND_EXCEPTION = 404000;
+
+    int CONNECT_EXCEPTION = 500000;
 
     int CLIENT_EXCEPTION = 501000;
+
+    int INVALID_RESPONSE_EXCEPTION = 502000;
+
 }

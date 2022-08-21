@@ -1,6 +1,0 @@
-server:
-  session-timeout: 1800
-  port: 8690
-spring:
-  application:
-    name: PolarisSyncServer
