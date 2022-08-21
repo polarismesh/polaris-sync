@@ -15,18 +15,9 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.server;
+package cn.polarismesh.polaris.sync.registry.plugins.nacos.model;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.ComponentScan;
+public interface NacosConsts {
 
-@ComponentScan(basePackages = {"cn.polarismesh.polaris.sync.registry.plugins",
-        "cn.polarismesh.polaris.sync.reporter.plugins", "cn.polarismesh.polaris.server"})
-@SpringBootApplication
-public class SyncServer {
-
-    public static void main(String[] args) {
-        SpringApplication.run(SyncServer.class, args);
-    }
+    int DEFAULT_PAGE_SIZE = 100;
 }

@@ -62,6 +62,16 @@ public class RegistryCenterWrapper implements RegistryCenter {
     }
 
     @Override
+    public DiscoverResponse listNamespaces() {
+        return registryCenter.listNamespaces();
+    }
+
+    @Override
+    public DiscoverResponse listServices(String namespace) {
+        return registryCenter.listServices(namespace);
+    }
+
+    @Override
     public DiscoverResponse listInstances(Service service, Group group) {
         return registryCenter.listInstances(service, group);
     }

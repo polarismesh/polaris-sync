@@ -45,6 +45,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
@@ -384,6 +385,20 @@ public class TaskEngine implements FileListener {
         synchronized (configLock) {
             return taskRegistryMap.get(taskName);
         }
+    }
+
+    public NamedRegistryCenter getRegistry(String taskName, String registryName) {
+        RegistrySet registrySet = getRegistrySet(taskName);
+        if (null == registrySet) {
+            return null;
+        }
+        if (StringUtils.equals(registrySet.getSrcRegistry().getName(), registryName)) {
+            return registrySet.getSrcRegistry();
+        }
+        if (StringUtils.equals(registrySet.getDstRegistry().getName(), registryName)) {
+            return registrySet.getDstRegistry();
+        }
+        return null;
     }
 
     public static class ServiceWithSource {

@@ -43,6 +43,21 @@ public interface RegistryCenter {
     void destroy();
 
     /**
+     * list the discovery namespaces
+     *
+     * @return instances
+     */
+    DiscoverResponse listNamespaces();
+
+    /**
+     * list the discovery services
+     *
+     * @param namespace namespace names
+     * @return instances
+     */
+    DiscoverResponse listServices(String namespace);
+
+    /**
      * list the discovery instances
      *
      * @param service service to list

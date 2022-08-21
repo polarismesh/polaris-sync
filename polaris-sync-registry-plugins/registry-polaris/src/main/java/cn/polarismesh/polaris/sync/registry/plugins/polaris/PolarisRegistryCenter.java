@@ -22,8 +22,8 @@ import cn.polarismesh.polaris.sync.common.rest.RestOperator;
 import cn.polarismesh.polaris.sync.common.rest.RestResponse;
 import cn.polarismesh.polaris.sync.common.utils.CommonUtils;
 import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
+import cn.polarismesh.polaris.sync.extension.registry.AbstractRegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.Health;
-import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.registry.WatchEvent;
@@ -61,7 +61,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 @Component
-public class PolarisRegistryCenter implements RegistryCenter {
+public class PolarisRegistryCenter extends AbstractRegistryCenter {
 
     private static final Logger LOG = LoggerFactory.getLogger(PolarisRegistryCenter.class);
 
@@ -131,10 +131,11 @@ public class PolarisRegistryCenter implements RegistryCenter {
 
     @Override
     public DiscoverResponse listInstances(Service service, Group group) {
-        DiscoverResponse.Builder builder = PolarisRestUtils.discoverAllInstances(
-                restOperator, service, registryInitRequest.getRegistryEndpoint(), httpAddresses);
-        if (null == builder) {
-            return ResponseUtils.toRegistryCenterException(service);
+        DiscoverResponse.Builder builder = DiscoverResponse.newBuilder();
+        DiscoverResponse discoverResponse = PolarisRestUtils.discoverAllInstances(
+                restOperator, service, registryInitRequest.getRegistryEndpoint(), httpAddresses, builder);
+        if (null != discoverResponse) {
+            return discoverResponse;
         }
         if (DefaultValues.GROUP_NAME_DEFAULT.equals(group.getName())) {
             return builder.build();
@@ -233,9 +234,10 @@ public class PolarisRegistryCenter implements RegistryCenter {
 
     @Override
     public void updateInstances(Service service, Group group, Collection<ServiceProto.Instance> srcInstances) {
-        DiscoverResponse.Builder builder = PolarisRestUtils.discoverAllInstances(
-                restOperator, service, registryInitRequest.getRegistryEndpoint(), httpAddresses);
-        if (null == builder) {
+        DiscoverResponse.Builder builder = DiscoverResponse.newBuilder();
+        DiscoverResponse discoverResponse = PolarisRestUtils.discoverAllInstances(
+                restOperator, service, registryInitRequest.getRegistryEndpoint(), httpAddresses, builder);
+        if (null != discoverResponse) {
             return;
         }
         DiscoverResponse allInstances = builder.build();
@@ -243,6 +245,7 @@ public class PolarisRegistryCenter implements RegistryCenter {
         Map<HostAndPort, ServiceProto.Instance> targetsToUpdate = new HashMap<>();
         Map<HostAndPort, ServiceProto.Instance> instancesMap = toInstancesMap(allInstances.getInstancesList());
         Set<HostAndPort> processedAddresses = new HashSet<>();
+        String sourceName = registryInitRequest.getSourceName();
         // 比较新增、编辑、删除
         // 新增=源不带同步标签的实例，额外存在了（与当前全部实例作为对比）
         // 编辑=当前实例（sync=sourceName），与源实例做对比，存在不一致
@@ -260,7 +263,7 @@ public class PolarisRegistryCenter implements RegistryCenter {
             } else {
                 ServiceProto.Instance destInstance = instancesMap.get(srcAddress);
                 if (!CommonUtils.isSyncedByCurrentSource(
-                        destInstance.getMetadataMap(), this.registryInitRequest.getSourceName())) {
+                        destInstance.getMetadataMap(), sourceName)) {
                     //并非同步实例，可能是目标注册中心新注册的，不处理
                     continue;
                 }
@@ -274,7 +277,7 @@ public class PolarisRegistryCenter implements RegistryCenter {
         Map<HostAndPort, ServiceProto.Instance> targetsToDelete = new HashMap<>();
         for (Map.Entry<HostAndPort, ServiceProto.Instance> instanceEntry : instancesMap.entrySet()) {
             ServiceProto.Instance instance = instanceEntry.getValue();
-            if (!CommonUtils.isSyncedByCurrentSource(instance.getMetadataMap(), registryInitRequest.getSourceName())) {
+            if (!CommonUtils.isSyncedByCurrentSource(instance.getMetadataMap(), sourceName)) {
                 continue;
             }
             if (!processedAddresses.contains(instanceEntry.getKey())) {

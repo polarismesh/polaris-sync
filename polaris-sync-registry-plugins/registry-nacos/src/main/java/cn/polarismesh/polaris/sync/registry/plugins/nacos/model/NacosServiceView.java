@@ -15,18 +15,35 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.server;
+package cn.polarismesh.polaris.sync.registry.plugins.nacos.model;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.ComponentScan;
+public class NacosServiceView {
 
-@ComponentScan(basePackages = {"cn.polarismesh.polaris.sync.registry.plugins",
-        "cn.polarismesh.polaris.sync.reporter.plugins", "cn.polarismesh.polaris.server"})
-@SpringBootApplication
-public class SyncServer {
+    private String name;
 
-    public static void main(String[] args) {
-        SpringApplication.run(SyncServer.class, args);
+    private String groupName;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getGroupName() {
+        return groupName;
+    }
+
+    public void setGroupName(String groupName) {
+        this.groupName = groupName;
+    }
+
+    @Override
+    public String toString() {
+        return "NacosServiceView{" +
+                "name='" + name + '\'' +
+                ", groupName='" + groupName + '\'' +
+                '}';
     }
 }

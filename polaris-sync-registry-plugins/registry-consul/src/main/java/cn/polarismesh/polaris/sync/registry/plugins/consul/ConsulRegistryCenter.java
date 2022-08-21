@@ -36,12 +36,15 @@ import com.ecwid.consul.v1.ConsulRawClient;
 import com.ecwid.consul.v1.OperationException;
 import com.ecwid.consul.v1.QueryParams;
 import com.ecwid.consul.v1.Response;
+import com.ecwid.consul.v1.catalog.CatalogServicesRequest;
 import com.ecwid.consul.v1.health.HealthServicesRequest;
 import com.ecwid.consul.v1.health.HealthServicesRequest.Builder;
 import com.ecwid.consul.v1.health.model.HealthService;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse.DiscoverResponseType;
+import com.tencent.polaris.client.pb.ServiceProto;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
+import com.tencent.polaris.client.pb.ServiceProto.Namespace;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -86,6 +89,58 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
 
     }
 
+    @Override
+    public DiscoverResponse listNamespaces() {
+        DiscoverResponse.Builder builder = ResponseUtils
+                .toDiscoverResponse(null, StatusCodes.SUCCESS, DiscoverResponseType.SERVICES);
+        builder.addNamespaces(Namespace.newBuilder().setName(ResponseUtils.toStringValue("default")).build());
+        return builder.build();
+    }
+
+    @Override
+    public DiscoverResponse listServices(String namespace) {
+        String address = RestOperator.pickAddress(registryEndpoint.getAddressesList());
+        ConsulClient consulClient = getConsulClient(address);
+        Response<Map<String, List<String>>> catalogServices;
+        Service service = new Service(namespace, "");
+        try {
+            catalogServices = consulClient.getCatalogServices(buildCatalogServicesRequest());
+        } catch (ConsulException e) {
+            if (e instanceof OperationException) {
+                LOG.error("[Consul] text error to listInstances by address {}", address, e);
+                return ResponseUtils.toDiscoverResponse(service, ResponseUtils.normalizeStatusCode(
+                        ((OperationException)e).getStatusCode()), DiscoverResponseType.SERVICES).build();
+            } else {
+                serverErrorCount.addAndGet(1);
+                LOG.error("[Consul] server error to listInstances by address {}", address, e);
+                return ResponseUtils.toConnectException(service, DiscoverResponseType.SERVICES);
+            }
+        } finally {
+            totalCount.addAndGet(1);
+        }
+        DiscoverResponse.Builder builder = ResponseUtils
+                .toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.SERVICES);
+        Map<String, List<String>> values = catalogServices.getValue();
+        for (Map.Entry<String, List<String>> value : values.entrySet()) {
+            for (String svcName : value.getValue()) {
+                ServiceProto.Service.Builder svcBuilder = ServiceProto.Service.newBuilder();
+                svcBuilder.setNamespace(ResponseUtils.toStringValue(namespace));
+                svcBuilder.setName(ResponseUtils.toStringValue(svcName));
+                builder.addServices(svcBuilder.build());
+            }
+        }
+        return builder.build();
+    }
+
+    private CatalogServicesRequest buildCatalogServicesRequest() {
+        CatalogServicesRequest.Builder builder = CatalogServicesRequest.newBuilder();
+        builder.setDatacenter("dc1");
+        if (StringUtils.hasText(registryEndpoint.getToken())) {
+            builder.setToken(registryEndpoint.getToken());
+        }
+        return builder.build();
+    }
+
     private ConsulClient getConsulClient(String address) {
         HostAndPort hostAndPort = HostAndPort.build(address, ConsulRawClient.DEFAULT_PORT);
         return new ConsulClient(hostAndPort.getHost(), hostAndPort.getPort());
@@ -111,16 +166,16 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
         ConsulClient consulClient = getConsulClient(address);
         Response<List<HealthService>> healthServices;
         try {
-            healthServices = consulClient
-                    .getHealthServices(service.getService(), buildHealthServiceRequest(-1));
+            healthServices = consulClient.getHealthServices(service.getService(), buildHealthServiceRequest(-1));
         } catch (ConsulException e) {
             if (e instanceof OperationException) {
                 LOG.error("[Consul] text error to listInstances by address {}", address, e);
-                return ResponseUtils.toRegistryClientException(service);
+                return ResponseUtils.toDiscoverResponse(service, ResponseUtils.normalizeStatusCode(
+                        ((OperationException)e).getStatusCode()), DiscoverResponseType.INSTANCE).build();
             } else {
                 serverErrorCount.addAndGet(1);
                 LOG.error("[Consul] server error to listInstances by address {}", address, e);
-                return ResponseUtils.toRegistryCenterException(service);
+                return ResponseUtils.toConnectException(service);
             }
         } finally {
             totalCount.addAndGet(1);

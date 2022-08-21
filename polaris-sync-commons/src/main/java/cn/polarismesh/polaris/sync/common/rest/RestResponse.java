@@ -49,7 +49,7 @@ public class RestResponse<T> {
             //存在消息返回，只是前面没有出错
             RestClientResponseException restClientResponseException = (RestClientResponseException) restClientException;
             return new RestResponse<T>(null, null,
-                    restClientResponseException.getRawStatusCode(), restClientResponseException.getStatusText());
+                    restClientResponseException.getRawStatusCode(), restClientResponseException.getResponseBodyAsString());
         } else {
             return new RestResponse<T>(restClientException, null, 0, "");
         }
