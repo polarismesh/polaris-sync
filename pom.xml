@@ -46,7 +46,7 @@
     </scm>
 
     <properties>
-        <revision>0.2.0-alpha.0</revision>
+        <revision>0.2.0-alpha.1</revision>
         <timestamp>${maven.build.timestamp}</timestamp>
         <!-- Spring Cloud -->
         <spring.cloud.version>2021.0.3</spring.cloud.version>
