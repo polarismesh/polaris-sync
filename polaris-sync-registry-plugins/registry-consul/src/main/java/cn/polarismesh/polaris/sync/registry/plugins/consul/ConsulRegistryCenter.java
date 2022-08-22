@@ -167,6 +167,7 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
         Response<List<HealthService>> healthServices;
         try {
             healthServices = consulClient.getHealthServices(service.getService(), buildHealthServiceRequest(-1));
+            LOG.info("[Consul][List] health services got for service {}, group {}, list {}", service, group, healthServices);
         } catch (ConsulException e) {
             if (e instanceof OperationException) {
                 LOG.error("[Consul] text error to listInstances by address {}", address, e);
@@ -277,8 +278,10 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
                 ConsulClient consulClient = getConsulClient(address);
                 Response<List<HealthService>> healthServices;
                 try {
+                    long index = longPullContext.getIndex();
                     healthServices = consulClient.getHealthServices(
-                            service.getService(), buildHealthServiceRequest(longPullContext.getIndex()));
+                            service.getService(), buildHealthServiceRequest(index));
+                    LOG.info("[Consul][Watch] health services got for service {}, list {}", service, healthServices);
                 } catch (ConsulException e) {
                     if (e instanceof OperationException) {
                         LOG.error("[Consul] text error to listInstances by address {}", address, e);
