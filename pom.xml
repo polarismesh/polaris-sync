@@ -230,11 +230,21 @@
         <snapshotRepository>
             <id>nexus-snapshots</id>
             <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-
         </snapshotRepository>
         <repository>
             <id>nexus-releases</id>
             <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
     </distributionManagement>
+
+    <repositories>
+        <repository>
+            <id>nexus-snapshots</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
+        </repository>
+    </repositories>
 </project>
