@@ -197,7 +197,9 @@ public class PolarisRegistryCenter extends AbstractRegistryCenter {
             ServiceProto.Instance.Builder builder = ServiceProto.Instance.newBuilder();
             builder.setId(ResponseUtils.toStringValue(instanceId));
             builder.setWeight(ResponseUtils.toUInt32Value(instance.getWeight()));
-            builder.putAllMetadata(CommonUtils.defaultMap(metadata));
+            if (CollectionUtils.isEmpty(metadata)) {
+                builder.putAllMetadata(metadata);
+            }
             builder.setHost(ResponseUtils.toStringValue(ip));
             builder.setPort(ResponseUtils.toUInt32Value(port));
             builder.setIsolate(ResponseUtils.toBooleanValue(instance.isIsolated()));

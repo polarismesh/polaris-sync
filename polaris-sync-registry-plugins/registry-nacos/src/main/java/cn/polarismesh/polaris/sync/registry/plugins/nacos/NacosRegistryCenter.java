@@ -272,7 +272,9 @@ public class NacosRegistryCenter implements RegistryCenter {
             builder.setNamespace(ResponseUtils.toStringValue(service.getNamespace()));
             builder.setService(ResponseUtils.toStringValue(service.getService()));
             builder.setWeight(ResponseUtils.toUInt32Value((int) weight));
-            builder.putAllMetadata(CommonUtils.defaultMap(metadata));
+            if (!CollectionUtils.isEmpty(metadata)) {
+                builder.putAllMetadata(metadata);
+            }
             builder.setHost(ResponseUtils.toStringValue(ip));
             builder.setPort(ResponseUtils.toUInt32Value(port));
             builder.setIsolate(ResponseUtils.toBooleanValue(!enabled));
