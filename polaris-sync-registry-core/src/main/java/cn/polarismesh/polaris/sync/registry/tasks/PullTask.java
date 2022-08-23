@@ -58,30 +58,35 @@ public class PullTask implements Runnable {
 
     @Override
     public void run() {
-        // check services, add or remove the services from destination
-        destination.getRegistry().updateServices(serviceToGroups.keySet());
+        try {
+            // check services, add or remove the services from destination
+            destination.getRegistry().updateServices(serviceToGroups.keySet());
 
-        // check groups
-        for (Map.Entry<Service, Collection<Group>> entry : serviceToGroups.entrySet()) {
-            destination.getRegistry().updateGroups(entry.getKey(), entry.getValue());
-        }
-
-        // check instances
-        for (Map.Entry<Service, Collection<Group>> entry : serviceToGroups.entrySet()) {
-            Service service = entry.getKey();
-            for (Group group : entry.getValue()) {
-                DiscoverResponse srcInstanceResponse = source.getRegistry().listInstances(service, group);
-                if (srcInstanceResponse.getCode().getValue() != StatusCodes.SUCCESS) {
-                    LOG.warn("[Core][Pull] fail to list service in source {}, type {}, group {}, code is {}",
-                            source.getName(), source.getRegistry().getType(), group.getName(),
-                            srcInstanceResponse.getCode().getValue());
-                    return;
-                }
-                List<Instance> instances = srcInstanceResponse.getInstancesList();
-                LOG.info("[Core][Pull]prepare to update from registry {}, type {}, service {}, group {}, instances {}",
-                        source.getName(), source.getRegistry().getType(), service, group.getName(), instances);
-                destination.getRegistry().updateInstances(service, group, instances);
+            // check groups
+            for (Map.Entry<Service, Collection<Group>> entry : serviceToGroups.entrySet()) {
+                destination.getRegistry().updateGroups(entry.getKey(), entry.getValue());
             }
+
+            // check instances
+            for (Map.Entry<Service, Collection<Group>> entry : serviceToGroups.entrySet()) {
+                Service service = entry.getKey();
+                for (Group group : entry.getValue()) {
+                    DiscoverResponse srcInstanceResponse = source.getRegistry().listInstances(service, group);
+                    if (srcInstanceResponse.getCode().getValue() != StatusCodes.SUCCESS) {
+                        LOG.warn("[Core][Pull] fail to list service in source {}, type {}, group {}, code is {}",
+                                source.getName(), source.getRegistry().getType(), group.getName(),
+                                srcInstanceResponse.getCode().getValue());
+                        return;
+                    }
+                    List<Instance> instances = srcInstanceResponse.getInstancesList();
+                    LOG.info(
+                            "[Core][Pull]prepare to update from registry {}, type {}, service {}, group {}, instances {}",
+                            source.getName(), source.getRegistry().getType(), service, group.getName(), instances);
+                    destination.getRegistry().updateInstances(service, group, instances);
+                }
+            }
+        } catch (Throwable e) {
+            LOG.error("[Core] pull task(source {}) encounter exception", source.getName(), e);
         }
     }
 

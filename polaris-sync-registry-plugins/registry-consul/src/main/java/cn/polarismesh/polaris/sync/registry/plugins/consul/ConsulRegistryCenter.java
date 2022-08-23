@@ -270,6 +270,44 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
             this.eventListener = eventListener;
         }
 
+        public boolean processWatch(String address, LongPullContext longPullContext) {
+            String registryName = registryEndpoint.getName();
+            ConsulClient consulClient = getConsulClient(address);
+            Response<List<HealthService>> healthServices;
+            try {
+                long index = longPullContext.getIndex();
+                healthServices = consulClient.getHealthServices(
+                        service.getService(), buildHealthServiceRequest(index));
+                LOG.info("[Consul][Watch] health services got by registry {}, address {}, service {}, list {}",
+                        registryName, address, service, healthServices);
+            } catch (ConsulException e) {
+                if (e instanceof OperationException) {
+                    LOG.error("[Consul] text error to listInstances by registry {}, address {}",
+                            registryName, address, e);
+                } else {
+                    serverErrorCount.addAndGet(1);
+                    LOG.error("[Consul] server error to listInstances by registry {}, address {}",
+                            registryName, address, e);
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException interruptedException) {
+                    LOG.error("[Consul] sleep interrupted", interruptedException);
+                }
+                return false;
+            } finally {
+                totalCount.addAndGet(1);
+            }
+            Long consulIndex = healthServices.getConsulIndex();
+            longPullContext.setIndex(consulIndex);
+            List<HealthService> healthInstances = healthServices.getValue();
+            DiscoverResponse.Builder builder = ResponseUtils
+                    .toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE);
+            builder.addAllInstances(convertConsulInstance(service, healthInstances, null));
+            eventListener.onEvent(new WatchEvent(builder.build()));
+            return true;
+        }
+
         @Override
         public void run() {
             LongPullContext longPullContext;
@@ -280,41 +318,15 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
             }
             String address = RestOperator.pickAddress(registryEndpoint.getAddressesList());
             while (watched) {
-                ConsulClient consulClient = getConsulClient(address);
-                Response<List<HealthService>> healthServices;
                 try {
-                    long index = longPullContext.getIndex();
-                    healthServices = consulClient.getHealthServices(
-                            service.getService(), buildHealthServiceRequest(index));
-                    LOG.info("[Consul][Watch] health services got by registry {}, address {}, service {}, list {}",
-                            registryEndpoint.getName(), address, service, healthServices);
-                } catch (ConsulException e) {
-                    address = RestOperator.pickAddress(registryEndpoint.getAddressesList());
-                    longPullContext.setIndex(0L);
-                    if (e instanceof OperationException) {
-                        LOG.error("[Consul] text error to listInstances by registry {}, address {}",
-                                registryEndpoint.getName(), address, e);
-                    } else {
-                        serverErrorCount.addAndGet(1);
-                        LOG.error("[Consul] server error to listInstances by registry {}, address {}",
-                                registryEndpoint.getName(), address, e);
+                    boolean result = processWatch(address, longPullContext);
+                    if (!result) {
+                        address = RestOperator.pickAddress(registryEndpoint.getAddressesList());
+                        longPullContext.setIndex(0L);
                     }
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException interruptedException) {
-                        LOG.error("[Consul] sleep interrupted", interruptedException);
-                    }
-                    continue;
-                } finally {
-                    totalCount.addAndGet(1);
+                } catch (Throwable e) {
+                    LOG.error("[Consul][Watch] fail to process watch task (registry {})", registryEndpoint.getName(), e);
                 }
-                Long consulIndex = healthServices.getConsulIndex();
-                longPullContext.setIndex(consulIndex);
-                List<HealthService> healthInstances = healthServices.getValue();
-                DiscoverResponse.Builder builder = ResponseUtils
-                        .toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE);
-                builder.addAllInstances(convertConsulInstance(service, healthInstances, null));
-                eventListener.onEvent(new WatchEvent(builder.build()));
                 synchronized (lock) {
                     watched = watchedServices.containsKey(service);
                 }
