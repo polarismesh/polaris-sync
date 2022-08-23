@@ -200,9 +200,11 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
         }
         Map<String, String> filters = (null == group ? null : group.getMetadataMap());
         for (HealthService healthService : instances) {
+            LOG.info("[Consul]convert instance {}", healthService);
             HealthService.Service instance = healthService.getService();
             Map<String, String> metadata = instance.getMeta();
             boolean matched = CommonUtils.matchMetadata(metadata, filters);
+            LOG.info("[Consul]convert instance {}, matched {}", healthService, matched);
             if (!matched) {
                 continue;
             }
@@ -211,7 +213,9 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
             builder.setService(ResponseUtils.toStringValue(service.getService()));
             builder.setHost(ResponseUtils.toStringValue(instance.getAddress()));
             builder.setPort(ResponseUtils.toUInt32Value(instance.getPort()));
-            builder.putAllMetadata(CommonUtils.defaultMap(instance.getMeta()));
+            if (!CollectionUtils.isEmpty(instance.getMeta())) {
+                builder.putAllMetadata(instance.getMeta());
+            }
             builder.setWeight(ResponseUtils.toUInt32Value(100));
             builder.setHealthy(ResponseUtils.toBooleanValue(true));
             builder.setIsolate(ResponseUtils.toBooleanValue(false));
