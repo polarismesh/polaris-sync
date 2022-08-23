@@ -103,16 +103,19 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
         ConsulClient consulClient = getConsulClient(address);
         Response<Map<String, List<String>>> catalogServices;
         Service service = new Service(namespace, "");
+        String registryName = registryEndpoint.getName();
         try {
             catalogServices = consulClient.getCatalogServices(buildCatalogServicesRequest());
         } catch (ConsulException e) {
             if (e instanceof OperationException) {
-                LOG.error("[Consul] text error to listInstances by address {}", address, e);
+                LOG.error("[Consul] text error to listInstances by registry {}, address {}",
+                        registryName, address, e);
                 return ResponseUtils.toDiscoverResponse(service, ResponseUtils.normalizeStatusCode(
                         ((OperationException)e).getStatusCode()), DiscoverResponseType.SERVICES).build();
             } else {
                 serverErrorCount.addAndGet(1);
-                LOG.error("[Consul] server error to listInstances by address {}", address, e);
+                LOG.error("[Consul] server error to listInstances by registry {}, address {}",
+                        registryName, address, e);
                 return ResponseUtils.toConnectException(service, DiscoverResponseType.SERVICES);
             }
         } finally {
@@ -163,17 +166,19 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
         String address = RestOperator.pickAddress(registryEndpoint.getAddressesList());
         ConsulClient consulClient = getConsulClient(address);
         Response<List<HealthService>> healthServices;
+        String registryName = registryEndpoint.getName();
         try {
             healthServices = consulClient.getHealthServices(service.getService(), buildHealthServiceRequest(0));
-            LOG.info("[Consul][List] health services got by {}, service {}, group {}, list {}", address, service, group, healthServices);
+            LOG.info("[Consul][List] health services got by registry {}, address {}, service {}, list {}",
+                    registryName, address, service, healthServices);
         } catch (ConsulException e) {
             if (e instanceof OperationException) {
-                LOG.error("[Consul] text error to listInstances by address {}", address, e);
+                LOG.error("[Consul] text error to listInstances by registry {}, address {}", registryName, address, e);
                 return ResponseUtils.toDiscoverResponse(service, ResponseUtils.normalizeStatusCode(
                         ((OperationException)e).getStatusCode()), DiscoverResponseType.INSTANCE).build();
             } else {
                 serverErrorCount.addAndGet(1);
-                LOG.error("[Consul] server error to listInstances by address {}", address, e);
+                LOG.error("[Consul] server error to listInstances by registry {}, address {}", registryName, address, e);
                 return ResponseUtils.toConnectException(service);
             }
         } finally {
@@ -183,7 +188,9 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
         DiscoverResponse.Builder builder = ResponseUtils
                 .toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE);
         builder.addAllInstances(convertConsulInstance(service, healthInstances, group));
-        return builder.build();
+        DiscoverResponse discoverResponse = builder.build();
+        LOG.info("[Consul][Pull] instances response (registry {}, address {}, group {}) from is {}", registryName, address, group, discoverResponse);
+        return discoverResponse;
     }
 
     private List<Instance> convertConsulInstance(Service service, List<HealthService> instances, Group group) {
@@ -217,7 +224,7 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
     public boolean watch(Service service, ResponseListener eventListener) {
         synchronized (lock) {
             if (watchedServices.containsKey(service)) {
-                LOG.warn("[Consul] service {} already watched", service);
+                LOG.warn("[Consul] service {} already watched, registry {}", service, registryEndpoint.getName());
                 return true;
             }
             long watchIndex = 0L;
@@ -279,15 +286,18 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
                     long index = longPullContext.getIndex();
                     healthServices = consulClient.getHealthServices(
                             service.getService(), buildHealthServiceRequest(index));
-                    LOG.info("[Consul][Watch] health services got by {}, service {}, list {}", address, service, healthServices);
+                    LOG.info("[Consul][Watch] health services got by registry {}, address {}, service {}, list {}",
+                            registryEndpoint.getName(), address, service, healthServices);
                 } catch (ConsulException e) {
                     address = RestOperator.pickAddress(registryEndpoint.getAddressesList());
                     longPullContext.setIndex(0L);
                     if (e instanceof OperationException) {
-                        LOG.error("[Consul] text error to listInstances by address {}", address, e);
+                        LOG.error("[Consul] text error to listInstances by registry {}, address {}",
+                                registryEndpoint.getName(), address, e);
                     } else {
                         serverErrorCount.addAndGet(1);
-                        LOG.error("[Consul] server error to listInstances by address {}", address, e);
+                        LOG.error("[Consul] server error to listInstances by registry {}, address {}",
+                                registryEndpoint.getName(), address, e);
                     }
                     try {
                         Thread.sleep(1000);

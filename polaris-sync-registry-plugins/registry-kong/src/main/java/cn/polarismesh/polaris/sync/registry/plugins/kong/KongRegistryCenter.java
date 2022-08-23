@@ -26,6 +26,7 @@ import cn.polarismesh.polaris.sync.extension.registry.AbstractRegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
+import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.ServiceObject;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.ServiceObjectList;
@@ -140,12 +141,13 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
 
     @Override
     public void updateServices(Collection<Service> services) {
-        ProtocolStringList addressesList = registryInitRequest.getRegistryEndpoint().getAddressesList();
+        RegistryEndpoint registryEndpoint = registryInitRequest.getRegistryEndpoint();
+        ProtocolStringList addressesList = registryEndpoint.getAddressesList();
         String address = pickAddress(addressesList);
         //query all services in the source
         List<ServiceObject> serviceObjects = new ArrayList<>();
         if (!resolveAllServices(address, "", serviceObjects)) {
-            LOG.error("[Kong] fail to query all services, address {}", address);
+            LOG.error("[Kong] fail to query all services, registry {}, address {}", registryEndpoint, address);
             return;
         }
         ServiceObjectList serviceObjectList = new ServiceObjectList();
@@ -174,7 +176,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
         int serviceAddCount = 0;
         int serviceDeleteCount = 0;
         if (!servicesToCreate.isEmpty()) {
-            LOG.info("[Kong] services pending to create are {}", servicesToCreate);
+            LOG.info("[Kong] services(source {}) pending to create are {}", sourceName, servicesToCreate);
             String servicesUrl = KongEndpointUtils.toServicesUrl(address);
             for (ServiceObject serviceObject : servicesToCreate) {
                 processServiceRequest(servicesUrl, HttpMethod.POST, serviceObject, "create");
@@ -182,14 +184,14 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
             }
         }
         if (!servicesToDelete.isEmpty()) {
-            LOG.info("[Kong] services pending to delete are {}", servicesToDelete);
+            LOG.info("[Kong] services(source {})  pending to delete are {}", sourceName, servicesToDelete);
             for (ServiceObject serviceObject : servicesToDelete) {
                 String serviceUrl = KongEndpointUtils.toServiceUrl(addressesList, serviceObject.getName());
                 processServiceRequest(serviceUrl, HttpMethod.DELETE, null, "delete");
                 serviceDeleteCount++;
             }
         }
-        LOG.info("[Kong] success to update services, add {}, delete {}", serviceAddCount, serviceDeleteCount);
+        LOG.info("[Kong] success to update services(source {}), add {}, delete {}", sourceName, serviceAddCount, serviceDeleteCount);
     }
 
     private static final String SCHEME = "http://";
@@ -280,7 +282,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
         int upstreamAddCount = 0;
         int upstreamDeleteCount = 0;
         if (!upstreamsToCreate.isEmpty()) {
-            LOG.info("[Kong] upstreams pending to create are {}", upstreamsToCreate);
+            LOG.info("[Kong] upstreams(source {}) pending to create are {}", sourceName, upstreamsToCreate);
             String upstreamsUrl = KongEndpointUtils.toUpstreamsUrl(address);
             for (UpstreamObject upstreamObject : upstreamsToCreate) {
                 processUpstreamRequest(upstreamsUrl, HttpMethod.POST, upstreamObject, "create");
@@ -288,22 +290,22 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
             }
         }
         if (!upstreamsToDelete.isEmpty()) {
-            LOG.info("[Kong] upstreams pending to delete are {}", upstreamsToDelete);
+            LOG.info("[Kong] upstreams(source {}) pending to delete are {}", sourceName, upstreamsToDelete);
             for (UpstreamObject upstreamObject : upstreamsToDelete) {
                 String upstreamUrl = KongEndpointUtils.toUpstreamUrl(addressesList, upstreamObject.getName());
                 processUpstreamRequest(upstreamUrl, HttpMethod.DELETE, null, "delete");
                 upstreamDeleteCount++;
             }
         }
-        LOG.info("[Kong] success to update upstreams for service {}, add {}, delete {}",
-                service,  upstreamAddCount, upstreamDeleteCount);
+        LOG.info("[Kong] success to update upstreams(source {}) for service {}, add {}, delete {}",
+                sourceName, service,  upstreamAddCount, upstreamDeleteCount);
     }
 
     @Override
     public void updateInstances(Service service, Group group, Collection<Instance> instances) {
-        LOG.info("[Kong] instances to update instances group {}, service {}, is {}, ",
-                group.getName(), service, instances);
         String sourceName = registryInitRequest.getSourceName();
+        LOG.info("[Kong] instances to update instances(source {}) group {}, service {}, is {}, ",
+                sourceName, group.getName(), service, instances);
         String upstreamName = ConversionUtils.getUpstreamName(service, group.getName(), sourceName);
         ProtocolStringList addressesList = registryInitRequest.getRegistryEndpoint().getAddressesList();
         String targetReadUrl = KongEndpointUtils.toTargetsReadUrl(addressesList, upstreamName);
@@ -364,7 +366,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
         int targetPatchCount = 0;
         int targetDeleteCount = 0;
         if (!targetsToCreate.isEmpty()) {
-            LOG.info("[Kong] targets pending to create are {}, upstream {}", targetsToCreate, upstreamName);
+            LOG.info("[Kong] targets(source {}) pending to create are {}, upstream {}", sourceName, targetsToCreate, upstreamName);
             String targetWriteUrl = KongEndpointUtils.toTargetsWriteUrl(addressesList, upstreamName);
             for (TargetObject targetObject : targetsToCreate) {
                 processTargetRequest(targetWriteUrl, HttpMethod.POST, targetObject, "create");
@@ -372,7 +374,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
             }
         }
         if (!targetsToUpdate.isEmpty()) {
-            LOG.info("[Kong] targets pending to update are {}, upstream {}", targetsToUpdate, upstreamName);
+            LOG.info("[Kong] targets(source {}) pending to update are {}, upstream {}", sourceName, targetsToUpdate, upstreamName);
             for (TargetObject targetObject : targetsToUpdate) {
                 String targetUrl = KongEndpointUtils.toTargetUrl(addressesList, upstreamName, targetObject.getTarget());
                 processTargetRequest(targetUrl, HttpMethod.PUT, targetObject, "update");
@@ -380,14 +382,14 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
             }
         }
         if (!targetsToDelete.isEmpty()) {
-            LOG.info("[Kong] targets pending to delete are {}, upstream {}", targetsToDelete, upstreamName);
+            LOG.info("[Kong] targets(source {}) pending to delete are {}, upstream {}", sourceName, targetsToDelete, upstreamName);
             for (TargetObject targetObject : targetsToDelete) {
                 String targetUrl = KongEndpointUtils.toTargetUrl(addressesList, upstreamName, targetObject.getTarget());
                 processTargetRequest(targetUrl, HttpMethod.DELETE, null, "delete");
                 targetDeleteCount++;
             }
         }
-        LOG.info("[Kong] success to update targets, add {}, patch {}, delete {}",
+        LOG.info("[Kong] success to update targets(source {}), add {}, patch {}, delete {}", sourceName,
                 targetAddCount, targetPatchCount, targetDeleteCount);
     }
 
