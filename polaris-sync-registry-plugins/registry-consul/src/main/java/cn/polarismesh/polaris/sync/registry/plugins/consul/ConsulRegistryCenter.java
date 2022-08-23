@@ -48,8 +48,10 @@ import com.tencent.polaris.client.pb.ServiceProto.Namespace;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -199,20 +201,24 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
             return outInstances;
         }
         Map<String, String> filters = (null == group ? null : group.getMetadataMap());
+        Set<HostAndPort> processedNodes = new HashSet<>();
         for (HealthService healthService : instances) {
-            LOG.info("[Consul]convert instance {}", healthService);
             HealthService.Service instance = healthService.getService();
+            HostAndPort hostAndPort = HostAndPort.build(instance.getAddress(), instance.getPort());
+            if (processedNodes.contains(hostAndPort)) {
+                continue;
+            }
+            processedNodes.add(hostAndPort);
             Map<String, String> metadata = instance.getMeta();
             boolean matched = CommonUtils.matchMetadata(metadata, filters);
-            LOG.info("[Consul]convert instance {}, matched {}", healthService, matched);
             if (!matched) {
                 continue;
             }
             Instance.Builder builder = Instance.newBuilder();
             builder.setNamespace(ResponseUtils.toStringValue(service.getNamespace()));
             builder.setService(ResponseUtils.toStringValue(service.getService()));
-            builder.setHost(ResponseUtils.toStringValue(instance.getAddress()));
-            builder.setPort(ResponseUtils.toUInt32Value(instance.getPort()));
+            builder.setHost(ResponseUtils.toStringValue(hostAndPort.getHost()));
+            builder.setPort(ResponseUtils.toUInt32Value(hostAndPort.getPort()));
             if (!CollectionUtils.isEmpty(instance.getMeta())) {
                 builder.putAllMetadata(instance.getMeta());
             }
