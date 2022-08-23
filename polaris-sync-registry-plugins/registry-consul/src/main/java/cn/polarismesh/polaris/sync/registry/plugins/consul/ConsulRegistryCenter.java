@@ -211,7 +211,7 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
             builder.setService(ResponseUtils.toStringValue(service.getService()));
             builder.setHost(ResponseUtils.toStringValue(instance.getAddress()));
             builder.setPort(ResponseUtils.toUInt32Value(instance.getPort()));
-            builder.putAllMetadata(instance.getMeta());
+            builder.putAllMetadata(CommonUtils.defaultMap(instance.getMeta()));
             builder.setWeight(ResponseUtils.toUInt32Value(100));
             builder.setHealthy(ResponseUtils.toBooleanValue(true));
             builder.setIsolate(ResponseUtils.toBooleanValue(false));
