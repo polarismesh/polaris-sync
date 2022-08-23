@@ -152,11 +152,9 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
         if (StringUtils.hasText(registryEndpoint.getToken())) {
             builder.setToken(registryEndpoint.getToken());
         }
-        if (index >= 0) {
-            QueryParams.Builder paramBuilder = QueryParams.Builder.builder();
-            paramBuilder.setIndex(index);
-            builder.setQueryParams(paramBuilder.build());
-        }
+        QueryParams.Builder paramBuilder = QueryParams.Builder.builder();
+        paramBuilder.setIndex(index);
+        builder.setQueryParams(paramBuilder.build());
         return builder.build();
     }
 
@@ -166,8 +164,8 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
         ConsulClient consulClient = getConsulClient(address);
         Response<List<HealthService>> healthServices;
         try {
-            healthServices = consulClient.getHealthServices(service.getService(), buildHealthServiceRequest(-1));
-            LOG.info("[Consul][List] health services got for service {}, group {}, list {}", service, group, healthServices);
+            healthServices = consulClient.getHealthServices(service.getService(), buildHealthServiceRequest(0));
+            LOG.info("[Consul][List] health services got by {}, service {}, group {}, list {}", address, service, group, healthServices);
         } catch (ConsulException e) {
             if (e instanceof OperationException) {
                 LOG.error("[Consul] text error to listInstances by address {}", address, e);
@@ -273,16 +271,18 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
                 watched = watchedServices.containsKey(service);
                 longPullContext = watchedServices.get(service);
             }
+            String address = RestOperator.pickAddress(registryEndpoint.getAddressesList());
             while (watched) {
-                String address = RestOperator.pickAddress(registryEndpoint.getAddressesList());
                 ConsulClient consulClient = getConsulClient(address);
                 Response<List<HealthService>> healthServices;
                 try {
                     long index = longPullContext.getIndex();
                     healthServices = consulClient.getHealthServices(
                             service.getService(), buildHealthServiceRequest(index));
-                    LOG.info("[Consul][Watch] health services got for service {}, list {}", service, healthServices);
+                    LOG.info("[Consul][Watch] health services got by {}, service {}, list {}", address, service, healthServices);
                 } catch (ConsulException e) {
+                    address = RestOperator.pickAddress(registryEndpoint.getAddressesList());
+                    longPullContext.setIndex(0L);
                     if (e instanceof OperationException) {
                         LOG.error("[Consul] text error to listInstances by address {}", address, e);
                     } else {
