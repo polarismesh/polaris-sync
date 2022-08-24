@@ -20,6 +20,7 @@ package cn.polarismesh.polaris.sync.common.rest;
 import java.time.Duration;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -46,8 +47,7 @@ public class RestOperator {
         if (addresses.size() == 1) {
             return addresses.get(0);
         }
-        Random random = new Random();
-        int i = random.nextInt(addresses.size());
+        int i = ThreadLocalRandom.current().nextInt(addresses.size());
         if (i >= addresses.size()) {
             i = 0;
         }
