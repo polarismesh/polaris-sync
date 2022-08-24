@@ -86,7 +86,7 @@ public class PullTask implements Runnable {
                 }
             }
         } catch (Throwable e) {
-            LOG.error("[Core] pull task(source {}) encounter exception {}", source.getName(), e);
+            LOG.error("[Core] pull task(source {}) encounter exception {}", source.getName(), e.getStackTrace());
         }
     }
 
