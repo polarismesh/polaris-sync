@@ -48,9 +48,6 @@ public class RestOperator {
             return addresses.get(0);
         }
         int i = ThreadLocalRandom.current().nextInt(addresses.size());
-        if (i >= addresses.size()) {
-            i = 0;
-        }
         return addresses.get(i);
     }
 

@@ -27,6 +27,8 @@ import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import java.io.ByteArrayInputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -87,9 +89,10 @@ public class PullTask implements Runnable {
                 }
             }
         } catch (Throwable e) {
-            ByteArrayInputStream in = new ByteArrayInputStream()
-            e.printStackTrace();
-            LOG.error("[Core] pull task(source {}) encounter exception {}", source.getName(), e);
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+            LOG.error("[Core] pull task(source {}) encounter exception {}", source.getName(), sw);
         }
     }
 
