@@ -47,8 +47,11 @@ public class RestOperator {
             return addresses.get(0);
         }
         Random random = new Random();
-        int i = random.nextInt();
-        return addresses.get(i % addresses.size());
+        int i = random.nextInt(addresses.size());
+        if (i >= addresses.size()) {
+            i = 0;
+        }
+        return addresses.get(i);
     }
 
     public <T> RestResponse<T> curlRemoteEndpoint(String url, HttpMethod method,
