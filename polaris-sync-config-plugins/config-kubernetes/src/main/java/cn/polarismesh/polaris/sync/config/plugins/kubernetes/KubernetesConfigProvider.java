@@ -24,6 +24,7 @@ import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
 import com.google.gson.Gson;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1ConfigMapList;
 import io.kubernetes.client.util.Watchable;
@@ -73,17 +74,18 @@ public class KubernetesConfigProvider implements ConfigProvider {
         config = gson.fromJson(gson.toJson(options), Config.class);
         LOG.info("[ConfigProvider][Kubernetes] init options : {}", options);
 
-        ApiClient apiClient;
+        ApiClient apiClient = null;
         if (config.hasToken()) {
+            LOG.info("[ConfigProvider][Kubernetes] use fromToken to build kubernetes client");
             apiClient = io.kubernetes.client.util.Config.fromToken(getAddress(config.getAddress()), config.getToken(),
                     false);
         } else {
+            LOG.info("[ConfigProvider][Kubernetes] use default kubernetes client");
             apiClient = io.kubernetes.client.util.Config.defaultClient();
         }
 
         configMapClient = new GenericKubernetesApi<>(V1ConfigMap.class, V1ConfigMapList.class, "", "v1", "configmaps",
                 apiClient);
-
         startAndWatch();
     }
 
