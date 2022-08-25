@@ -30,6 +30,7 @@ import io.kubernetes.client.openapi.models.V1ConfigMapList;
 import io.kubernetes.client.util.Watchable;
 import io.kubernetes.client.util.generic.GenericKubernetesApi;
 import io.kubernetes.client.util.generic.KubernetesApiResponse;
+import io.kubernetes.client.util.generic.options.ListOptions;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -41,6 +42,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -118,20 +120,35 @@ public class KubernetesConfigProvider implements ConfigProvider {
     }
 
     public void startAndWatch() throws Exception {
-        KubernetesApiResponse<V1ConfigMap> response = configMapClient.get(config.getNamespace(), config.getConfigmapName());
+        KubernetesApiResponse<V1ConfigMap> response = configMapClient.get(config.getNamespace(),
+                config.getConfigmapName());
         handleConfigMap(response.getObject());
 
-        configmapWatchService.execute(() -> {
+        Runnable job = () -> {
             Watchable<V1ConfigMap> watchable = null;
-            try {
-                watchable = configMapClient.watch();
-                watchable.forEachRemaining(ret -> handleConfigMap(ret.object));
-            } catch (ApiException e) {
-                throw new RuntimeException(e);
-            } finally {
-                IOUtils.closeQuietly(watchable);
+            for (; ; ) {
+                try {
+                    watchable = configMapClient.watch(config.getNamespace(), new ListOptions());
+                    watchable.forEachRemaining(ret -> {
+                        if (!Objects.equals(ret.object.getMetadata().getName(), config.getConfigmapName())) {
+                            return;
+                        }
+                        handleConfigMap(ret.object);
+                    });
+                } catch (ApiException e) {
+                    LOG.error("[ConfigProvider][Kubernetes] namespace: {} name: {} is empty", config.getNamespace(),
+                            config.getConfigmapName(), e);
+                } finally {
+                    IOUtils.closeQuietly(watchable);
+
+                    LOG.info("[ConfigProvider][Kubernetes] try re-watch namespace: {} name: {} is empty",
+                            config.getNamespace(),
+                            config.getConfigmapName());
+                }
             }
-        });
+        };
+
+        configmapWatchService.execute(job);
     }
 
     private void handleConfigMap(V1ConfigMap configMap) {
@@ -140,15 +157,15 @@ public class KubernetesConfigProvider implements ConfigProvider {
                     config.getConfigmapName());
             return;
         }
-        Map<String, byte[]> data = configMap.getBinaryData();
+        Map<String, String> data = configMap.getData();
         if (MapUtils.isEmpty(data)) {
             LOG.error("[ConfigProvider][Kubernetes] namespace: {} name: {} is empty", config.getNamespace(),
                     config.getConfigmapName());
             return;
         }
 
-        byte[] ret = data.get(config.getDataId());
-        if (ret == null || ret.length == 0) {
+        byte[] ret = data.get(config.getDataId()).getBytes();
+        if (ret.length == 0) {
             LOG.error("[ConfigProvider][Kubernetes] namespace: {} name: {} dataId: {} is empty", config.getNamespace(),
                     config.getConfigmapName(), config.getDataId());
             return;
