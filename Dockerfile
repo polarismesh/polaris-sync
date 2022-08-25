@@ -9,7 +9,6 @@ WORKDIR /app
 RUN sed -i 's!http://dl-cdn.alpinelinux.org/!https://mirrors.tencent.com/!g' /etc/apk/repositories
 
 RUN set -eux && \
-    apk add sleep && \
     apk add openjdk11 && \
     apk add bind-tools && \
     apk add busybox-extras && \
