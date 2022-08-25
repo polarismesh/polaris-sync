@@ -18,8 +18,13 @@
 package cn.polarismesh.polaris.sync.registry.config;
 
 import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @ConfigurationProperties("polaris.sync.registry")
 @Validated
@@ -29,7 +34,10 @@ public class SyncRegistryProperties {
     private String configBackupPath;
 
     @NotEmpty
-    private String configWatchPath;
+    private String type;
+
+    @NotNull
+    private Map<String, Object> options = new HashMap<>();
 
     public String getConfigBackupPath() {
         return configBackupPath;
@@ -39,19 +47,28 @@ public class SyncRegistryProperties {
         this.configBackupPath = configBackupPath;
     }
 
-    public String getConfigWatchPath() {
-        return configWatchPath;
+    public String getType() {
+        return type;
     }
 
-    public void setConfigWatchPath(String configWatchPath) {
-        this.configWatchPath = configWatchPath;
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public Map<String, Object> getOptions() {
+        return options;
+    }
+
+    public void setOptions(Map<String, Object> options) {
+        this.options = options;
     }
 
     @Override
     public String toString() {
         return "SyncRegistryProperties{" +
                 "configBackupPath='" + configBackupPath + '\'' +
-                ", configWatchPath='" + configWatchPath + '\'' +
+                ", type='" + type + '\'' +
+                ", options=" + options +
                 '}';
     }
 }

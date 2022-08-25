@@ -18,11 +18,11 @@
 package cn.polarismesh.polaris.sync.registry.tasks;
 
 import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
+import cn.polarismesh.polaris.sync.extension.config.ConfigListener;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
-import cn.polarismesh.polaris.sync.registry.config.FileListener;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Method;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Method.MethodType;
@@ -32,8 +32,6 @@ import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.Re
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Task;
 import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.registry.utils.DurationUtils;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
 
-public class TaskEngine implements FileListener {
+public class TaskEngine implements ConfigListener {
 
     private static final Logger LOG = LoggerFactory.getLogger(TaskEngine.class);
 
@@ -83,9 +81,6 @@ public class TaskEngine implements FileListener {
     }
 
     public void init(RegistryProto.Registry config) {
-        if (!ConfigUtils.verifyTasks(config, registryTypeMap.keySet())) {
-            throw new IllegalArgumentException("invalid configuration content " + config.toString());
-        }
         reload(config);
     }
 
@@ -253,6 +248,10 @@ public class TaskEngine implements FileListener {
     }
 
     private void reload(Registry registryConfig) {
+        if (!ConfigUtils.verifyTasks(registryConfig, registryTypeMap.keySet())) {
+            throw new IllegalArgumentException("invalid configuration content " + registryConfig.toString());
+        }
+
         synchronized (configLock) {
             int watchTasksAdded = 0;
             int pullTasksAdded = 0;
@@ -362,25 +361,6 @@ public class TaskEngine implements FileListener {
         return registry;
     }
 
-    @Override
-    public boolean onFileChanged(byte[] strBytes) {
-        RegistryProto.Registry config;
-        String content = new String(strBytes, StandardCharsets.UTF_8);
-        try {
-            config = ConfigUtils.parseFromContent(strBytes);
-        } catch (IOException e) {
-            LOG.error("[Core] fail to parse to config proto, content {}", content, e);
-            return false;
-        }
-
-        if (!ConfigUtils.verifyTasks(config, registryTypeMap.keySet())) {
-            LOG.error("invalid configuration, content {}", content);
-            return false;
-        }
-        reload(config);
-        return true;
-    }
-
     public RegistrySet getRegistrySet(String taskName) {
         synchronized (configLock) {
             return taskRegistryMap.get(taskName);
@@ -399,6 +379,11 @@ public class TaskEngine implements FileListener {
             return registrySet.getDstRegistry();
         }
         return null;
+    }
+
+    @Override
+    public void onChange(Registry config) {
+        reload(config);
     }
 
     public static class ServiceWithSource {

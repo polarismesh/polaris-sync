@@ -22,5 +22,10 @@
             <artifactId>polaris-sync-protobuf</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java-util</artifactId>
+            <version>3.12.0</version>
+        </dependency>
     </dependencies>
 </project>

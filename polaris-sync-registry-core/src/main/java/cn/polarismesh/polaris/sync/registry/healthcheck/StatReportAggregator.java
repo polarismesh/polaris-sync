@@ -18,19 +18,16 @@
 package cn.polarismesh.polaris.sync.registry.healthcheck;
 
 import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
+import cn.polarismesh.polaris.sync.extension.config.ConfigListener;
 import cn.polarismesh.polaris.sync.extension.report.RegistryHealthStatus;
 import cn.polarismesh.polaris.sync.extension.report.RegistryHealthStatus.Dimension;
 import cn.polarismesh.polaris.sync.extension.report.ReportHandler;
 import cn.polarismesh.polaris.sync.extension.report.StatInfo;
-import cn.polarismesh.polaris.sync.registry.config.FileListener;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Report;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget.TargetType;
 import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -46,7 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
 
-public class StatReportAggregator implements FileListener {
+public class StatReportAggregator implements ConfigListener {
 
     private static final Logger LOG = LoggerFactory.getLogger(StatReportAggregator.class);
 
@@ -73,9 +70,6 @@ public class StatReportAggregator implements FileListener {
     }
 
     public void init(Registry registryConfig) {
-        if (!ConfigUtils.verifyReport(registryConfig)) {
-            throw new IllegalArgumentException("invalid report configuration for content " + registryConfig.toString());
-        }
         reload(registryConfig);
         reportExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("report-worker"));
         reportExecutor.scheduleWithFixedDelay(new Runnable() {
@@ -110,6 +104,10 @@ public class StatReportAggregator implements FileListener {
     }
 
     public void reload(Registry registryConfig) {
+        if (!ConfigUtils.verifyReport(registryConfig)) {
+            throw new IllegalArgumentException("invalid report configuration for content " + registryConfig);
+        }
+
         Report report = registryConfig.getReport();
         Collection<ReportTarget> reportTargets = new HashSet<>();
         if (null != report && !CollectionUtils.isEmpty(report.getTargetsList())) {
@@ -196,15 +194,7 @@ public class StatReportAggregator implements FileListener {
     }
 
     @Override
-    public boolean onFileChanged(byte[] strBytes) {
-        RegistryProto.Registry config;
-        try {
-            config = ConfigUtils.parseFromContent(strBytes);
-        } catch (IOException e) {
-            LOG.error("[Report] fail to parse to config proto, content {}", new String(strBytes, StandardCharsets.UTF_8), e);
-            return false;
-        }
+    public void onChange(Registry config) {
         reload(config);
-        return true;
     }
 }

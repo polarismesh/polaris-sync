@@ -26,7 +26,7 @@ import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Match;
 import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
-import java.io.ByteArrayInputStream;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collection;
