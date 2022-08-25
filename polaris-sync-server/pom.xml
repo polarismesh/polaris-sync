@@ -60,6 +60,18 @@
             <artifactId>reporter-balad</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+        <!--    配置来源插件依赖    -->
+        <dependency>
+            <groupId>com.tencent.polaris</groupId>
+            <artifactId>config-file</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.tencent.polaris</groupId>
+            <artifactId>config-kubernetes</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

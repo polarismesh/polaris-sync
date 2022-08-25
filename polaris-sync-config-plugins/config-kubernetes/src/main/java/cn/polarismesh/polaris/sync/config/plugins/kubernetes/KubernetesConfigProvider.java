@@ -41,12 +41,14 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 /**
  * 基于 Kubernetes ConfigMap 的配置提供者
  *
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
+@Component
 public class KubernetesConfigProvider implements ConfigProvider {
 
     private static final Logger LOG = LoggerFactory.getLogger(KubernetesConfigProvider.class);

@@ -21,6 +21,7 @@ import cn.polarismesh.polaris.sync.extension.config.ConfigListener;
 import cn.polarismesh.polaris.sync.extension.config.ConfigProvider;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
 import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
+import java.util.List;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,16 +45,17 @@ public class ConfigProviderManager {
 
     private final BackupConfig backupConfig;
 
-    public ConfigProviderManager(SyncRegistryProperties properties) {
+    private final List<ConfigProvider> providers;
+
+    public ConfigProviderManager(List<ConfigProvider> providers, SyncRegistryProperties properties) {
         this.properties = properties;
+        this.providers = providers;
         this.backupConfig = new BackupConfig(properties.getConfigBackupPath());
     }
 
     private void init() throws Exception {
         String providerType = properties.getType();
-        Iterator<ConfigProvider> iterator = ServiceLoader.load(ConfigProvider.class).iterator();
-        while (iterator.hasNext()) {
-            ConfigProvider item = iterator.next();
+        for (ConfigProvider item : providers) {
             if (Objects.equals(item.name(), providerType)) {
                 provider = item;
                 break;

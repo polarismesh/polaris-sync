@@ -37,12 +37,14 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.CRC32;
+import org.springframework.stereotype.Component;
 
 /**
  * 基于本地文件的配置提供者
  *
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
+@Component
 public class FileConfigProvider implements ConfigProvider {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileConfigProvider.class);

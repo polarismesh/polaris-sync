@@ -21,8 +21,12 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 
-@ComponentScan(basePackages = {"cn.polarismesh.polaris.sync.registry.plugins",
-        "cn.polarismesh.polaris.sync.reporter.plugins", "cn.polarismesh.polaris.server"})
+@ComponentScan(basePackages = {
+        "cn.polarismesh.polaris.sync.registry.plugins",
+        "cn.polarismesh.polaris.sync.config.plugins",
+        "cn.polarismesh.polaris.sync.reporter.plugins",
+        "cn.polarismesh.polaris.server"
+})
 @SpringBootApplication
 public class SyncServer {
 

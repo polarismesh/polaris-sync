@@ -17,6 +17,7 @@
 
 package cn.polarismesh.polaris.sync.registry.autoconfig;
 
+import cn.polarismesh.polaris.sync.extension.config.ConfigProvider;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.report.ReportHandler;
 import cn.polarismesh.polaris.sync.registry.config.ConfigProviderManager;
@@ -34,8 +35,8 @@ public class SyncConfigBootstrapConfiguration {
 
     @Bean(initMethod = "init", destroyMethod = "destroy")
     @ConditionalOnMissingBean
-    public ConfigProviderManager providerManager(SyncRegistryProperties properties) {
-        return new ConfigProviderManager(properties);
+    public ConfigProviderManager providerManager(List<ConfigProvider> providers, SyncRegistryProperties properties) {
+        return new ConfigProviderManager(providers, properties);
     }
 
     @Bean(initMethod = "init", destroyMethod = "destroy")
