@@ -33,6 +33,7 @@ import io.kubernetes.client.util.generic.KubernetesApiResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executors;
@@ -117,7 +118,7 @@ public class KubernetesConfigProvider implements ConfigProvider {
     }
 
     public void startAndWatch() throws Exception {
-        KubernetesApiResponse<V1ConfigMap> response = configMapClient.get(config.getNamespace(), config.getDataId());
+        KubernetesApiResponse<V1ConfigMap> response = configMapClient.get(config.getNamespace(), config.getConfigmapName());
         handleConfigMap(response.getObject());
 
         configmapWatchService.execute(() -> {
@@ -134,6 +135,11 @@ public class KubernetesConfigProvider implements ConfigProvider {
     }
 
     private void handleConfigMap(V1ConfigMap configMap) {
+        if (Objects.isNull(configMap)) {
+            LOG.error("[ConfigProvider][Kubernetes] namespace: {} name: {} not found", config.getNamespace(),
+                    config.getConfigmapName());
+            return;
+        }
         Map<String, byte[]> data = configMap.getBinaryData();
         if (MapUtils.isEmpty(data)) {
             LOG.error("[ConfigProvider][Kubernetes] namespace: {} name: {} is empty", config.getNamespace(),
