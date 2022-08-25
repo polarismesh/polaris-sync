@@ -117,9 +117,9 @@ public class FileConfigProvider implements ConfigProvider {
                     listener.onChange(config);
                 }
                 String content = new String(strBytes, StandardCharsets.UTF_8);
-                LOG.info("[Core] config watchFile changed, new content {}", content);
+                LOG.info("[ConfigProvider][File] config watchFile changed, new content {}", content);
             } catch (IOException e) {
-                LOG.error("[Core] fail to read watchFile {}", fullFileName, e);
+                LOG.error("[ConfigProvider][File] fail to read watchFile {}", fullFileName, e);
             }
         }
     }

@@ -30,6 +30,7 @@ import io.kubernetes.client.util.Watchable;
 import io.kubernetes.client.util.generic.GenericKubernetesApi;
 import io.kubernetes.client.util.generic.KubernetesApiResponse;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -142,6 +143,7 @@ public class KubernetesConfigProvider implements ConfigProvider {
             return;
         }
 
+        LOG.info("[ConfigProvider][Kubernetes] receive new config : {}", new String(ret, StandardCharsets.UTF_8));
         try {
             Registry registry = unmarshal(ret);
             holder.set(registry);
