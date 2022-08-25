@@ -71,13 +71,14 @@ public class KubernetesConfigProvider implements ConfigProvider {
     public void init(Map<String, Object> options) throws Exception {
         Gson gson = new Gson();
         config = gson.fromJson(gson.toJson(options), Config.class);
+        LOG.info("[ConfigProvider][Kubernetes] init options : {}", options);
 
         ApiClient apiClient;
         if (config.hasToken()) {
             apiClient = io.kubernetes.client.util.Config.fromToken(getAddress(config.getAddress()), config.getToken(),
                     false);
         } else {
-            apiClient = io.kubernetes.client.util.Config.fromCluster();
+            apiClient = io.kubernetes.client.util.Config.defaultClient();
         }
 
         configMapClient = new GenericKubernetesApi<>(V1ConfigMap.class, V1ConfigMapList.class, "", "v1", "configmaps",

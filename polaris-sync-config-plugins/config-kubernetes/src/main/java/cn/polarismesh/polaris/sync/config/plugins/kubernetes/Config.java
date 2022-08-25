@@ -60,4 +60,15 @@ public class Config {
     public boolean hasToken() {
         return StringUtils.isNotBlank(address) && StringUtils.isNotBlank(token);
     }
+
+    @Override
+    public String toString() {
+        return "Config{" +
+                "address='" + address + '\'' +
+                ", token='" + token + '\'' +
+                ", namespace='" + namespace + '\'' +
+                ", configmapName='" + configmapName + '\'' +
+                ", dataId='" + dataId + '\'' +
+                '}';
+    }
 }
