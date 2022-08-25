@@ -15,7 +15,6 @@
  * specific language governing permissions and limitations under the License.
  */
 
-
 package cn.polarismesh.polaris.sync.config.plugins.file;
 
 import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
@@ -23,6 +22,7 @@ import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.extension.config.ConfigListener;
 import cn.polarismesh.polaris.sync.extension.config.ConfigProvider;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
+import com.google.gson.Gson;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,9 +39,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.CRC32;
 
 /**
+ * 基于本地文件的配置提供者
+ *
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
- public class FileConfigProvider implements ConfigProvider {
+public class FileConfigProvider implements ConfigProvider {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileConfigProvider.class);
 
@@ -50,18 +52,20 @@ import java.util.zip.CRC32;
     private final ScheduledExecutorService fileWatchService = Executors.newSingleThreadScheduledExecutor(
             new NamedThreadFactory("file-watch-worker"));
 
-    private CopyOnWriteArraySet<ConfigListener> listeners = new CopyOnWriteArraySet<>();
+    private final CopyOnWriteArraySet<ConfigListener> listeners = new CopyOnWriteArraySet<>();
 
     private FileChangeWorker fileChangeWorker;
 
     @Override
-    public void init(Map<String, Object> options) {
-        String watchFile = options.get(Param.WATCH_FILE).toString();
+    public void init(Map<String, Object> options) throws Exception {
+        Gson gson = new Gson();
+        Config param = gson.fromJson(gson.toJson(options), Config.class);
 
-        fileChangeWorker = new FileChangeWorker(watchFile, 0);
+        fileChangeWorker = new FileChangeWorker(param.getWatchFile(), 0);
         fileWatchService.scheduleWithFixedDelay(fileChangeWorker,
                 DefaultValues.DEFAULT_FILE_PULL_MS, DefaultValues.DEFAULT_FILE_PULL_MS, TimeUnit.MILLISECONDS);
     }
+
     @Override
     public void addListener(ConfigListener listener) {
         listeners.add(listener);
@@ -93,32 +97,30 @@ import java.util.zip.CRC32;
         public FileChangeWorker(String fullFileName, long crcValue) {
             this.fullFileName = fullFileName;
             this.crcValue = crcValue;
+            run();
         }
 
         @Override
         public void run() {
             File watchFile = new File(fullFileName);
-            byte[] strBytes;
             try {
-                strBytes = FileUtils.readFileToByteArray(watchFile);
+                byte[] strBytes = FileUtils.readFileToByteArray(watchFile);
+                long newCrcValue = calcCrc32(strBytes);
+                if (newCrcValue == 0 || newCrcValue == crcValue) {
+                    return;
+                }
+                crcValue = newCrcValue;
+
                 Registry config = unmarshal(strBytes);
                 holder.set(config);
                 for (ConfigListener listener : listeners) {
                     listener.onChange(config);
                 }
-
+                String content = new String(strBytes, StandardCharsets.UTF_8);
+                LOG.info("[Core] config watchFile changed, new content {}", content);
             } catch (IOException e) {
                 LOG.error("[Core] fail to read watchFile {}", fullFileName, e);
-                return;
             }
-            long newCrcValue = calcCrc32(strBytes);
-            if (newCrcValue == 0 || newCrcValue == crcValue) {
-                return;
-            }
-            crcValue = newCrcValue;
-            String content = new String(strBytes, StandardCharsets.UTF_8);
-            LOG.info("[Core] config watchFile changed, new content {}", content);
-
         }
     }
 

@@ -20,8 +20,15 @@ package cn.polarismesh.polaris.sync.config.plugins.file;
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public class Param {
+public class Config {
 
-    public static final String WATCH_FILE = "watchFile";
+    private String watchFile;
 
+    public String getWatchFile() {
+        return watchFile;
+    }
+
+    public void setWatchFile(String watchFile) {
+        this.watchFile = watchFile;
+    }
 }

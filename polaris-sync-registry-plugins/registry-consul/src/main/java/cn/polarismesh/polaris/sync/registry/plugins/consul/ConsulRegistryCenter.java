@@ -113,7 +113,7 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
                 LOG.error("[Consul] text error to listInstances by registry {}, address {}",
                         registryName, address, e);
                 return ResponseUtils.toDiscoverResponse(service, ResponseUtils.normalizeStatusCode(
-                        ((OperationException)e).getStatusCode()), DiscoverResponseType.SERVICES).build();
+                        ((OperationException) e).getStatusCode()), DiscoverResponseType.SERVICES).build();
             } else {
                 serverErrorCount.addAndGet(1);
                 LOG.error("[Consul] server error to listInstances by registry {}, address {}",
@@ -177,10 +177,11 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
             if (e instanceof OperationException) {
                 LOG.error("[Consul] text error to listInstances by registry {}, address {}", registryName, address, e);
                 return ResponseUtils.toDiscoverResponse(service, ResponseUtils.normalizeStatusCode(
-                        ((OperationException)e).getStatusCode()), DiscoverResponseType.INSTANCE).build();
+                        ((OperationException) e).getStatusCode()), DiscoverResponseType.INSTANCE).build();
             } else {
                 serverErrorCount.addAndGet(1);
-                LOG.error("[Consul] server error to listInstances by registry {}, address {}", registryName, address, e);
+                LOG.error("[Consul] server error to listInstances by registry {}, address {}", registryName, address,
+                        e);
                 return ResponseUtils.toConnectException(service);
             }
         } finally {
@@ -191,7 +192,8 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
                 .toDiscoverResponse(service, StatusCodes.SUCCESS, DiscoverResponseType.INSTANCE);
         builder.addAllInstances(convertConsulInstance(service, healthInstances, group));
         DiscoverResponse discoverResponse = builder.build();
-        LOG.info("[Consul][Pull] instances response (registry {}, address {}, group {}) from is {}", registryName, address, group, discoverResponse);
+        LOG.info("[Consul][Pull] instances response (registry {}, address {}, group {}) from is {}", registryName,
+                address, group, discoverResponse);
         return discoverResponse;
     }
 
@@ -219,15 +221,30 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
             builder.setService(ResponseUtils.toStringValue(service.getService()));
             builder.setHost(ResponseUtils.toStringValue(hostAndPort.getHost()));
             builder.setPort(ResponseUtils.toUInt32Value(hostAndPort.getPort()));
-            if (!CollectionUtils.isEmpty(instance.getMeta())) {
-                builder.putAllMetadata(instance.getMeta());
-            }
+            builder.putAllMetadata(convertConsulMetadata(instance));
             builder.setWeight(ResponseUtils.toUInt32Value(100));
             builder.setHealthy(ResponseUtils.toBooleanValue(true));
             builder.setIsolate(ResponseUtils.toBooleanValue(false));
             outInstances.add(builder.build());
         }
         return outInstances;
+    }
+
+    private Map<String, String> convertConsulMetadata(HealthService.Service instance) {
+        Map<String, String> ret = new HashMap<>(instance.getMeta());
+
+        // 这里主要是处理某些框架利用 Consul 的 tags来实现实例的元数据
+        List<String> tags = instance.getTags();
+        for (String item : tags) {
+            if (item.contains("=")) {
+                String[] v = item.split("=");
+                ret.put(v[0], v[1]);
+            } else {
+                ret.put(item, item);
+            }
+        }
+
+        return ret;
     }
 
     @Override
@@ -335,7 +352,8 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
                         longPullContext.setIndex(0L);
                     }
                 } catch (Throwable e) {
-                    LOG.error("[Consul][Watch] fail to process watch task (registry {})", registryEndpoint.getName(), e);
+                    LOG.error("[Consul][Watch] fail to process watch task (registry {})", registryEndpoint.getName(),
+                            e);
                 }
                 synchronized (lock) {
                     watched = watchedServices.containsKey(service);

@@ -49,7 +49,7 @@ public class ConfigProviderManager {
         this.backupConfig = new BackupConfig(properties.getConfigBackupPath());
     }
 
-    private void init() {
+    private void init() throws Exception {
         String providerType = properties.getType();
         Iterator<ConfigProvider> iterator = ServiceLoader.load(ConfigProvider.class).iterator();
         while (iterator.hasNext()) {

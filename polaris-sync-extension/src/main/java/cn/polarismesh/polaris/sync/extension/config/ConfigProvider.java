@@ -34,7 +34,7 @@ import java.util.Map;
  */
 public interface ConfigProvider {
 
-    void init(Map<String, Object> options);
+    void init(Map<String, Object> options) throws Exception;
 
     void addListener(ConfigListener listener);
 

@@ -49,6 +49,7 @@
     <properties>
         <revision>0.2.0-alpha.2</revision>
         <timestamp>${maven.build.timestamp}</timestamp>
+        <kubernetes.client.version>15.0.1</kubernetes.client.version>
         <!-- Spring Cloud -->
         <spring.cloud.version>2021.0.3</spring.cloud.version>
         <!-- Spring Boot -->
