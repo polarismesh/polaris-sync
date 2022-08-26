@@ -32,6 +32,7 @@ import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget.Target
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Task;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Parser;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -41,6 +42,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.zip.CRC32;
+
+import com.google.protobuf.util.JsonFormat.Printer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
@@ -58,6 +61,13 @@ public class ConfigUtils {
             return builder.build();
         }
     }
+
+    public static byte[] marshal(RegistryProto.Registry config) throws IOException {
+        Printer printer = JsonFormat.printer();
+        String val = printer.print(config);
+        return val.getBytes();
+    }
+
 
     public static boolean isEmptyMatch(Match match) {
         return !StringUtils.hasText(match.getNamespace()) && !StringUtils.hasText(match.getService()) && match.getGroupsCount() == 0;

@@ -45,12 +45,16 @@ public class FileReportHandler implements ReportHandler {
 
     @Override
     public void init(ReportTarget reportTarget) {
-        LOG.info("[Report] FileReportHandler has been initialized, config {}", reportTarget);
+        LOG.info("[Report][File] FileReportHandler has been initialized, config {}", reportTarget);
     }
 
     @Override
     public void reportStat(StatInfo statInfo) {
         Collection<RegistryHealthStatus> registryHealthStatusList = statInfo.getRegistryHealthStatusList();
+        if (CollectionUtils.isEmpty(registryHealthStatusList)) {
+            LOG.debug("[Report][File] report status info empty");
+            return;
+        }
         StringBuilder reportInfoStr = new StringBuilder();
         reportInfoStr.append("Statis ").append(getCurrentDateStr()).append(":");
         if (CollectionUtils.isEmpty(registryHealthStatusList)) {
@@ -68,7 +72,7 @@ public class FileReportHandler implements ReportHandler {
             }
         }
         HEALTH_LOG.info(reportInfoStr.toString());
-        LOG.info("[File] success to report metric to file");
+        LOG.info("[Report][File] success to report metric to file");
     }
 
     private static String getCurrentDateStr() {
