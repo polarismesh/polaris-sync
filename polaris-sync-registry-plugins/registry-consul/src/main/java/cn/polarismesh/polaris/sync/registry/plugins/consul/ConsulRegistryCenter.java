@@ -212,7 +212,7 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
                 continue;
             }
             processedNodes.add(hostAndPort);
-            Map<String, String> metadata = instance.getMeta();
+            Map<String, String> metadata = convertConsulMetadata(instance);
             boolean matched = CommonUtils.matchMetadata(metadata, filters);
             if (!matched) {
                 continue;
@@ -222,7 +222,7 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
             builder.setService(ResponseUtils.toStringValue(service.getService()));
             builder.setHost(ResponseUtils.toStringValue(hostAndPort.getHost()));
             builder.setPort(ResponseUtils.toUInt32Value(hostAndPort.getPort()));
-            builder.putAllMetadata(convertConsulMetadata(instance));
+            builder.putAllMetadata(metadata);
             builder.setWeight(ResponseUtils.toUInt32Value(100));
             builder.setHealthy(ResponseUtils.toBooleanValue(true));
             builder.setIsolate(ResponseUtils.toBooleanValue(false));
@@ -231,7 +231,7 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
         return outInstances;
     }
 
-    private Map<String, String> convertConsulMetadata(HealthService.Service instance) {
+    public static Map<String, String> convertConsulMetadata(HealthService.Service instance) {
         Map<String, String> ret = new HashMap<>();
         if (Objects.nonNull(instance.getMeta())) {
             ret.putAll(instance.getMeta());
