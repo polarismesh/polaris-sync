@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.reporter.plugins.balad;
+package cn.polarismesh.polaris.sync.reporter.plugins.barad;
 
 public interface ReportOptions {
 

@@ -51,6 +51,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -231,16 +232,21 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
     }
 
     private Map<String, String> convertConsulMetadata(HealthService.Service instance) {
-        Map<String, String> ret = new HashMap<>(instance.getMeta());
+        Map<String, String> ret = new HashMap<>();
+        if (Objects.nonNull(instance.getMeta())) {
+            ret.putAll(instance.getMeta());
+        }
 
         // 这里主要是处理某些框架利用 Consul 的 tags来实现实例的元数据
         List<String> tags = instance.getTags();
-        for (String item : tags) {
-            if (item.contains("=")) {
-                String[] v = item.split("=");
-                ret.put(v[0], v[1]);
-            } else {
-                ret.put(item, item);
+        if (Objects.nonNull(tags)) {
+            for (String item : tags) {
+                if (item.contains("=")) {
+                    String[] v = item.split("=");
+                    ret.put(v[0], v[1]);
+                } else {
+                    ret.put(item, item);
+                }
             }
         }
 
