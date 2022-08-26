@@ -34,7 +34,7 @@ public class SyncRegistryProperties {
     private String configBackupPath;
 
     @NotEmpty
-    private String type;
+    private String configProvider;
 
     @NotNull
     private Map<String, Object> options = new HashMap<>();
@@ -47,12 +47,12 @@ public class SyncRegistryProperties {
         this.configBackupPath = configBackupPath;
     }
 
-    public String getType() {
-        return type;
+    public String getConfigProvider() {
+        return configProvider;
     }
 
-    public void setType(String type) {
-        this.type = type;
+    public void setConfigProvider(String configProvider) {
+        this.configProvider = configProvider;
     }
 
     public Map<String, Object> getOptions() {
@@ -67,7 +67,7 @@ public class SyncRegistryProperties {
     public String toString() {
         return "SyncRegistryProperties{" +
                 "configBackupPath='" + configBackupPath + '\'' +
-                ", type='" + type + '\'' +
+                ", configProvider='" + configProvider + '\'' +
                 ", options=" + options +
                 '}';
     }

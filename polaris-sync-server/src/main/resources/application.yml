@@ -7,7 +7,7 @@ spring:
 polaris:
   sync:
     registry:
-      type: kubernetes
+      configProvider: kubernetes
       configBackupPath: ${POLARIS_SYNC_REGISTRY_CONFIG_BACKUP_PATH:conf/sync-config-backup.json}
       options:
         address: ${POLARIS_SYNC_CONFIG_K8S_ADDRESS:}
