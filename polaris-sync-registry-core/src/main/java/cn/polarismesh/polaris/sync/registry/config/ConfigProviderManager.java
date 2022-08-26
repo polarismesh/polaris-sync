@@ -54,7 +54,7 @@ public class ConfigProviderManager {
     }
 
     private void init() throws Exception {
-        String providerType = properties.getType();
+        String providerType = properties.getConfigProvider();
         for (ConfigProvider item : providers) {
             if (Objects.equals(item.name(), providerType)) {
                 provider = item;
