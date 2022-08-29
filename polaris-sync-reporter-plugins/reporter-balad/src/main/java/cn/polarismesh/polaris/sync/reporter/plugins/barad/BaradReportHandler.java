@@ -142,8 +142,8 @@ public class BaradReportHandler  implements ReportHandler {
         errorMetric.setValue(registryHealthStatus.getErrorCount());
         metrics.add(errorMetric);
         Metric successMetric = new Metric();
-        errorMetric.setName(ReportOptions.METRIC_KEY_SUCCESS);
-        errorMetric.setValue(registryHealthStatus.getTotalCount() - registryHealthStatus.getErrorCount());
+        successMetric.setName(ReportOptions.METRIC_KEY_SUCCESS);
+        successMetric.setValue(registryHealthStatus.getTotalCount() - registryHealthStatus.getErrorCount());
         metrics.add(successMetric);
         batch.setBatch(metrics);
         return batch;
