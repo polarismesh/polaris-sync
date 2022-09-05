@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -173,9 +174,10 @@ public class KubernetesConfigProvider implements ConfigProvider {
             holder.set(registry);
 
             for (ConfigListener listener : listeners) {
-                listener.onChange(registry);
+                Executor executor = listener.executor();
+                executor.execute(() -> listener.onChange(registry));
             }
-
+            LOG.info("[ConfigProvider][Kubernetes] finish notify all listener");
         } catch (IOException e) {
             LOG.error("[ConfigProvider][Kubernetes] marshal namespace: {} name: {} dataId: {} ", config.getNamespace(),
                     config.getConfigmapName(), config.getDataId(), e);

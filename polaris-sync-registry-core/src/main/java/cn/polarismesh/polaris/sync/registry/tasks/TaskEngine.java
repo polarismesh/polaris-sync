@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -59,6 +60,9 @@ public class TaskEngine implements ConfigListener {
 
     private final ScheduledExecutorService watchExecutor = Executors
             .newScheduledThreadPool(1, new NamedThreadFactory("watch-worker"));
+
+    private final ExecutorService reloadExecutor = Executors.newFixedThreadPool(
+            1, new NamedThreadFactory("reload-worker"));
 
     private final ExecutorService registerExecutor =
             Executors.newCachedThreadPool(new NamedThreadFactory("regis-worker"));
@@ -448,5 +452,10 @@ public class TaskEngine implements ConfigListener {
             srcRegistry.getRegistry().destroy();
             dstRegistry.getRegistry().destroy();
         }
+    }
+
+    @Override
+    public Executor executor() {
+        return reloadExecutor;
     }
 }

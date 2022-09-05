@@ -19,11 +19,17 @@ package cn.polarismesh.polaris.sync.extension.config;
 
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
 
+import java.util.concurrent.Executor;
+
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
 public interface ConfigListener {
 
     void onChange(Registry registry);
+
+    default Executor executor() {
+        return Runnable::run;
+    }
 
 }
