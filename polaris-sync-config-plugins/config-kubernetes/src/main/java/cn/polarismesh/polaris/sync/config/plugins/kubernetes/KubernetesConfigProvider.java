@@ -28,6 +28,8 @@ import io.kubernetes.client.openapi.models.V1ConfigMapList;
 import io.kubernetes.client.util.generic.GenericKubernetesApi;
 import io.kubernetes.client.util.generic.KubernetesApiResponse;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
@@ -120,14 +122,18 @@ public class KubernetesConfigProvider implements ConfigProvider {
     }
 
     public void startAndWatch() throws Exception {
-        KubernetesApiResponse<V1ConfigMap> response = configMapClient.get(config.getNamespace(),
-                config.getConfigmapName());
-        handleConfigMap(response.getObject());
-
         Runnable job = () -> {
-            KubernetesApiResponse<V1ConfigMap> resp = configMapClient.get(config.getNamespace(),
-                    config.getConfigmapName());
-            handleConfigMap(resp.getObject());
+            try {
+                KubernetesApiResponse<V1ConfigMap> resp = configMapClient.get(config.getNamespace(),
+                        config.getConfigmapName());
+                handleConfigMap(resp.getObject());
+            } catch (Throwable ex) {
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                ex.printStackTrace(pw);
+                LOG.error("[ConfigProvider][Kubernetes] handle namespace: {} name: {} ex : {}", config.getNamespace(),
+                        config.getConfigmapName(), sw);
+            }
         };
 
         job.run();
