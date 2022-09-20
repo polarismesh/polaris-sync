@@ -72,6 +72,11 @@
             <artifactId>config-kubernetes</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.tencent.polaris</groupId>
+            <artifactId>config-etcd</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
