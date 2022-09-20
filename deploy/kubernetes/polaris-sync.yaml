@@ -20,9 +20,9 @@ spec:
     spec:
       containers:
         - env:
-          - name: POLARIS_SYNC_REGISTRY_WATCHPATH
+          - name: POLARIS_SYNC_CONFIG_FILE_WATCH
             value: /data/sync/watch/polaris-sync.json
-          - name: POLARIS_SYNC_REGISTRY_CONFIGPATH
+          - name: POLARIS_SYNC_REGISTRY_CONFIG_BACKUP_PATH
             value: /data/sync/config/polaris-sync.json
           image: polarismesh/polaris-sync:latest
           imagePullPolicy: Always
