@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.reporter.plugins.balad.model;
+package cn.polarismesh.polaris.sync.reporter.plugins.barad.model;
 
 import java.util.Objects;
 

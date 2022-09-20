@@ -17,8 +17,10 @@
 
 package cn.polarismesh.polaris.sync.registry.autoconfig;
 
+import cn.polarismesh.polaris.sync.extension.config.ConfigProvider;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.report.ReportHandler;
+import cn.polarismesh.polaris.sync.registry.config.ConfigProviderManager;
 import cn.polarismesh.polaris.sync.registry.config.SyncRegistryProperties;
 import cn.polarismesh.polaris.sync.registry.server.RegistrySyncServer;
 import java.util.List;
@@ -31,17 +33,17 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 public class SyncConfigBootstrapConfiguration {
 
-//    @Bean
-//    @ConditionalOnMissingBean
-//    public SyncRegistryProperties syncRegistryProperties() {
-//        return new SyncRegistryProperties();
-//    }
+    @Bean(initMethod = "init", destroyMethod = "destroy")
+    @ConditionalOnMissingBean
+    public ConfigProviderManager providerManager(List<ConfigProvider> providers, SyncRegistryProperties properties) {
+        return new ConfigProviderManager(providers, properties);
+    }
 
     @Bean(initMethod = "init", destroyMethod = "destroy")
     @ConditionalOnMissingBean
     public RegistrySyncServer registrySyncServer(
-            SyncRegistryProperties syncRegistryProperties, List<RegistryCenter> registryCenters,
+            ConfigProviderManager providerManager, List<RegistryCenter> registryCenters,
             List<ReportHandler> reportHandlers) {
-        return new RegistrySyncServer(syncRegistryProperties, registryCenters, reportHandlers);
+        return new RegistrySyncServer(providerManager, registryCenters, reportHandlers);
     }
 }

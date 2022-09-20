@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.reporter.plugins.balad;
+package cn.polarismesh.polaris.sync.reporter.plugins.barad;
 
 import cn.polarismesh.polaris.sync.common.rest.RestOperator;
 import cn.polarismesh.polaris.sync.common.rest.RestResponse;
@@ -25,8 +25,8 @@ import cn.polarismesh.polaris.sync.extension.report.ReportHandler;
 import cn.polarismesh.polaris.sync.extension.report.StatInfo;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget.TargetType;
-import cn.polarismesh.polaris.sync.reporter.plugins.balad.model.Batch;
-import cn.polarismesh.polaris.sync.reporter.plugins.balad.model.Metric;
+import cn.polarismesh.polaris.sync.reporter.plugins.barad.model.Batch;
+import cn.polarismesh.polaris.sync.reporter.plugins.barad.model.Metric;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -40,9 +40,9 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 @Component
-public class BaladReportHandler  implements ReportHandler {
+public class BaradReportHandler  implements ReportHandler {
 
-    private static final Logger LOG = LoggerFactory.getLogger(BaladReportHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(BaradReportHandler.class);
 
     private String url;
 
@@ -66,7 +66,7 @@ public class BaladReportHandler  implements ReportHandler {
             url = String.format("http://%s", optionsMap.get(ReportOptions.KEY_URL));
         }
         if (!StringUtils.hasText(url)) {
-            LOG.error("[Balad] balad report is inactived due to uri empty");
+            LOG.error("[Barad] Barad report is inactived due to uri empty");
             configValid = false;
             return;
         }
@@ -74,7 +74,7 @@ public class BaladReportHandler  implements ReportHandler {
             namespace = optionsMap.get(ReportOptions.KEY_NAMESPACE);
         }
         if (!StringUtils.hasText(namespace)) {
-            LOG.error("[Balad] balad report is inactived due to namespace empty");
+            LOG.error("[Barad] Barad report is inactived due to namespace empty");
             configValid = false;
             return;
         }
@@ -87,18 +87,20 @@ public class BaladReportHandler  implements ReportHandler {
             options.put(entry.getKey(), entry.getValue());
         }
         restOperator = new RestOperator();
-        LOG.info("[Report] BaladReportHandler has been initialized, config {}", reportTarget);
+        LOG.info("[Report] BaradReportHandler has been initialized, config {}", reportTarget);
     }
 
 
     @Override
     public void reportStat(StatInfo statInfo) {
         if (!configValid) {
+            LOG.warn("[Report][Barad] barad config invalid");
             return;
         }
         long timestamp = buildTimestamp();
         Collection<RegistryHealthStatus> registryHealthStatusList = statInfo.getRegistryHealthStatusList();
         if (CollectionUtils.isEmpty(registryHealthStatusList)) {
+            LOG.debug("[Report][Barad] report status info empty");
             return;
         }
         List<Batch> batches = new ArrayList<>();
@@ -109,12 +111,12 @@ public class BaladReportHandler  implements ReportHandler {
         RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(
                 url, HttpMethod.POST, RestUtils.getRequestEntity("", jsonText), String.class);
         if (restResponse.hasNormalResponse()) {
-            LOG.info("[Balad] success to report metric to balad {}", url);
+            LOG.info("[Barad] success to report metric to Barad {}", url);
         } else {
             if (restResponse.hasServerError()) {
-                LOG.error("[Balad] server error to report metric to {}", url, restResponse.getException());
+                LOG.error("[Barad] server error to report metric to {}", url, restResponse.getException());
             } else {
-                LOG.error("[Balad] client error to report metric to {}, code {}, info {}", url,
+                LOG.error("[Barad] client error to report metric to {}, code {}, info {}", url,
                         restResponse.getRawStatusCode(), restResponse.getStatusText());
             }
         }
@@ -140,8 +142,8 @@ public class BaladReportHandler  implements ReportHandler {
         errorMetric.setValue(registryHealthStatus.getErrorCount());
         metrics.add(errorMetric);
         Metric successMetric = new Metric();
-        errorMetric.setName(ReportOptions.METRIC_KEY_SUCCESS);
-        errorMetric.setValue(registryHealthStatus.getTotalCount() - registryHealthStatus.getErrorCount());
+        successMetric.setName(ReportOptions.METRIC_KEY_SUCCESS);
+        successMetric.setValue(registryHealthStatus.getTotalCount() - registryHealthStatus.getErrorCount());
         metrics.add(successMetric);
         batch.setBatch(metrics);
         return batch;

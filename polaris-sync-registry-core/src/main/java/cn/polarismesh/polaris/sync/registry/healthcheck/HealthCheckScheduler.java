@@ -19,9 +19,9 @@ package cn.polarismesh.polaris.sync.registry.healthcheck;
 
 import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
 import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
+import cn.polarismesh.polaris.sync.extension.config.ConfigListener;
 import cn.polarismesh.polaris.sync.extension.registry.Health;
 import cn.polarismesh.polaris.sync.extension.report.RegistryHealthStatus;
-import cn.polarismesh.polaris.sync.registry.config.FileListener;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.HealthCheck;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
@@ -31,8 +31,6 @@ import cn.polarismesh.polaris.sync.registry.tasks.TaskEngine;
 import cn.polarismesh.polaris.sync.registry.tasks.TaskEngine.RegistrySet;
 import cn.polarismesh.polaris.sync.registry.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.registry.utils.DurationUtils;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -46,7 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HealthCheckScheduler implements FileListener {
+public class HealthCheckScheduler implements ConfigListener {
 
     private static final Logger LOG = LoggerFactory.getLogger(HealthCheckScheduler.class);
 
@@ -76,9 +74,6 @@ public class HealthCheckScheduler implements FileListener {
     }
 
     public void init(RegistryProto.Registry config) {
-        if (!ConfigUtils.verifyHealthCheck(config)) {
-            throw new IllegalArgumentException("invalid health check configuration for content " + config.toString());
-        }
         reload(config);
     }
 
@@ -93,6 +88,10 @@ public class HealthCheckScheduler implements FileListener {
     }
 
     public void reload(Registry registryConfig) {
+        if (!ConfigUtils.verifyHealthCheck(registryConfig)) {
+            throw new IllegalArgumentException("invalid health check configuration for content " + registryConfig.toString());
+        }
+
         synchronized (configLock) {
             HealthCheck healthCheck = registryConfig.getHealthCheck();
             if (null == healthCheck) {
@@ -163,15 +162,7 @@ public class HealthCheckScheduler implements FileListener {
     }
 
     @Override
-    public boolean onFileChanged(byte[] strBytes) {
-        RegistryProto.Registry config;
-        try {
-            config = ConfigUtils.parseFromContent(strBytes);
-        } catch (IOException e) {
-            LOG.error("[Health] fail to parse to config proto, content {}", new String(strBytes, StandardCharsets.UTF_8), e);
-            return false;
-        }
+    public void onChange(Registry config) {
         reload(config);
-        return true;
     }
 }
