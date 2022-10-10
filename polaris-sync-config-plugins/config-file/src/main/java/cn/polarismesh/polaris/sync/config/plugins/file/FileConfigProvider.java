@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -116,7 +117,8 @@ public class FileConfigProvider implements ConfigProvider {
                 Registry config = unmarshal(strBytes);
                 holder.set(config);
                 for (ConfigListener listener : listeners) {
-                    listener.onChange(config);
+                    Executor executor = listener.executor();
+                    executor.execute(() -> listener.onChange(config));
                 }
                 String content = new String(strBytes, StandardCharsets.UTF_8);
                 LOG.info("[ConfigProvider][File] config watchFile changed, new content {}", content);

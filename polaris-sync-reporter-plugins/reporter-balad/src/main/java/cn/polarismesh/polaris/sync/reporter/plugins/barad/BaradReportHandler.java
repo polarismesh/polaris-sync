@@ -129,7 +129,7 @@ public class BaradReportHandler  implements ReportHandler {
         batch.setTimestamp(timestamp);
 
         Map<String, String> dimension = new HashMap<>(options);
-        dimension.put(ReportOptions.KEY_REGISTRY, registryHealthStatus.getDimension().getProductionName());
+        dimension.put(ReportOptions.KEY_REGISTRY, registryHealthStatus.getDimension().getName());
         batch.setDimension(dimension);
 
         List<Metric> metrics = new ArrayList<>();

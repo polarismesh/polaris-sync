@@ -36,6 +36,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -50,6 +52,10 @@ public class HealthCheckScheduler implements ConfigListener {
 
     private final ScheduledExecutorService healthCheckExecutor = Executors
             .newScheduledThreadPool(1, new NamedThreadFactory("health-check-worker"));
+
+    private final ExecutorService reloadExecutor = Executors.newFixedThreadPool(
+            1, new NamedThreadFactory("reload-worker")
+    );
 
     private final Map<String, ScheduledFuture<?>> tasks = new HashMap<>();
 
@@ -164,5 +170,10 @@ public class HealthCheckScheduler implements ConfigListener {
     @Override
     public void onChange(Registry config) {
         reload(config);
+    }
+
+    @Override
+    public Executor executor() {
+        return reloadExecutor;
     }
 }

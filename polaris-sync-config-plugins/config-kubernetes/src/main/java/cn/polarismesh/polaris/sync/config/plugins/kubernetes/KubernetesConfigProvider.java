@@ -23,26 +23,26 @@ import cn.polarismesh.polaris.sync.extension.config.ConfigProvider;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
 import com.google.gson.Gson;
 import io.kubernetes.client.openapi.ApiClient;
-import io.kubernetes.client.openapi.ApiException;
-import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1ConfigMapList;
-import io.kubernetes.client.util.Watchable;
 import io.kubernetes.client.util.generic.GenericKubernetesApi;
 import io.kubernetes.client.util.generic.KubernetesApiResponse;
-import io.kubernetes.client.util.generic.options.ListOptions;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.zip.CRC32;
 import org.apache.commons.collections4.MapUtils;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -70,9 +70,12 @@ public class KubernetesConfigProvider implements ConfigProvider {
 
     private Config config;
 
+    private AtomicLong crcValue;
+
 
     @Override
     public void init(Map<String, Object> options) throws Exception {
+        this.crcValue = new AtomicLong();
         Gson gson = new Gson();
         config = gson.fromJson(gson.toJson(options), Config.class);
         LOG.info("[ConfigProvider][Kubernetes] init options : {}", options);
@@ -120,35 +123,22 @@ public class KubernetesConfigProvider implements ConfigProvider {
     }
 
     public void startAndWatch() throws Exception {
-        KubernetesApiResponse<V1ConfigMap> response = configMapClient.get(config.getNamespace(),
-                config.getConfigmapName());
-        handleConfigMap(response.getObject());
-
         Runnable job = () -> {
-            Watchable<V1ConfigMap> watchable = null;
-            for (; ; ) {
-                try {
-                    watchable = configMapClient.watch(config.getNamespace(), new ListOptions());
-                    watchable.forEachRemaining(ret -> {
-                        if (!Objects.equals(ret.object.getMetadata().getName(), config.getConfigmapName())) {
-                            return;
-                        }
-                        handleConfigMap(ret.object);
-                    });
-                } catch (ApiException e) {
-                    LOG.error("[ConfigProvider][Kubernetes] namespace: {} name: {} is empty", config.getNamespace(),
-                            config.getConfigmapName(), e);
-                } finally {
-                    IOUtils.closeQuietly(watchable);
-
-                    LOG.info("[ConfigProvider][Kubernetes] try re-watch namespace: {} name: {} is empty",
-                            config.getNamespace(),
-                            config.getConfigmapName());
-                }
+            try {
+                KubernetesApiResponse<V1ConfigMap> resp = configMapClient.get(config.getNamespace(),
+                        config.getConfigmapName());
+                handleConfigMap(resp.getObject());
+            } catch (Throwable ex) {
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                ex.printStackTrace(pw);
+                LOG.error("[ConfigProvider][Kubernetes] handle namespace: {} name: {} ex : {}", config.getNamespace(),
+                        config.getConfigmapName(), sw);
             }
         };
 
-        configmapWatchService.execute(job);
+        job.run();
+        configmapWatchService.scheduleAtFixedRate(job, 5000, 5000, TimeUnit.MILLISECONDS);
     }
 
     private void handleConfigMap(V1ConfigMap configMap) {
@@ -171,18 +161,32 @@ public class KubernetesConfigProvider implements ConfigProvider {
             return;
         }
 
+        long newCrcValue = calcCrc32(ret);
+        if (newCrcValue == 0 || newCrcValue == crcValue.get()) {
+            LOG.info("[ConfigProvider][Kubernetes] receive config not update");
+            return;
+        }
+        crcValue.set(newCrcValue);
+
         LOG.info("[ConfigProvider][Kubernetes] receive new config : {}", new String(ret, StandardCharsets.UTF_8));
         try {
             Registry registry = unmarshal(ret);
             holder.set(registry);
 
             for (ConfigListener listener : listeners) {
-                listener.onChange(registry);
+                Executor executor = listener.executor();
+                executor.execute(() -> listener.onChange(registry));
             }
-
+            LOG.info("[ConfigProvider][Kubernetes] finish notify all listener");
         } catch (IOException e) {
             LOG.error("[ConfigProvider][Kubernetes] marshal namespace: {} name: {} dataId: {} ", config.getNamespace(),
                     config.getConfigmapName(), config.getDataId(), e);
         }
+    }
+
+    private static long calcCrc32(byte[] strBytes) {
+        CRC32 crc32 = new CRC32();
+        crc32.update(strBytes);
+        return crc32.getValue();
     }
 }
