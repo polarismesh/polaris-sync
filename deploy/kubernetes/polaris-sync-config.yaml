@@ -16,7 +16,7 @@ data:
     	],
     	"health_check": {
     		"enable": true
-    	},`
+    	},
     	"report": {
     		"interval" : "1m",
     		"targets": [
