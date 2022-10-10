@@ -28,9 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.Objects;
-import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -64,25 +62,11 @@ public class ConfigProviderManager {
 
         Objects.requireNonNull(provider, "ConfigProvider");
         provider.init(properties.getOptions());
+        provider.addListener(backupConfig);
     }
 
     public void addListener(ConfigListener listener) {
-        provider.addListener(new ConfigListener() {
-            private AtomicReference<Registry> lastVal = new AtomicReference<>();
-
-            @Override
-            public void onChange(Registry registry) {
-                try {
-                    listener.onChange(registry);
-                    lastVal.set(registry);
-                } catch (Throwable ex) {
-                    Registry old = lastVal.get();
-                    if (old != null) {
-                        listener.onChange(old);
-                    }
-                }
-            }
-        });
+        provider.addListener(new WrapperConfigListener(listener));
     }
 
     public Registry getConfig() {
@@ -124,6 +108,30 @@ public class ConfigProviderManager {
             } catch (IOException e) {
                 LOG.error("[BackupConfig] get backup file", e);
                 return null;
+            }
+        }
+    }
+
+    private static class WrapperConfigListener implements ConfigListener {
+
+        private final AtomicReference<Registry> lastVal = new AtomicReference<>();
+
+        private final ConfigListener listener;
+
+        private WrapperConfigListener(ConfigListener listener) {
+            this.listener = listener;
+        }
+
+        @Override
+        public void onChange(Registry registry) {
+            try {
+                listener.onChange(registry);
+                lastVal.set(registry);
+            } catch (Throwable ex) {
+                Registry old = lastVal.get();
+                if (old != null) {
+                    listener.onChange(old);
+                }
             }
         }
     }

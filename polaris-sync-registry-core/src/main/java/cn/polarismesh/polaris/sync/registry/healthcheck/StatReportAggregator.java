@@ -36,6 +36,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -48,6 +50,10 @@ public class StatReportAggregator implements ConfigListener {
     private static final Logger LOG = LoggerFactory.getLogger(StatReportAggregator.class);
 
     private ScheduledExecutorService reportExecutor;
+
+    private final ExecutorService reloadExecutor = Executors.newFixedThreadPool(
+            1, new NamedThreadFactory("reload-worker")
+    );
 
     private final Object reloadLock = new Object();
 
@@ -196,5 +202,10 @@ public class StatReportAggregator implements ConfigListener {
     @Override
     public void onChange(Registry config) {
         reload(config);
+    }
+
+    @Override
+    public Executor executor() {
+        return reloadExecutor;
     }
 }
