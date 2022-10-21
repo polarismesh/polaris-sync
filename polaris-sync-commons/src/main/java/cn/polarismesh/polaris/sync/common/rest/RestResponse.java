@@ -17,6 +17,7 @@
 
 package cn.polarismesh.polaris.sync.common.rest;
 
+import org.apache.commons.lang.StringUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
@@ -64,7 +65,7 @@ public class RestResponse<T> {
     }
 
     public boolean isNotFound() {
-        return hasTextError() && rawStatusCode == 404;
+        return hasTextError() && (rawStatusCode == 404 || StringUtils.equalsIgnoreCase(statusText, "not found resource"));
     }
 
     public boolean hasNormalResponse() {

@@ -17,6 +17,7 @@
 
 package cn.polarismesh.polaris.sync.common.rest;
 
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,5 +67,23 @@ public class HostAndPort {
                 "host='" + host + '\'' +
                 ", port=" + port +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof HostAndPort)) {
+            return false;
+        }
+        HostAndPort that = (HostAndPort) o;
+        return port == that.port &&
+                Objects.equals(host, that.host);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(host, port);
     }
 }

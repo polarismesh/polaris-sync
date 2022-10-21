@@ -1,42 +1,62 @@
 {
   "tasks": [
     {
-      "name": "ins-3ad0f6e7",
+      "name": "task1",
       "enable": true,
       "source": {
-        "name": "ins-3ad0f6e7",
+        "name": "nacos",
         "type": "nacos",
-        "product_name": "nacos(ins-3ad0f6e7)",
         "addresses": [
-          "183.47.111.41:8848"
+          "127.0.0.1:8848"
         ]
       },
       "destination": {
-        "name": "kong",
-        "type": "kong",
-        "product_name": "tse-kong",
+        "name": "polaris",
+        "type": "polaris",
+        "token": "nu/0WRA4EqSR1FagrjRj0fZwPXuGlMpX+zCuWu4uMqy8xr1vRjisSbA25aAC3mtU8MeeRsKhQiDAynUR09I=",
         "addresses": [
-          "9.134.5.52:8001"
+          "http://9.134.5.52:8090",
+          "grpc://9.134.5.52:8091"
         ]
       },
       "match": [
         {
-          "namespace": "public",
-          "service": "DEFAULT_GROUP__nacos.test.3",
-          "groups": [
-            {
-              "name": "version-1",
-              "metadata": {
-                "version": "1.0.0"
-              }
-            },
-            {
-              "name": "version-2",
-              "metadata": {
-                "version": "2.0.0"
-              }
-            }
-          ]
+          "namespace": "atom-ns1",
+          "service": "nacos.test.3"
+        },
+        {
+          "namespace": "atom-ns1",
+          "service": "nacos.test.4"
+        }
+      ]
+    },
+    {
+      "name": "task2",
+      "enable": true,
+      "source": {
+        "name": "polaris",
+        "type": "polaris",
+        "token": "nu/0WRA4EqSR1FagrjRj0fZwPXuGlMpX+zCuWu4uMqy8xr1vRjisSbA25aAC3mtU8MeeRsKhQiDAynUR09I=",
+        "addresses": [
+          "http://9.134.5.52:8090",
+          "grpc://9.134.5.52:8091"
+        ]
+      },
+      "destination": {
+        "name": "nacos",
+        "type": "nacos",
+        "addresses": [
+          "127.0.0.1:8848"
+        ]
+      },
+      "match": [
+        {
+          "namespace": "atom-ns1",
+          "service": "nacos.test.3"
+        },
+        {
+          "namespace": "atom-ns1",
+          "service": "nacos.test.4"
         }
       ]
     }

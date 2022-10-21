@@ -21,7 +21,7 @@ polaris-sync用于北极星和其他注册中心/网关服务之间的数据同�
 
 ### 在K8S环境下安装
 
-- 执行所有安装之前，需要下载源码包，可以从以下2个地址下载单机版软件包，请选择最新的release版本：
+- 执行所有安装之前，需要下载源码包，可以从以下2个地址下载源码包，请选择最新的release版本的源码包：
 
  - Github下载：[polaris-sync-release](https://github.com/polarismesh/polaris-sync/releases)
 
@@ -33,7 +33,38 @@ kubectl apply -f polaris-sync-config.yaml
 kubectl apply -f polaris-sync.yaml
 ```
 
+### 在VM下安装
+
+- 执行所有安装之前，需要下载源码包，可以从以下2个地址下载软件包，请选择最新的release版本，并选择polaris-sync-server-*.zip的格式包下载：
+
+ - Github下载：[polaris-sync-release](https://github.com/polarismesh/polaris-sync/releases)
+
+- 解压后，执行部署
+
+````
+unzip polaris-sync-server-${VERSION}.zip
+// 这里需要修改一下conf/sync-config.json
+java -jar polaris-sync-server-${VERSION}.jar
+````
+
+日志默认会打印到STDOUT，可以通过重定向的方式来重定向到文件。
+
 ## 快速入门
+
+### 相关的环境变量
+
+polaris-sync支持通过环境变量的方式来修改系统的各项参数：
+
+| 变量名                                    | 说明                                                         | 可选值                                                    |
+| ----------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------- |
+| POLARIS_SYNC_REGISTRY_CONFIG_PROVIDER     | 同步配置的提供方式，默认是file，即从本地文件获取配置         | file（本地文件），kubernetes（通过读取k8s configmap获取） |
+| POLARIS_SYNC_REGISTRY_CONFIG_BACKUP_PATH  | 同步配置的备份路径，容灾用，默认为conf/sync-config-backup.json | 任意可写的本地文件路径                                    |
+| POLARIS_SYNC_CONFIG_FILE_WATCH            | 配置提供方式为file时，同步配置通过该路径来监听并获取配置内容，默认为conf/sync-config.json | 任意文件路径                                              |
+| POLARIS_SYNC_CONFIG_K8S_ADDRESS           | k8s的APIServer地址，配置提供方式为kubernetes时有用           | ip:port                                                   |
+| POLARIS_SYNC_CONFIG_K8S_TOKEN             | k8s的访问token，配置提供方式为kubernetes时有用               | 任意字符串                                                |
+| POLARIS_SYNC_CONFIG_K8S_NAMESPACE         | k8s的configmap命名空间，配置提供方式为kubernetes时有用       | 任意字符串                                                |
+| POLARIS_SYNC_CONFIG_K8S_CONFIGMAP_NAME    | k8s的配置configmap名称，配置提供方式为kubernetes时有用       | 任意字符串                                                |
+| POLARIS_SYNC_CONFIG_K8S_CONFIGMAP_DATA_ID | k8s的配置configmap的配置项ID，配置提供方式为kubernetes时有用 | 任意字符串                                                |
 
 ### nacos到北极星的服务数据双向同步
 
@@ -45,7 +76,7 @@ kubectl apply -f polaris-sync.yaml
 
 我们需要给polaris-sync配置2个同步任务，一个是nacos到北极星的同步任务，另外一个是北极星到nacos的同步任务。
 
-需要修改polaris-sync-config.yaml中的json配置，添加任务的配置。
+需要修改polaris-sync-config.yaml中的json配置，添加任务的配置。注意，polaris-sync会监听该配置的变更，因此配置修改后，无需重启polaris-sync。
 
 ```
 {
@@ -74,7 +105,7 @@ kubectl apply -f polaris-sync.yaml
 			"match": [                    // 指定哪些服务需要进行同步
 				{
 					"namespace": "empty_ns",                  //命名空间ID，nacos默认命名空间填empty_ns
-					"service": "DEFAULT_GROUP__nacos.test.3", // 需要进行同步的服务名，格式为分组名__服务名
+					"service": "nacos.test.3", // 需要进行同步的服务名，格式为分组名__服务名，如果不带分组名则为默认分组
 				}
 			]
 		},
@@ -102,7 +133,7 @@ kubectl apply -f polaris-sync.yaml
 			"match": [                    // 指定哪些服务需要进行同步
 				{
 					"namespace": "empty_ns",                  //命名空间ID，nacos默认命名空间填empty_ns
-					"service": "DEFAULT_GROUP__nacos.test.3", // 需要进行同步的服务名，格式为分组名__服务名
+					"service": "nacos.test.3", // 需要进行同步的服务名，格式为分组名__服务名
 				}
 			]
 		}

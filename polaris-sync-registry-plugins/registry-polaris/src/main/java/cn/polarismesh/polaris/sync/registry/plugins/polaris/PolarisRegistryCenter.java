@@ -234,6 +234,13 @@ public class PolarisRegistryCenter extends AbstractRegistryCenter {
     public void updateGroups(Service service, Collection<Group> groups) {
     }
 
+    private static ServiceProto.Instance wrapInstanceWithSync(Instance instance, String sourceName) {
+        Instance.Builder builder = Instance.newBuilder();
+        builder.mergeFrom(instance);
+        builder.putMetadata(DefaultValues.META_SYNC, sourceName);
+        return builder.build();
+    }
+
     @Override
     public void updateInstances(Service service, Group group, Collection<ServiceProto.Instance> srcInstances) {
         DiscoverResponse.Builder builder = DiscoverResponse.newBuilder();
@@ -261,7 +268,7 @@ public class PolarisRegistryCenter extends AbstractRegistryCenter {
             }
             if (!instancesMap.containsKey(srcAddress)) {
                 //不存在则新增
-                targetsToCreate.put(srcAddress, srcInstance);
+                targetsToCreate.put(srcAddress, wrapInstanceWithSync(srcInstance, sourceName));
             } else {
                 ServiceProto.Instance destInstance = instancesMap.get(srcAddress);
                 if (!CommonUtils.isSyncedByCurrentSource(
@@ -293,19 +300,19 @@ public class PolarisRegistryCenter extends AbstractRegistryCenter {
         if (!targetsToCreate.isEmpty()) {
             LOG.info("[Polaris] targets pending to create are {}, group {}", targetsToCreate.keySet(), group.getName());
             PolarisRestUtils.createInstances(
-                    restOperator, targetsToCreate.values(), registryInitRequest.getRegistryEndpoint());
+                    restOperator, targetsToCreate.values(), registryInitRequest.getRegistryEndpoint(), httpAddresses);
             targetAddCount++;
         }
         if (!targetsToUpdate.isEmpty()) {
             LOG.info("[Polaris] targets pending to update are {}, group {}", targetsToUpdate.keySet(), group.getName());
             PolarisRestUtils.updateInstances(
-                    restOperator, targetsToUpdate.values(), registryInitRequest.getRegistryEndpoint());
+                    restOperator, targetsToUpdate.values(), registryInitRequest.getRegistryEndpoint(), httpAddresses);
             targetPatchCount++;
         }
         if (!targetsToDelete.isEmpty()) {
             LOG.info("[Polaris] targets pending to delete are {}, group {}", targetsToDelete.keySet(), group.getName());
             PolarisRestUtils.deleteInstances(
-                    restOperator, targetsToDelete.values(), registryInitRequest.getRegistryEndpoint());
+                    restOperator, targetsToDelete.values(), registryInitRequest.getRegistryEndpoint(), httpAddresses);
             targetDeleteCount++;
         }
         LOG.info("[Polaris] success to update targets, add {}, patch {}, delete {}",
@@ -316,6 +323,7 @@ public class PolarisRegistryCenter extends AbstractRegistryCenter {
     private ServiceProto.Instance toUpdateInstance(ServiceProto.Instance instance, String instanceId) {
         ServiceProto.Instance.Builder builder = ServiceProto.Instance.newBuilder().mergeFrom(instance);
         builder.setId(ResponseUtils.toStringValue(instanceId));
+        builder.putMetadata(DefaultValues.META_SYNC, registryInitRequest.getSourceName());
         return builder.build();
     }
 

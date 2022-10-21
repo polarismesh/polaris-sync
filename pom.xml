@@ -47,7 +47,7 @@
     </scm>
 
     <properties>
-        <revision>0.2.0-beta.5</revision>
+        <revision>0.2.0</revision>
         <timestamp>${maven.build.timestamp}</timestamp>
         <kubernetes.client.version>15.0.1</kubernetes.client.version>
         <!-- Spring Cloud -->
@@ -56,7 +56,7 @@
         <spring.boot.version>2.6.10</spring.boot.version>
         <!-- Spring Framework -->
         <spring.framework.version>5.3.22</spring.framework.version>
-        <polaris.java.version>1.8.0-SNAPSHOT</polaris.java.version>
+        <polaris.java.version>1.9.1</polaris.java.version>
         <skip.maven.deploy>false</skip.maven.deploy>
         <jacoco.version>0.8.8</jacoco.version>
         <maven.jar.plugin.version>3.0.0</maven.jar.plugin.version>

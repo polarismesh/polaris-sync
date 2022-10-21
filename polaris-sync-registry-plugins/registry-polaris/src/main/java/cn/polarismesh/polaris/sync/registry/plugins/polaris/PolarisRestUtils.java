@@ -49,21 +49,23 @@ public class PolarisRestUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(PolarisRestUtils.class);
 
-    public static void createInstances(
-            RestOperator restOperator, Collection<ServiceProto.Instance> instances, RegistryEndpoint registryEndpoint) {
-        String instancesUrl = PolarisEndpointUtils.toInstancesUrl(registryEndpoint.getAddressesList());
+    private static int CODE_NOT_FOUND_RESOURCE = 400202;
+
+    public static void createInstances(RestOperator restOperator, Collection<ServiceProto.Instance> instances,
+            RegistryEndpoint registryEndpoint, List<String> httpAddresses) {
+        String instancesUrl = PolarisEndpointUtils.toInstancesUrl(httpAddresses);
         operateInstances(instancesUrl, HttpMethod.POST, "create", restOperator, instances, registryEndpoint);
     }
 
-    public static void updateInstances(
-            RestOperator restOperator, Collection<ServiceProto.Instance> instances, RegistryEndpoint registryEndpoint) {
-        String instancesUrl = PolarisEndpointUtils.toInstancesUrl(registryEndpoint.getAddressesList());
+    public static void updateInstances(RestOperator restOperator, Collection<ServiceProto.Instance> instances,
+            RegistryEndpoint registryEndpoint, List<String> httpAddresses) {
+        String instancesUrl = PolarisEndpointUtils.toInstancesUrl(httpAddresses);
         operateInstances(instancesUrl, HttpMethod.PUT, "update", restOperator, instances, registryEndpoint);
     }
 
-    public static void deleteInstances(
-            RestOperator restOperator, Collection<ServiceProto.Instance> instances, RegistryEndpoint registryEndpoint) {
-        String instancesUrl = PolarisEndpointUtils.toInstancesDeleteUrl(registryEndpoint.getAddressesList());
+    public static void deleteInstances(RestOperator restOperator, Collection<ServiceProto.Instance> instances,
+            RegistryEndpoint registryEndpoint, List<String> httpAddresses) {
+        String instancesUrl = PolarisEndpointUtils.toInstancesDeleteUrl(httpAddresses);
         operateInstances(instancesUrl, HttpMethod.POST, "delete", restOperator, instances, registryEndpoint);
     }
 
@@ -109,10 +111,16 @@ public class PolarisRestUtils {
             return ResponseUtils.toConnectException(service, DiscoverResponseType.INSTANCE);
         }
         if (restResponse.hasTextError()) {
-            LOG.warn("[Polaris] text error to create instances to {}, method {}, request {}, code {}, reason {}",
-                    discoverUrl, method.name(), jsonText, restResponse.getRawStatusCode(), restResponse.getStatusText());
-            return ResponseUtils.toDiscoverResponse(service, ResponseUtils.normalizeStatusCode(
-                    restResponse.getRawStatusCode()), DiscoverResponseType.INSTANCE).build();
+            if (notFoundService(restResponse.getStatusText())) {
+                LOG.info("[Polaris] service not found to discover service {} to {}", service, discoverUrl);
+                return null;
+            } else {
+                LOG.warn("[Polaris] text error to discover instances to {}, method {}, request {}, code {}, reason {}",
+                        discoverUrl, method.name(), jsonText, restResponse.getRawStatusCode(),
+                        restResponse.getStatusText());
+                return ResponseUtils.toDiscoverResponse(service, ResponseUtils.normalizeStatusCode(
+                        restResponse.getRawStatusCode()), DiscoverResponseType.INSTANCE).build();
+            }
         }
         ResponseEntity<String> responseEntity = restResponse.getResponseEntity();
         String body = responseEntity.getBody();
@@ -122,6 +130,15 @@ public class PolarisRestUtils {
             return ResponseUtils.toInvalidResponseException(service, DiscoverResponseType.INSTANCE);
         }
         return null;
+    }
+
+    public static boolean notFoundService(String statusText) {
+        DiscoverResponse.Builder builder = DiscoverResponse.newBuilder();
+        boolean result = unmarshalProtoMessage(statusText, builder);
+        if (result) {
+            return builder.getCode().getValue() == CODE_NOT_FOUND_RESOURCE;
+        }
+        return false;
     }
 
     public static <T> HttpEntity<T> getRequestEntity(String token, T object) {
