@@ -62,11 +62,15 @@ public class CommonUtils {
     public static boolean metadataEquals(Map<String, String> srcMetadata, Map<String, String> dstMetadata) {
         srcMetadata = defaultMap(srcMetadata);
         dstMetadata = defaultMap(dstMetadata);
-        if (srcMetadata.size() != dstMetadata.size()) {
-            return false;
-        }
         for (Map.Entry<String, String> entry : srcMetadata.entrySet()) {
             String key = entry.getKey();
+            if (DefaultValues.META_SYNC.equals(key)) {
+                continue;
+            }
+            if (StringUtils.isBlank(entry.getValue())) {
+                //为空的不进行同步
+                continue;
+            }
             if (!dstMetadata.containsKey(key)) {
                 return false;
             }

@@ -24,6 +24,7 @@ import cn.polarismesh.polaris.sync.extension.config.ConfigProvider;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
 import com.google.gson.Gson;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +64,9 @@ public class FileConfigProvider implements ConfigProvider {
     public void init(Map<String, Object> options) throws Exception {
         Gson gson = new Gson();
         Config param = gson.fromJson(gson.toJson(options), Config.class);
-
+        if (StringUtils.isBlank(param.getWatchFile())) {
+            throw new IllegalArgumentException("watchFile must be specific in ConfigFileProvider");
+        }
         fileChangeWorker = new FileChangeWorker(param.getWatchFile(), 0);
         fileWatchService.scheduleWithFixedDelay(fileChangeWorker,
                 DefaultValues.DEFAULT_FILE_PULL_MS, DefaultValues.DEFAULT_FILE_PULL_MS, TimeUnit.MILLISECONDS);

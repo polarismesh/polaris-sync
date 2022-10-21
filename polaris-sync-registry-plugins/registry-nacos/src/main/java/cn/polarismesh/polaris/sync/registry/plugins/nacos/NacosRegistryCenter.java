@@ -166,8 +166,13 @@ public class NacosRegistryCenter implements RegistryCenter {
         for (NacosServiceView nacosServiceView : serviceViews) {
             ServiceProto.Service.Builder svcBuilder = ServiceProto.Service.newBuilder();
             svcBuilder.setNamespace(ResponseUtils.toStringValue(namespace));
-            svcBuilder.setName(ResponseUtils.toStringValue(
-                    nacosServiceView.getGroupName() + GROUP_SEP + nacosServiceView.getName()));
+            if (StringUtils.hasText(nacosServiceView.getGroupName())
+                    && nacosServiceView.getGroupName().equals(Constants.DEFAULT_GROUP)) {
+                svcBuilder.setName(ResponseUtils.toStringValue(
+                        nacosServiceView.getGroupName() + GROUP_SEP + nacosServiceView.getName()));
+            } else {
+                svcBuilder.setName(ResponseUtils.toStringValue(nacosServiceView.getName()));
+            }
             builder.addServices(svcBuilder.build());
         }
         return builder.build();
@@ -207,6 +212,12 @@ public class NacosRegistryCenter implements RegistryCenter {
             } catch (NacosException e) {
                 LOG.error("[Nacos] fail to create naming service to {}, namespace {}", address, namespace, e);
                 return null;
+            }
+            try {
+                //等待nacos连接建立完成
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
             ns2NamingService.put(namespace, namingService);
             return namingService;
@@ -408,6 +419,8 @@ public class NacosRegistryCenter implements RegistryCenter {
         String sourceName = registryInitRequest.getSourceName();
         Map<HostAndPort, Instance> targetsToCreate = new HashMap<>();
         Map<HostAndPort, Instance> targetsToUpdate = new HashMap<>();
+        Map<HostAndPort, Instance> targetsExists = new HashMap<>();
+        boolean hasExistsInstances = false;
         Set<HostAndPort> processedAddresses = new HashSet<>();
         // 比较新增、编辑、删除
         // 新增=源不带同步标签的实例，额外存在了（与当前全部实例作为对比）
@@ -423,7 +436,7 @@ public class NacosRegistryCenter implements RegistryCenter {
             }
             if (!instancesMap.containsKey(srcAddress)) {
                 //不存在则新增
-                targetsToCreate.put(srcAddress, toNacosInstance(srcInstance, null));
+                targetsToCreate.put(srcAddress, toNacosInstancePendingSync(srcInstance, null));
             } else {
                 Instance destInstance = instancesMap.get(srcAddress);
                 if (!CommonUtils.isSyncedByCurrentSource(
@@ -431,10 +444,12 @@ public class NacosRegistryCenter implements RegistryCenter {
                     //并非同步实例，可能是目标注册中心新注册的，不处理
                     continue;
                 }
+                hasExistsInstances = true;
                 //比较是否存在不一致
                 if (!instanceEquals(srcInstance, destInstance)) {
-                    targetsToUpdate.put(srcAddress, toNacosInstance(srcInstance, destInstance.getInstanceId()));
+                    targetsToUpdate.put(srcAddress, toNacosInstancePendingSync(srcInstance, destInstance.getInstanceId()));
                 }
+                targetsExists.put(srcAddress, toNacosInstancePendingSync(srcInstance, destInstance.getInstanceId()));
             }
         }
         // 删除=当前实例（sync=sourceName），额外存在了（与源的全量实例作对比）
@@ -453,20 +468,46 @@ public class NacosRegistryCenter implements RegistryCenter {
         int targetPatchCount = 0;
         int targetDeleteCount = 0;
         NamingService namingService = ns2NamingService.get(service.getNamespace());
+        boolean deleted = false;
+        if (!targetsToDelete.isEmpty() || (!targetsToCreate.isEmpty() && hasExistsInstances)) {
+            //以下场景需要删除全部
+            //1. 有1-N个实例需要删除
+            //2. 存在新增+存量
+            if (!targetsToDelete.isEmpty()) {
+                LOG.info("[Nacos] targets pending to delete are {}, group {}", targetsToDelete.keySet(), group.getName());
+                deregisterInstance("delete", namingService, service.getService(), targetsToDelete.values().iterator()
+                        .next());
+                targetDeleteCount += targetsToDelete.size();
+            } else {
+                deregisterInstance("delete", namingService, service.getService(), targetsExists.values().iterator()
+                        .next());
+            }
+            deleted = true;
+        }
         if (!targetsToCreate.isEmpty()) {
+            //新增实例
             LOG.info("[Nacos] targets pending to create are {}, group {}", targetsToCreate.keySet(), group.getName());
-            registerInstances("create", namingService, service.getService(), targetsToCreate.values());
-            targetAddCount++;
-        }
-        if (!targetsToUpdate.isEmpty()) {
-            LOG.info("[Nacos] targets pending to update are {}, group {}", targetsToUpdate.keySet(), group.getName());
-            registerInstances("update", namingService, service.getService(), targetsToUpdate.values());
-            targetPatchCount++;
-        }
-        if (!targetsToDelete.isEmpty()) {
-            LOG.info("[Nacos] targets pending to delete are {}, group {}", targetsToDelete.keySet(), group.getName());
-            deregisterInstances("delete", namingService, service.getService(), targetsToDelete.values());
-            targetDeleteCount++;
+            List<Instance> instances = new ArrayList<>(targetsToCreate.values());
+            if (hasExistsInstances) {
+                //假如有存量，因为之前已经删除了全部，这里要加上去
+                instances.addAll(targetsExists.values());
+            }
+            registerInstances("create", namingService, service.getService(), instances);
+            targetAddCount += targetsToCreate.size();
+        } else{
+            if (deleted) {
+                //前面已经删除了，则把存量重新注册一遍
+                List<Instance> instances = new ArrayList<>(targetsExists.values());
+                LOG.info("[Nacos] targets pending to update are {}, group {}", targetsExists.keySet(), group.getName());
+                registerInstances("update", namingService, service.getService(), instances);
+                targetPatchCount += targetsExists.size();
+            } else if (!targetsToUpdate.isEmpty()) {
+                //前面已经删除了，则把存量重新注册一遍
+                List<Instance> instances = new ArrayList<>(targetsToUpdate.values());
+                LOG.info("[Nacos] targets pending to update are {}, group {}", targetsToUpdate.keySet(), group.getName());
+                registerInstances("update", namingService, service.getService(), instances);
+                targetPatchCount += targetsToUpdate.size();
+            }
         }
         LOG.info("[Nacos] success to update targets, add {}, patch {}, delete {}",
                 targetAddCount, targetPatchCount, targetDeleteCount);
@@ -474,38 +515,42 @@ public class NacosRegistryCenter implements RegistryCenter {
     }
 
     private void registerInstances(String operation, NamingService namingService,
-            String svcName, Collection<Instance> instances) {
-        for (Instance instance : instances) {
-            try {
-                namingService.registerInstance(svcName, instance);
-            } catch (NacosException e) {
-                LOG.error("[Nacos] fail to register instance {} to service {} when {}, reason {}",
-                        instance, svcName, operation, e.getMessage());
-            }
+            String svcName, List<Instance> instances) {
+        String[] values = parseServiceToGroupService(svcName);
+        try {
+            namingService.batchRegisterInstance(values[1], values[0], instances);
+        } catch (NacosException e) {
+            LOG.error("[Nacos] fail to register instances {} to service {} when {}, reason {}",
+                    instances, svcName, operation, e.getMessage());
         }
     }
 
-    private void deregisterInstances(String operation, NamingService namingService,
-            String svcName, Collection<Instance> instances) {
-        for (Instance instance : instances) {
-            try {
-                namingService.deregisterInstance(svcName, instance);
-            } catch (NacosException e) {
-                LOG.error("[Nacos] fail to deregister instance {} to service {} when {}, reason {}",
-                        instance, svcName, operation, e.getMessage());
-            }
+    private void deregisterInstance(String operation, NamingService namingService,
+            String svcName, Instance instance) {
+        String[] values = parseServiceToGroupService(svcName);
+        try {
+            namingService.deregisterInstance(values[1], values[0], instance);
+        } catch (NacosException e) {
+            LOG.error("[Nacos] fail to deregister instance {} to service {} when {}, reason {}",
+                    instance, svcName, operation, e.getMessage());
         }
     }
 
-    private Instance toNacosInstance(ServiceProto.Instance instance, String instanceId) {
+    private Instance toNacosInstancePendingSync(ServiceProto.Instance instance, String instanceId) {
         Instance outInstance = new Instance();
         if (StringUtils.hasText(instanceId)) {
             outInstance.setInstanceId(instanceId);
         }
         outInstance.setIp(instance.getHost().getValue());
         outInstance.setPort(instance.getPort().getValue());
-        outInstance.setMetadata(instance.getMetadataMap());
-        outInstance.setEphemeral(false);
+        Map<String, String> metadataMap = new HashMap<>();
+        for (Map.Entry<String, String> entry : instance.getMetadataMap().entrySet()) {
+            if (StringUtils.hasText(entry.getKey()) && StringUtils.hasText(entry.getValue())) {
+                metadataMap.put(entry.getKey(), entry.getValue());
+            }
+        }
+        metadataMap.put(DefaultValues.META_SYNC, registryInitRequest.getSourceName());
+        outInstance.setMetadata(metadataMap);
         outInstance.setWeight(instance.getWeight().getValue());
         outInstance.setHealthy(instance.getHealthy().getValue());
         outInstance.setEnabled(!instance.getIsolate().getValue());
