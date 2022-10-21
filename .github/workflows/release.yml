@@ -1,4 +1,4 @@
-name: DockerImage
+name: Package
 
 on:
   release:
@@ -32,7 +32,7 @@ jobs:
           password: ${{ secrets.POLARIS_DOCKER_PASSWORD }}
 
       - name: Build Server
-        id: build-server
+        id: build
         env:
           DOCKER_TAG: ${{ steps.get_version.outputs.VERSION }}
         run: |
