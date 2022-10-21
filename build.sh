@@ -16,7 +16,7 @@ pushd "$SCRIPTDIR/"
 #java build the app.
 docker run --rm -u root -v "$(pwd)":/home/maven/project -w /home/maven/project maven:3.8.1-openjdk-8-slim mvn clean package
 
-mkidr -p "polaris-sync-server-${VERSION}"
+mkdir -p "polaris-sync-server-${VERSION}"
 
 cp "polaris-sync-server/target/polaris-sync-server-${VERSION}.jar" "./polaris-sync-server-${VERSION}/"
 mv ./conf "./polaris-sync-server-${VERSION}/"
