@@ -19,7 +19,7 @@ package cn.polarismesh.polaris.sync.registry.plugins.nacos;
 
 import cn.polarismesh.polaris.sync.common.rest.HostAndPort;
 import cn.polarismesh.polaris.sync.common.rest.RestOperator;
-import cn.polarismesh.polaris.sync.extension.registry.Health;
+import cn.polarismesh.polaris.sync.extension.Health;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;

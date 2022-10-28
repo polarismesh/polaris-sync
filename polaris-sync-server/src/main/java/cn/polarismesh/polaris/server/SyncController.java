@@ -17,9 +17,9 @@
 
 package cn.polarismesh.polaris.server;
 
+import cn.polarismesh.polaris.sync.core.server.ResourceSyncServer;
+import cn.polarismesh.polaris.sync.core.tasks.registry.NamedRegistryCenter;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
-import cn.polarismesh.polaris.sync.registry.server.RegistrySyncServer;
-import cn.polarismesh.polaris.sync.registry.tasks.NamedRegistryCenter;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
@@ -40,7 +40,7 @@ public class SyncController {
     private static final Logger LOG = LoggerFactory.getLogger(SyncController.class);
 
     @Autowired
-    private RegistrySyncServer registrySyncServer;
+    private ResourceSyncServer resourceSyncServer;
 
     /**
      * health check.
@@ -59,7 +59,7 @@ public class SyncController {
     @GetMapping("/maintain/v1/namespaces")
     public ResponseEntity<String> maintainV1Namespaces(
             @RequestParam("task") String taskName, @RequestParam("registry") String registryName) {
-        NamedRegistryCenter registry = registrySyncServer.getTaskEngine().getRegistry(taskName, registryName);
+        NamedRegistryCenter registry = resourceSyncServer.getRegistryTaskEngine().getRegistry(taskName, registryName);
         if (null == registry) {
             return ResponseEntity.notFound().build();
         }
@@ -80,7 +80,7 @@ public class SyncController {
     @GetMapping("/maintain/v1/services")
     public ResponseEntity<String> maintainV1Services(@RequestParam("task") String taskName,
             @RequestParam("registry") String registryName, @RequestParam("namespace") String namespace) {
-        NamedRegistryCenter registry = registrySyncServer.getTaskEngine().getRegistry(taskName, registryName);
+        NamedRegistryCenter registry = resourceSyncServer.getRegistryTaskEngine().getRegistry(taskName, registryName);
         if (null == registry) {
             return ResponseEntity.notFound().build();
         }

@@ -17,6 +17,7 @@
 
 package cn.polarismesh.polaris.sync.extension.registry;
 
+import cn.polarismesh.polaris.sync.extension.Health;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;

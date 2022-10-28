@@ -23,7 +23,7 @@ import cn.polarismesh.polaris.sync.common.rest.RestResponse;
 import cn.polarismesh.polaris.sync.common.utils.CommonUtils;
 import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.extension.registry.AbstractRegistryCenter;
-import cn.polarismesh.polaris.sync.extension.registry.Health;
+import cn.polarismesh.polaris.sync.extension.Health;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.registry.WatchEvent;
