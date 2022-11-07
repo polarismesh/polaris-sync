@@ -22,7 +22,7 @@ import java.util.Objects;
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public class ConfigGroup {
+public class ConfigGroup implements RecordInfo {
 
 	private String namespace;
 
@@ -54,6 +54,16 @@ public class ConfigGroup {
 
 	public static Builder builder() {
 		return new Builder();
+	}
+
+	@Override
+	public String keyInfo() {
+		return String.format("%s@%s", namespace, name);
+	}
+
+	@Override
+	public boolean isValid() {
+		return false;
 	}
 
 	public static final class Builder {

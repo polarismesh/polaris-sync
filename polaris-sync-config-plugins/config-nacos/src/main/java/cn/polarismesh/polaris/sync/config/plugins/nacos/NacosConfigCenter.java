@@ -19,9 +19,11 @@ package cn.polarismesh.polaris.sync.config.plugins.nacos;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,6 +36,7 @@ import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.config.plugins.nacos.mapper.ConfigFileMapper;
 import cn.polarismesh.polaris.sync.config.plugins.nacos.model.AuthResponse;
 import cn.polarismesh.polaris.sync.config.plugins.nacos.model.NacosNamespace;
+import cn.polarismesh.polaris.sync.extension.config.SubscribeDbChangeTask;
 import cn.polarismesh.polaris.sync.extension.Health;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
@@ -78,6 +81,8 @@ public class NacosConfigCenter implements ConfigCenter {
 
 	private HikariDataSource dataSource;
 
+	private Set<SubscribeDbChangeTask<ConfigFile>> watchFileTasks;
+
 	@Override
 	public ConfigType getType() {
 		return ConfigType.nacos;
@@ -102,6 +107,8 @@ public class NacosConfigCenter implements ConfigCenter {
 
 		dataSource = new HikariDataSource(hikariConfig);
 		databaseOperator = new DatabaseOperator(dataSource);
+
+		buildWatchTask();
 	}
 
 	@Override
@@ -170,8 +177,26 @@ public class NacosConfigCenter implements ConfigCenter {
 
 	@Override
 	public boolean watch(ConfigGroup group, ResponseListener eventListener) {
+		for (SubscribeDbChangeTask task : watchFileTasks) {
+			task.addListener(eventListener);
+		}
+		return true;
+	}
 
-		return false;
+	private void buildWatchTask() {
+		watchFileTasks = new HashSet<>();
+		SubscribeDbChangeTask<ConfigFile> watchFile = new SubscribeDbChangeTask<>("watchFile", date -> {
+			String query = ConfigFileMapper.getInstance().getMoreSqlTemplate(Objects.isNull(date));
+			List<ConfigFile> files = Collections.emptyList();
+			if (Objects.isNull(date)) {
+				files = databaseOperator.queryList(query, null, ConfigFileMapper.getInstance());
+			} else {
+				files = databaseOperator.queryList(query, new Object[]{date}, ConfigFileMapper.getInstance());
+			}
+			return files;
+		});
+
+		watchFileTasks.add(watchFile);
 	}
 
 	@Override
@@ -292,7 +317,7 @@ public class NacosConfigCenter implements ConfigCenter {
 
 	@Override
 	public Health healthCheck() {
-		return null;
+		return new Health(0, 0);
 	}
 
 	private static String toNamespaceId(String namespace) {

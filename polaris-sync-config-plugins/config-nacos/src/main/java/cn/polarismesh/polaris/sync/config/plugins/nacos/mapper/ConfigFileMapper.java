@@ -17,10 +17,12 @@
 
 package cn.polarismesh.polaris.sync.config.plugins.nacos.mapper;
 
+import java.util.Date;
 import java.util.Map;
 import java.util.function.Function;
 
 import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
+import cn.polarismesh.polaris.sync.extension.config.RecordSupplier;
 
 /**
  * 对应的 Nacos 配置表结构信息
@@ -63,7 +65,7 @@ import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
  *
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public class ConfigFileMapper implements Function<Map<String, Object>, ConfigFile> {
+public class ConfigFileMapper implements RecordSupplier<ConfigFile> {
 
 	private static final ConfigFileMapper INSTANCE = new ConfigFileMapper();
 
@@ -71,9 +73,28 @@ public class ConfigFileMapper implements Function<Map<String, Object>, ConfigFil
 		return INSTANCE;
 	}
 
-	@Override
-	public ConfigFile apply(Map<String, Object> stringObjectMap) {
+	public String getMoreSqlTemplate(boolean first) {
+		String query = "SELECT tenant_id, group_id, data_id, content, md5, encrypted_data_key, gmt_modified FROM config_info ";
 
-		return null;
+		if (!first) {
+			query += " WHERE gmt_modified >= ? ";
+		}
+
+		return query;
+	}
+
+	@Override
+	public ConfigFile apply(Map<String, Object> row) {
+		ConfigFile file = ConfigFile.builder()
+				.namespace((String) row.get("tenant_id"))
+				.group((String) row.get("group_id"))
+				.fileName((String) row.get("data_id"))
+				.beta(false)
+				.content((String) row.get("content"))
+				.valid(true)
+				.md5((String) row.get("md5"))
+				.modifyTime((Date) row.get("gmt_modified"))
+				.build();
+		return file;
 	}
 }

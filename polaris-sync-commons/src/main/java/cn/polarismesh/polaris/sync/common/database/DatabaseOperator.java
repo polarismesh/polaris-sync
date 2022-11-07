@@ -18,6 +18,7 @@
 package cn.polarismesh.polaris.sync.common.database;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
@@ -36,7 +37,7 @@ public class DatabaseOperator {
 		this.dataSource = dataSource;
 	}
 
-	public <R>Collection<R> queryList(String sql, Object[] args, Function<Map<String, Object>, R> convert) {
+	public <R> List<R> queryList(String sql, Object[] args, Function<Map<String, Object>, R> convert) {
 		return null;
 	}
 

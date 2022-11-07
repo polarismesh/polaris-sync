@@ -17,6 +17,7 @@
 
 package cn.polarismesh.polaris.sync.extension.config;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -46,6 +47,8 @@ public class ConfigFile implements RecordInfo {
 
 	private Map<String, String> labels = new HashMap<>();
 
+	private Date modifyTime;
+
 	public String getNamespace() {
 		return namespace;
 	}
@@ -72,6 +75,18 @@ public class ConfigFile implements RecordInfo {
 
 	public Map<String, String> getLabels() {
 		return labels;
+	}
+
+	public boolean isBeta() {
+		return beta;
+	}
+
+	public String getBetaIps() {
+		return betaIps;
+	}
+
+	public Date getModifyTime() {
+		return modifyTime;
 	}
 
 	@Override
@@ -128,8 +143,9 @@ public class ConfigFile implements RecordInfo {
 		private String md5;
 		private boolean beta;
 		private String betaIps;
-		private boolean valid = true;
+		private boolean valid;
 		private Map<String, String> labels;
+		private Date modifyTime;
 
 		private Builder() {
 		}
@@ -184,18 +200,24 @@ public class ConfigFile implements RecordInfo {
 			return this;
 		}
 
+		public Builder modifyTime(Date modifyTime) {
+			this.modifyTime = modifyTime;
+			return this;
+		}
+
 		public ConfigFile build() {
 			ConfigFile configFile = new ConfigFile();
 			configFile.version = this.version;
-			configFile.betaIps = this.betaIps;
-			configFile.valid = this.valid;
 			configFile.group = this.group;
-			configFile.fileName = this.fileName;
-			configFile.content = this.content;
-			configFile.md5 = this.md5;
-			configFile.labels = this.labels;
-			configFile.beta = this.beta;
 			configFile.namespace = this.namespace;
+			configFile.beta = this.beta;
+			configFile.md5 = this.md5;
+			configFile.valid = this.valid;
+			configFile.modifyTime = this.modifyTime;
+			configFile.labels = this.labels;
+			configFile.content = this.content;
+			configFile.betaIps = this.betaIps;
+			configFile.fileName = this.fileName;
 			return configFile;
 		}
 	}

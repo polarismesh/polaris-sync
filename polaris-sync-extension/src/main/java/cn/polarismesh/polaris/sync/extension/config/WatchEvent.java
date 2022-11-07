@@ -18,34 +18,39 @@
 
 package cn.polarismesh.polaris.sync.extension.config;
 
-import java.util.Collection;
-
-import com.tencent.polaris.client.pb.ConfigFileProto;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public class WatchEvent {
+public class WatchEvent<T> {
 
 	private ConfigGroup configGroup;
 
-	private Collection<ConfigFile> files;
+	private T event;
+
+	public void setConfigGroup(ConfigGroup configGroup) {
+		this.configGroup = configGroup;
+	}
+
+	public void setEvent(T event) {
+		this.event = event;
+	}
 
 	public ConfigGroup getConfigGroup() {
 		return configGroup;
 	}
 
-	public Collection<ConfigFile> getFiles() {
-		return files;
+	public T getEvent() {
+		return event;
 	}
 
 	public static Builder builder() {
 		return new Builder();
 	}
 
-	public static final class Builder {
+	public static final class Builder<T> {
 		private ConfigGroup configGroup;
-		private Collection<ConfigFile> files;
+		private T event;
 
 		private Builder() {
 		}
@@ -55,15 +60,15 @@ public class WatchEvent {
 			return this;
 		}
 
-		public Builder files(Collection<ConfigFile> files) {
-			this.files = files;
+		public Builder event(T event) {
+			this.event = event;
 			return this;
 		}
 
 		public WatchEvent build() {
 			WatchEvent watchEvent = new WatchEvent();
+			watchEvent.event = this.event;
 			watchEvent.configGroup = this.configGroup;
-			watchEvent.files = this.files;
 			return watchEvent;
 		}
 	}

@@ -15,10 +15,9 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.config.plugins.nacos.watch;
+package cn.polarismesh.polaris.sync.extension.config;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
@@ -26,10 +25,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import cn.polarismesh.polaris.sync.extension.config.RecordInfo;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
@@ -46,19 +46,30 @@ public class SubscribeDbChangeTask<T extends RecordInfo> implements Runnable {
 
 	private final Function<Date, List<T>> pullDataAction;
 
-	private final Set<Consumer<ChangeEvent<T>>> consumers = new HashSet<>();
+	private final Set<ConfigCenter.ResponseListener<ChangeEvent<T>>> consumers = new HashSet<>();
 
+	private final ScheduledExecutorService executor;
 
-	public SubscribeDbChangeTask(String name, Function<Date, List<T>> pullDataAction, Consumer<ChangeEvent<T>> ...consumers) {
+	public SubscribeDbChangeTask(String name, Function<Date, List<T>> pullDataAction) {
 		this.name = name;
 		this.pullDataAction = pullDataAction;
-		this.consumers.addAll(Arrays.asList(consumers));
+		this.executor = Executors.newScheduledThreadPool(2, r -> {
+			Thread thread = new Thread(r);
+			thread.setName(String.format("polaris.sync.config.plugin-%s.watch", name));
+			return thread;
+		});
+		this.executor.scheduleAtFixedRate(this, 2, 2, TimeUnit.SECONDS);
+	}
+
+	public synchronized void addListener(ConfigCenter.ResponseListener<ChangeEvent<T>> listener) {
+		consumers.add(listener);
 	}
 
 	@Override
 	public void run() {
+		Date lastUpdateTime = this.lastUpdateTime;
 		if (first) {
-			lastUpdateTime = new Date(0);
+			lastUpdateTime = null;
 		}
 		first = false;
 
@@ -85,12 +96,15 @@ public class SubscribeDbChangeTask<T extends RecordInfo> implements Runnable {
 			}
 
 			ChangeEvent<T> event = new ChangeEvent<>(add, update, remove);
+			WatchEvent<ChangeEvent<T>> watchEvent = new WatchEvent<>();
+			watchEvent.setEvent(event);
 
-			for (Consumer<ChangeEvent<T>> consumer : consumers) {
-				consumer.accept(event);
+			for (ConfigCenter.ResponseListener<ChangeEvent<T>> consumer : consumers) {
+				consumer.onEvent(watchEvent);
 			}
 		}
 		catch (Throwable ex) {
+
 		}
 	}
 
