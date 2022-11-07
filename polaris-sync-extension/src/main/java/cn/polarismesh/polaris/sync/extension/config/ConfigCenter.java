@@ -71,14 +71,14 @@ public interface ConfigCenter<T extends InitRequest> extends ResourceCenter<T> {
 	/**
 	 * listener to watch the instance change events
 	 */
-	interface ResponseListener {
+	interface ResponseListener<T> {
 
 		/**
 		 * called when response event received
 		 *
 		 * @param watchEvent instances event
 		 */
-		void onEvent(WatchEvent watchEvent);
+		void onEvent(WatchEvent<T> watchEvent);
 	}
 
 	/**
