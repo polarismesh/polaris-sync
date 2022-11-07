@@ -21,6 +21,7 @@ import java.util.Collection;
 
 import cn.polarismesh.polaris.sync.extension.Health;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
+import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFilesResponse;
 import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
 import cn.polarismesh.polaris.sync.extension.config.ConfigInitRequest;
@@ -80,7 +81,7 @@ public class ConfigCenterWrapper implements ConfigCenter {
 	}
 
 	@Override
-	public void updateConfigFiles(ConfigGroup group, Collection<ConfigFileProto.ConfigFileDTO> files) {
+	public void updateConfigFiles(ConfigGroup group, Collection<ConfigFile> files) {
 		center.updateConfigFiles(group, files);
 	}
 

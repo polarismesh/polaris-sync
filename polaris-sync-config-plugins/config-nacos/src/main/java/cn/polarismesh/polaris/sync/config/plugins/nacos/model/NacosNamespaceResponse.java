@@ -15,43 +15,48 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.config.plugins.nacos;
+package cn.polarismesh.polaris.sync.config.plugins.nacos.model;
 
-import java.util.Objects;
+import java.util.List;
 
-public class NacosNamespace {
+public class NacosNamespaceResponse {
 
-    private String namespace;
+    private int code;
 
-    public String getNamespace() {
-        return namespace;
+    private String message;
+
+    private List<NacosNamespace> data;
+
+    public int getCode() {
+        return code;
     }
 
-    public void setNamespace(String namespace) {
-        this.namespace = namespace;
+    public void setCode(int code) {
+        this.code = code;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof NacosNamespace)) {
-            return false;
-        }
-        NacosNamespace that = (NacosNamespace) o;
-        return Objects.equals(namespace, that.namespace);
+    public String getMessage() {
+        return message;
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(namespace);
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public List<NacosNamespace> getData() {
+        return data;
+    }
+
+    public void setData(List<NacosNamespace> data) {
+        this.data = data;
     }
 
     @Override
     public String toString() {
-        return "NacosNamespace{" +
-                "namespace='" + namespace + '\'' +
+        return "NacosNamespaceResponse{" +
+                "code=" + code +
+                ", message='" + message + '\'' +
+                ", data=" + data +
                 '}';
     }
 }

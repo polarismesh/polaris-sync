@@ -29,13 +29,13 @@ public class WatchEvent {
 
 	private ConfigGroup configGroup;
 
-	private Collection<ConfigFileProto.ConfigFileDTO> files;
+	private Collection<ConfigFile> files;
 
 	public ConfigGroup getConfigGroup() {
 		return configGroup;
 	}
 
-	public Collection<ConfigFileProto.ConfigFileDTO> getFiles() {
+	public Collection<ConfigFile> getFiles() {
 		return files;
 	}
 
@@ -45,7 +45,7 @@ public class WatchEvent {
 
 	public static final class Builder {
 		private ConfigGroup configGroup;
-		private Collection<ConfigFileProto.ConfigFileDTO> files;
+		private Collection<ConfigFile> files;
 
 		private Builder() {
 		}
@@ -55,7 +55,7 @@ public class WatchEvent {
 			return this;
 		}
 
-		public Builder files(Collection<ConfigFileProto.ConfigFileDTO> files) {
+		public Builder files(Collection<ConfigFile> files) {
 			this.files = files;
 			return this;
 		}

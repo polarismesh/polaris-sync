@@ -15,46 +15,43 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.config.plugins.nacos;
+package cn.polarismesh.polaris.sync.config.plugins.nacos.model;
 
-public class AuthResponse {
+import java.util.Objects;
 
-    private String accessToken;
+public class NacosNamespace {
 
-    private boolean globalAdmin;
+    private String namespace;
 
-    private int tokenTtl;
-
-    public String getAccessToken() {
-        return accessToken;
+    public String getNamespace() {
+        return namespace;
     }
 
-    public void setAccessToken(String accessToken) {
-        this.accessToken = accessToken;
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
     }
 
-    public boolean isGlobalAdmin() {
-        return globalAdmin;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof NacosNamespace)) {
+            return false;
+        }
+        NacosNamespace that = (NacosNamespace) o;
+        return Objects.equals(namespace, that.namespace);
     }
 
-    public void setGlobalAdmin(boolean globalAdmin) {
-        this.globalAdmin = globalAdmin;
-    }
-
-    public int getTokenTtl() {
-        return tokenTtl;
-    }
-
-    public void setTokenTtl(int tokenTtl) {
-        this.tokenTtl = tokenTtl;
+    @Override
+    public int hashCode() {
+        return Objects.hash(namespace);
     }
 
     @Override
     public String toString() {
-        return "AuthResponse{" +
-                "accessToken='" + accessToken + '\'' +
-                ", globalAdmin=" + globalAdmin +
-                ", tokenTtl=" + tokenTtl +
+        return "NacosNamespace{" +
+                "namespace='" + namespace + '\'' +
                 '}';
     }
 }

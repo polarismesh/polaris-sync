@@ -27,6 +27,7 @@ import java.util.Map;
 import cn.polarismesh.polaris.sync.core.tasks.registry.NamedRegistryCenter;
 import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.core.utils.TaskUtils;
+import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFilesResponse;
 import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
@@ -81,7 +82,7 @@ public class PullTask implements Runnable {
 								response.getCode());
 						return;
 					}
-					Collection<ConfigFileProto.ConfigFileDTO> files = response.getFiles();
+					Collection<ConfigFile> files = response.getFiles();
 					LOG.debug(
 							"[Core][Pull] config prepare to update from registry {}, type {}, service {}, group {}, instances {}",
 							source.getName(), source.getConfigCenter().getType(), configGroup, group.getName(), files);

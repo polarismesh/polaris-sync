@@ -19,8 +19,6 @@ package cn.polarismesh.polaris.sync.extension.config;
 
 import java.util.Collection;
 
-import com.tencent.polaris.client.pb.ConfigFileProto;
-
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
@@ -30,7 +28,7 @@ public class ConfigFilesResponse {
 
 	private String info;
 
-	Collection<ConfigFileProto.ConfigFileDTO> files;
+	Collection<ConfigFile> files;
 
 	public int getCode() {
 		return code;
@@ -40,7 +38,7 @@ public class ConfigFilesResponse {
 		return info;
 	}
 
-	public Collection<ConfigFileProto.ConfigFileDTO> getFiles() {
+	public Collection<ConfigFile> getFiles() {
 		return files;
 	}
 
@@ -52,7 +50,7 @@ public class ConfigFilesResponse {
 	public static final class Builder {
 		private int code;
 		private String info;
-		private Collection<ConfigFileProto.ConfigFileDTO> files;
+		private Collection<ConfigFile> files;
 
 		private Builder() {
 		}
@@ -67,7 +65,7 @@ public class ConfigFilesResponse {
 			return this;
 		}
 
-		public Builder files(Collection<ConfigFileProto.ConfigFileDTO> files) {
+		public Builder files(Collection<ConfigFile> files) {
 			this.files = files;
 			return this;
 		}

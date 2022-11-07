@@ -15,48 +15,46 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.config.plugins.nacos;
+package cn.polarismesh.polaris.sync.config.plugins.nacos.model;
 
-import java.util.List;
+public class AuthResponse {
 
-public class NacosNamespaceResponse {
+    private String accessToken;
 
-    private int code;
+    private boolean globalAdmin;
 
-    private String message;
+    private int tokenTtl;
 
-    private List<NacosNamespace> data;
-
-    public int getCode() {
-        return code;
+    public String getAccessToken() {
+        return accessToken;
     }
 
-    public void setCode(int code) {
-        this.code = code;
+    public void setAccessToken(String accessToken) {
+        this.accessToken = accessToken;
     }
 
-    public String getMessage() {
-        return message;
+    public boolean isGlobalAdmin() {
+        return globalAdmin;
     }
 
-    public void setMessage(String message) {
-        this.message = message;
+    public void setGlobalAdmin(boolean globalAdmin) {
+        this.globalAdmin = globalAdmin;
     }
 
-    public List<NacosNamespace> getData() {
-        return data;
+    public int getTokenTtl() {
+        return tokenTtl;
     }
 
-    public void setData(List<NacosNamespace> data) {
-        this.data = data;
+    public void setTokenTtl(int tokenTtl) {
+        this.tokenTtl = tokenTtl;
     }
 
     @Override
     public String toString() {
-        return "NacosNamespaceResponse{" +
-                "code=" + code +
-                ", message='" + message + '\'' +
-                ", data=" + data +
+        return "AuthResponse{" +
+                "accessToken='" + accessToken + '\'' +
+                ", globalAdmin=" + globalAdmin +
+                ", tokenTtl=" + tokenTtl +
                 '}';
     }
 }

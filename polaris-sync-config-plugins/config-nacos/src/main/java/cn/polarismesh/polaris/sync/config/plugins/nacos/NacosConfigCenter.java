@@ -26,15 +26,17 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import cn.polarismesh.polaris.sync.common.database.DatabaseOperator;
 import cn.polarismesh.polaris.sync.common.rest.RestOperator;
 import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
+import cn.polarismesh.polaris.sync.config.plugins.nacos.mapper.ConfigFileMapper;
+import cn.polarismesh.polaris.sync.config.plugins.nacos.model.AuthResponse;
+import cn.polarismesh.polaris.sync.config.plugins.nacos.model.NacosNamespace;
 import cn.polarismesh.polaris.sync.extension.Health;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
+import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFilesResponse;
 import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
 import cn.polarismesh.polaris.sync.extension.config.ConfigInitRequest;
@@ -44,12 +46,11 @@ import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ConfigEndpoint.ConfigType;
 import com.alibaba.nacos.api.NacosFactory;
 import com.alibaba.nacos.api.config.ConfigService;
-import com.alibaba.nacos.api.config.listener.Listener;
 import com.alibaba.nacos.api.exception.NacosException;
-import com.alibaba.nacos.api.naming.NamingService;
-import com.tencent.polaris.client.pb.ConfigFileProto;
 import com.tencent.polaris.client.pb.ResponseProto;
 import com.tencent.polaris.client.pb.ServiceProto;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,10 +64,7 @@ import org.springframework.util.StringUtils;
 @Component
 public class NacosConfigCenter implements ConfigCenter {
 
-
 	private static final Logger LOG = LoggerFactory.getLogger(NacosConfigCenter.class);
-
-	private static final String GROUP_SEP = "__";
 
 	private final Map<String, ConfigService> ns2ConfigService = new ConcurrentHashMap<>();
 
@@ -78,6 +76,8 @@ public class NacosConfigCenter implements ConfigCenter {
 
 	private DatabaseOperator databaseOperator;
 
+	private HikariDataSource dataSource;
+
 	@Override
 	public ConfigType getType() {
 		return ConfigType.nacos;
@@ -86,6 +86,22 @@ public class NacosConfigCenter implements ConfigCenter {
 	@Override
 	public void init(ConfigInitRequest request) {
 		configInitRequest = request;
+		initDatabaseOperator();
+	}
+
+	private void initDatabaseOperator() {
+		HikariConfig hikariConfig = new HikariConfig();
+		hikariConfig.setDriverClassName("com.mysql.cj.jdbc.Driver");
+		hikariConfig.setPoolName(configInitRequest.getSourceName());
+		hikariConfig.setJdbcUrl(configInitRequest.getConfigEndpoint().getDb().getJdbcUrl());
+		hikariConfig.setUsername(configInitRequest.getConfigEndpoint().getDb().getUsername());
+		hikariConfig.setPassword(configInitRequest.getConfigEndpoint().getDb().getPassword());
+		hikariConfig.setMaximumPoolSize(64);
+		hikariConfig.setMinimumIdle(16);
+		hikariConfig.setMaxLifetime(10 * 60 * 1000);
+
+		dataSource = new HikariDataSource(hikariConfig);
+		databaseOperator = new DatabaseOperator(dataSource);
 	}
 
 	@Override
@@ -105,6 +121,7 @@ public class NacosConfigCenter implements ConfigCenter {
 
 		ns2ConfigService.clear();
 		databaseOperator.destroy();
+		dataSource.close();
 	}
 
 	@Override
@@ -115,7 +132,8 @@ public class NacosConfigCenter implements ConfigCenter {
 		if (StringUtils.hasText(configEndpoint.getServer().getUser()) && StringUtils.hasText(
 				configEndpoint.getServer().getPassword())) {
 			ResponseProto.DiscoverResponse discoverResponse = NacosRestUtils.auth(
-					restOperator, configEndpoint.getServer(), authResponse, null, ResponseProto.DiscoverResponse.DiscoverResponseType.NAMESPACES);
+					restOperator, configEndpoint.getServer(), authResponse, null,
+					ResponseProto.DiscoverResponse.DiscoverResponseType.NAMESPACES);
 			if (null != discoverResponse) {
 				return discoverResponse;
 			}
@@ -138,8 +156,16 @@ public class NacosConfigCenter implements ConfigCenter {
 
 	@Override
 	public ConfigFilesResponse listConfigFile(ConfigGroup configGroup) {
+		String query = "SELECT tenant_id, group_id, data_id, content, c_desc, tag_name, gmt_modified "
+				+ "FROM config_info ci LEFT JOIN config_tags_relation cr ON ci.tenant_id = cr.tenant_id "
+				+ "AND ci.group_id = cr.group_id AND ci.data_id = cr.data_id WHERE tenant_id = ? AND group_id = ?";
 
-		return null;
+		// 从对应的数据库中获取
+		Collection<ConfigFile> files = databaseOperator.queryList(query, new Object[] {
+				configGroup.getName(), configGroup.getNamespace()
+		}, ConfigFileMapper.getInstance());
+
+		return ConfigFilesResponse.builder().files(files).code(StatusCodes.SUCCESS).build();
 	}
 
 	@Override
@@ -198,8 +224,8 @@ public class NacosConfigCenter implements ConfigCenter {
 	}
 
 	@Override
-	public void updateConfigFiles(ConfigGroup group, Collection<ConfigFileProto.ConfigFileDTO> files) {
-		Stream<ConfigFileProto.ConfigFileDTO> stream = null;
+	public void updateConfigFiles(ConfigGroup group, Collection<ConfigFile> files) {
+		Stream<ConfigFile> stream = null;
 		if (files.size() < 128) {
 			stream = files.stream();
 		} else {
@@ -215,13 +241,13 @@ public class NacosConfigCenter implements ConfigCenter {
 				return;
 			}
 			try {
-				boolean ok = configService.publishConfig(file.getFileName().getValue(), group.getName(),
-						file.getContent().getValue());
+				boolean ok = configService.publishConfig(file.getFileName(), group.getName(),
+						file.getContent());
 			}
 			catch (NacosException e) {
 				LOG.error("[Nacos][Config] {} publish config namespace={} group={} name={} ",
 						configInitRequest.getSourceName(),
-						group.getNamespace(), group.getName(), file.getFileName().getValue(), e);
+						group.getNamespace(), group.getName(), file.getFileName(), e);
 			}
 		});
 	}

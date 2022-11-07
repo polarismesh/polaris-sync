@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 import cn.polarismesh.polaris.sync.core.utils.TaskUtils;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
+import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
 import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
 import cn.polarismesh.polaris.sync.extension.config.WatchEvent;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
@@ -96,7 +97,7 @@ public class WatchTask implements Runnable{
 		@Override
 		public void onEvent(WatchEvent watchEvent) {
 			executor.execute(() -> {
-				Collection<ConfigFileProto.ConfigFileDTO> files = watchEvent.getFiles();
+				Collection<ConfigFile> files = watchEvent.getFiles();
 				// diff by groups
 				for (RegistryProto.Group group : groups) {
 					LOG.info("[Core][Watch]prepare to update group {} instances {}", group.getName(), files);
