@@ -20,13 +20,16 @@ package cn.polarismesh.polaris.sync.core.tasks;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
+import cn.polarismesh.polaris.sync.core.utils.CommonUtils;
 import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
+import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigListener;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
@@ -49,8 +52,6 @@ public abstract class AbstractTaskEngine implements ConfigListener {
 	protected final ScheduledExecutorService watchExecutor;
 
 	protected final ExecutorService reloadExecutor;
-
-	protected final Map<RegistryProto.RegistryEndpoint.RegistryType, Class<? extends RegistryCenter>> registryTypeMap = new HashMap<>();
 
 	private final Object configLock = new Object();
 
@@ -145,11 +146,9 @@ public abstract class AbstractTaskEngine implements ConfigListener {
 
 	protected abstract int[] addConfigTask(RegistryProto.ConfigTask task, List<RegistryProto.Method> methods);
 
-	private void reload(RegistryProto.Registry registryConfig) {
-		if (!ConfigUtils.verifyTasks(registryConfig, registryTypeMap.keySet())) {
-			throw new IllegalArgumentException("invalid configuration content " + registryConfig.toString());
-		}
+	protected abstract void verifyTask(RegistryProto.Registry registry);
 
+	protected final void reload(RegistryProto.Registry registryConfig) {
 		synchronized (configLock) {
 			int watchTasksAdded = 0;
 			int pullTasksAdded = 0;
@@ -157,7 +156,18 @@ public abstract class AbstractTaskEngine implements ConfigListener {
 			int pullTasksDeleted = 0;
 			RegistryProto.Registry oldRegistryConfig = this.registryConfig;
 			this.registryConfig = registryConfig;
-			if (ConfigUtils.methodsChanged(oldRegistryConfig.getMethodsList(), registryConfig.getMethodsList())) {
+
+			if (Objects.isNull(oldRegistryConfig)) {
+				int[] addCounts = initTasks(registryConfig);
+				watchTasksAdded += addCounts[0];
+				pullTasksAdded += addCounts[1];
+				LOG.info(
+						"[Core] tasks init, watchTasksAdded {}, pullTasksAdded {}, watchTasksDeleted {}, pullTasksDeleted {}",
+						watchTasksAdded, pullTasksAdded, watchTasksDeleted, pullTasksDeleted);
+				return;
+			}
+
+			if (CommonUtils.methodsChanged(oldRegistryConfig.getMethodsList(), registryConfig.getMethodsList())) {
 				// method changed, clear the old tasks before adding new tasks
 				LOG.info("[Core] task sync methods changed");
 				int[] clearCounts = clearTasks(oldRegistryConfig);

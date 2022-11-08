@@ -17,6 +17,8 @@
 
 package cn.polarismesh.polaris.sync.extension.utils;
 
+import cn.polarismesh.polaris.sync.extension.config.ConfigFilesResponse;
+import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import com.google.protobuf.BoolValue;
 import com.google.protobuf.StringValue;
@@ -76,6 +78,15 @@ public class ResponseUtils {
         builder.setCode(toUInt32Value(code));
         builder.setType(type);
         return builder;
+    }
+
+
+    public static ConfigFilesResponse toConfigFilesResponse(ConfigGroup group, int code) {
+        ConfigFilesResponse.Builder builder = ConfigFilesResponse.builder();
+        if (null != group) {
+        }
+        builder.code(code);
+        return builder.build();
     }
 
 

@@ -17,118 +17,137 @@
 
 package cn.polarismesh.polaris.sync.extension.config;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
+import com.sun.org.slf4j.internal.Logger;
+import com.sun.org.slf4j.internal.LoggerFactory;
+
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public class SubscribeDbChangeTask<T extends RecordInfo> implements Runnable {
+public class SubscribeDbChangeTask implements Runnable {
+
+	private static final Logger LOG = LoggerFactory.getLogger(SubscribeDbChangeTask.class);
 
 	private boolean first = true;
 
 	private Date lastUpdateTime;
 
-	private final Map<String, Object> items = new ConcurrentHashMap<>();
+	private final Map<String, ConfigFile> items = new ConcurrentHashMap<>();
 
 	private final String name;
 
-	private final Function<Date, List<T>> pullDataAction;
-
-	private final Set<ConfigCenter.ResponseListener<ChangeEvent<T>>> consumers = new HashSet<>();
+	private final Function<Date, List<ConfigFile>> pullDataAction;
 
 	private final ScheduledExecutorService executor;
 
-	public SubscribeDbChangeTask(String name, Function<Date, List<T>> pullDataAction) {
+	private final ExecutorService listenerExecutor;
+
+	private Map<String, Set<ConfigCenter.ResponseListener>> matchGroups = new ConcurrentHashMap<>();
+
+	private final Map<String, WatchEvent> tmp = new HashMap<>();
+
+	private volatile boolean shutdown = false;
+
+	public SubscribeDbChangeTask(String name, Function<Date, List<ConfigFile>> pullDataAction) {
 		this.name = name;
 		this.pullDataAction = pullDataAction;
-		this.executor = Executors.newScheduledThreadPool(2, r -> {
+		this.executor = Executors.newScheduledThreadPool(1, r -> {
 			Thread thread = new Thread(r);
-			thread.setName(String.format("polaris.sync.config.plugin-%s.watch", name));
+			thread.setName(String.format("sync.config-%s.watch", name));
+			return thread;
+		});
+		this.listenerExecutor = Executors.newSingleThreadExecutor(r -> {
+			Thread thread = new Thread(r);
+			thread.setName(String.format("sync.config-%s.listener", name));
 			return thread;
 		});
 		this.executor.scheduleAtFixedRate(this, 2, 2, TimeUnit.SECONDS);
 	}
 
-	public synchronized void addListener(ConfigCenter.ResponseListener<ChangeEvent<T>> listener) {
-		consumers.add(listener);
+	public synchronized void addListener(ConfigGroup group, ConfigCenter.ResponseListener listener) {
+		String groupKey = group.keyInfo();
+		matchGroups.computeIfAbsent(groupKey, k -> new CopyOnWriteArraySet<>());
+		matchGroups.get(groupKey).add(listener);
+	}
+
+	public void destroy() {
+		shutdown = true;
+		executor.shutdown();
+		listenerExecutor.shutdown();
 	}
 
 	@Override
 	public void run() {
+		if (shutdown) {
+			return;
+		}
+
 		Date lastUpdateTime = this.lastUpdateTime;
 		if (first) {
 			lastUpdateTime = null;
 		}
 		first = false;
 
+		tmp.clear();
+
 		try {
-			List<T> result = pullDataAction.apply(lastUpdateTime);
+			Date maxUpdateTime = new Date(0);
+			List<ConfigFile> result = pullDataAction.apply(lastUpdateTime);
 
-			List<T> add = new ArrayList<>();
-			List<T> update = new ArrayList<>();
-			List<T> remove = new ArrayList<>();
+			for (ConfigFile t : result) {
+				String groupKey = t.getNamespace() + "@" + t.getGroup();
+				tmp.computeIfAbsent(groupKey, k -> new WatchEvent());
 
-			for (T t : result) {
+				WatchEvent event = tmp.get(groupKey);
+
 				String key = t.keyInfo();
 				if (!t.isValid()) {
-					remove.add(t);
+					event.appendRemote(t);
 					items.remove(key);
 					continue;
 				}
 
 				if (!items.containsKey(key)) {
-					add.add(t);
+					event.appendAdd(t);
 				}
-				update.add(t);
+				event.appendUpdate(t);
 				items.put(key, t);
+
+				if (Objects.isNull(maxUpdateTime)) {
+					maxUpdateTime = t.getModifyTime();
+					continue;
+				}
+
+				if (maxUpdateTime.compareTo(t.getModifyTime()) < 0) {
+					maxUpdateTime = t.getModifyTime();
+				}
 			}
 
-			ChangeEvent<T> event = new ChangeEvent<>(add, update, remove);
-			WatchEvent<ChangeEvent<T>> watchEvent = new WatchEvent<>();
-			watchEvent.setEvent(event);
+			this.lastUpdateTime = maxUpdateTime;
 
-			for (ConfigCenter.ResponseListener<ChangeEvent<T>> consumer : consumers) {
-				consumer.onEvent(watchEvent);
-			}
+			tmp.forEach((s, watchEvent) -> {
+				Set<ConfigCenter.ResponseListener> listeners = SubscribeDbChangeTask.this.matchGroups.get(s);
+				listenerExecutor.execute(() -> listeners.forEach(responseListener -> responseListener.onEvent(watchEvent)));
+			});
+
 		}
 		catch (Throwable ex) {
-
+			LOG.error("[Config][Watch] {} watch config file change error ", name, ex);
 		}
 	}
 
-	public static class ChangeEvent<T extends RecordInfo> {
-		private List<T> add = Collections.emptyList();
-		private List<T> update = Collections.emptyList();
-		private List<T> remove = Collections.emptyList();
-
-		ChangeEvent(List<T> add, List<T> update, List<T> remove) {
-			this.add = add;
-			this.update = update;
-			this.remove = remove;
-		}
-
-		public List<T> getAdd() {
-			return add;
-		}
-
-		public List<T> getUpdate() {
-			return update;
-		}
-
-		public List<T> getRemove() {
-			return remove;
-		}
-	}
 }

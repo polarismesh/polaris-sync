@@ -10,7 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>polaris-sync-taskconfig-plugins</artifactId>
-    <name>Polaris Sync Config Plugins</name>
+    <name>Polaris Sync TaskConfig Plugins</name>
     <modules>
         <module>taskconfig-file</module>
         <module>taskconfig-kubernetes</module>

@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.config.plugins.etcd;
+package cn.polarismesh.polaris.sync.taskconfig.plugins.etcd;
 
 
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;

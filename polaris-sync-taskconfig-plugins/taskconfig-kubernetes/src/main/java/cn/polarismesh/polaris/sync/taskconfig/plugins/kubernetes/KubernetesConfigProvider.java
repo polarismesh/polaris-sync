@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.config.plugins.kubernetes;
+package cn.polarismesh.polaris.sync.taskconfig.plugins.kubernetes;
 
 import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
 import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigListener;

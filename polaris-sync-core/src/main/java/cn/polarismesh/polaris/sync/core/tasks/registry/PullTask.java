@@ -18,6 +18,7 @@
 package cn.polarismesh.polaris.sync.core.tasks.registry;
 
 import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
+import cn.polarismesh.polaris.sync.core.utils.RegistryUtils;
 import cn.polarismesh.polaris.sync.core.utils.TaskUtils;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
@@ -49,7 +50,7 @@ public class PullTask implements Runnable {
         this.source = source;
         this.destination = destination;
         for (Match match : matches) {
-            if (ConfigUtils.isEmptyMatch(match)) {
+            if (RegistryUtils.isEmptyMatch(match)) {
                 continue;
             }
             serviceToGroups.put(

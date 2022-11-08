@@ -19,57 +19,64 @@
 package cn.polarismesh.polaris.sync.extension.config;
 
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public class WatchEvent<T> {
+public class WatchEvent {
 
 	private ConfigGroup configGroup;
 
-	private T event;
+	private List<ConfigFile> add = new ArrayList<>();
 
-	public void setConfigGroup(ConfigGroup configGroup) {
-		this.configGroup = configGroup;
+	private List<ConfigFile> update = new ArrayList<>();
+
+	private List<ConfigFile> remove = new ArrayList<>();
+
+	public void appendAdd(ConfigFile file) {
+		add.add(file);
 	}
 
-	public void setEvent(T event) {
-		this.event = event;
+	public void appendUpdate(ConfigFile file) {
+		update.add(file);
+	}
+
+	public void appendRemote(ConfigFile file) {
+		remove.add(file);
 	}
 
 	public ConfigGroup getConfigGroup() {
 		return configGroup;
 	}
 
-	public T getEvent() {
-		return event;
+	public void setConfigGroup(ConfigGroup configGroup) {
+		this.configGroup = configGroup;
 	}
 
-	public static Builder builder() {
-		return new Builder();
+	public List<ConfigFile> getAdd() {
+		return Collections.unmodifiableList(add);
 	}
 
-	public static final class Builder<T> {
-		private ConfigGroup configGroup;
-		private T event;
+	public void setAdd(List<ConfigFile> add) {
+		this.add = add;
+	}
 
-		private Builder() {
-		}
+	public List<ConfigFile> getUpdate() {
+		return Collections.unmodifiableList(update);
+	}
 
-		public Builder configGroup(ConfigGroup configGroup) {
-			this.configGroup = configGroup;
-			return this;
-		}
+	public void setUpdate(List<ConfigFile> update) {
+		this.update = update;
+	}
 
-		public Builder event(T event) {
-			this.event = event;
-			return this;
-		}
+	public List<ConfigFile> getRemove() {
+		return Collections.unmodifiableList(remove);
+	}
 
-		public WatchEvent build() {
-			WatchEvent watchEvent = new WatchEvent();
-			watchEvent.event = this.event;
-			watchEvent.configGroup = this.configGroup;
-			return watchEvent;
-		}
+	public void setRemove(List<ConfigFile> remove) {
+		this.remove = remove;
 	}
 }

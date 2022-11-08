@@ -18,6 +18,7 @@
 package cn.polarismesh.polaris.sync.core.healthcheck;
 
 import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
+import cn.polarismesh.polaris.sync.core.utils.CommonUtils;
 import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigListener;
 import cn.polarismesh.polaris.sync.extension.report.RegistryHealthStatus;
@@ -111,7 +112,7 @@ public class StatReportAggregator implements ConfigListener {
     }
 
     public void reload(Registry registryConfig) {
-        if (!ConfigUtils.verifyReport(registryConfig)) {
+        if (!CommonUtils.verifyReport(registryConfig)) {
             throw new IllegalArgumentException("invalid report configuration for content " + registryConfig);
         }
 

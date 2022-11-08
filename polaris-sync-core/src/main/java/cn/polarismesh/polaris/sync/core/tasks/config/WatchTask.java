@@ -17,12 +17,14 @@
 
 package cn.polarismesh.polaris.sync.core.tasks.config;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import cn.polarismesh.polaris.sync.core.utils.TaskUtils;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
@@ -30,14 +32,13 @@ import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
 import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
 import cn.polarismesh.polaris.sync.extension.config.WatchEvent;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
-import com.tencent.polaris.client.pb.ConfigFileProto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public class WatchTask implements Runnable{
+public class WatchTask implements Runnable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(cn.polarismesh.polaris.sync.core.tasks.registry.WatchTask.class);
 
@@ -70,7 +71,7 @@ public class WatchTask implements Runnable{
 		this.watchExecutor = watchExecutor;
 		this.groups = TaskUtils.verifyGroups(match.getGroupsList());
 		this.groupWithSource = new ConfigTaskEngine.ConfigGroupWithSource(source.getName(), this.configGroup);
-		responseListener = new WatchTask.ResponseListener();
+		this.responseListener = new WatchTask.ResponseListener();
 	}
 
 	public ConfigTaskEngine.ConfigGroupWithSource getGroupWithSource() {
@@ -96,14 +97,11 @@ public class WatchTask implements Runnable{
 
 		@Override
 		public void onEvent(WatchEvent watchEvent) {
-			executor.execute(() -> {
-				Collection<ConfigFile> files = watchEvent.getFiles();
-				// diff by groups
-				for (RegistryProto.Group group : groups) {
-					LOG.info("[Core][Watch]prepare to update group {} instances {}", group.getName(), files);
-					destination.getConfigCenter().updateConfigFiles(configGroup, files);
-				}
-			});
+			Collection<ConfigFile> files = new ArrayList<>(watchEvent.getAdd());
+			files.addAll(watchEvent.getUpdate());
+			destination.getConfigCenter().updateConfigFiles(configGroup, files);
+			// 配置同步删除能力暂不实现
+			// destination.getConfigCenter().updateConfigFiles(configGroup, watchEvent.getRemove());
 		}
 	}
 

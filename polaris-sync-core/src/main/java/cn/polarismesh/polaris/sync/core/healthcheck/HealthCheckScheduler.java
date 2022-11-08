@@ -19,6 +19,7 @@ package cn.polarismesh.polaris.sync.core.healthcheck;
 
 import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
 import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
+import cn.polarismesh.polaris.sync.core.utils.CommonUtils;
 import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.core.utils.DurationUtils;
 import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigListener;
@@ -95,7 +96,7 @@ public class HealthCheckScheduler implements ConfigListener {
     }
 
     public void reload(Registry registryConfig) {
-        if (!ConfigUtils.verifyHealthCheck(registryConfig)) {
+        if (!CommonUtils.verifyHealthCheck(registryConfig)) {
             throw new IllegalArgumentException("invalid health check configuration for content " + registryConfig.toString());
         }
 

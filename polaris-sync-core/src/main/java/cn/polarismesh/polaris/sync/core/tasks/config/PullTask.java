@@ -24,18 +24,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import cn.polarismesh.polaris.sync.core.tasks.registry.NamedRegistryCenter;
 import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.core.utils.TaskUtils;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFilesResponse;
 import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
-import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
-import com.tencent.polaris.client.pb.ConfigFileProto;
-import com.tencent.polaris.client.pb.ResponseProto;
-import com.tencent.polaris.client.pb.ServiceProto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +41,7 @@ public class PullTask implements Runnable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(cn.polarismesh.polaris.sync.core.tasks.registry.PullTask.class);
 
-	private final Map<ConfigGroup, Collection<RegistryProto.Group>> configGroupToMathGroups = new HashMap<>();
+	private final Map<ConfigGroup, Collection<RegistryProto.Group>> configGroupToMatchGroups = new HashMap<>();
 
 	private final NamedConfigCenter source;
 
@@ -56,10 +51,10 @@ public class PullTask implements Runnable {
 		this.source = source;
 		this.destination = destination;
 		for (RegistryProto.ConfigMatch match : matches) {
-			if (ConfigUtils.isEmptyConfigMatch(match)) {
+			if (ConfigUtils.isEmptyMatch(match)) {
 				continue;
 			}
-			configGroupToMathGroups.put(
+			configGroupToMatchGroups.put(
 					new ConfigGroup(match.getNamespace(), match.getConfigGroup()), TaskUtils.verifyGroups(match.getGroupsList()));
 		}
 	}
@@ -69,10 +64,10 @@ public class PullTask implements Runnable {
 	public void run() {
 		try {
 			// check services, add or remove the services from destination
-			destination.getConfigCenter().updateGroups(configGroupToMathGroups.keySet());
+			destination.getConfigCenter().updateGroups(configGroupToMatchGroups.keySet());
 
 			// check instances
-			for (Map.Entry<ConfigGroup, Collection<RegistryProto.Group>> entry : configGroupToMathGroups.entrySet()) {
+			for (Map.Entry<ConfigGroup, Collection<RegistryProto.Group>> entry : configGroupToMatchGroups.entrySet()) {
 				ConfigGroup configGroup = entry.getKey();
 				for (RegistryProto.Group group : entry.getValue()) {
 					ConfigFilesResponse response = source.getConfigCenter().listConfigFile(configGroup);

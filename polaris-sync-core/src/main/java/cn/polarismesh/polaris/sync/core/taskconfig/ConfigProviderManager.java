@@ -17,6 +17,7 @@
 
 package cn.polarismesh.polaris.sync.core.taskconfig;
 
+import cn.polarismesh.polaris.sync.core.utils.CommonUtils;
 import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigListener;
 import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigProvider;
@@ -95,7 +96,7 @@ public class ConfigProviderManager {
         @Override
         public void onChange(Registry registry) {
             try {
-                byte[] ret = ConfigUtils.marshal(registry);
+                byte[] ret = CommonUtils.marshal(registry);
                 FileUtils.writeByteArrayToFile(backup, ret);
             } catch (IOException e) {
                 LOG.error("[BackupConfig] save backup file", e);
@@ -105,7 +106,7 @@ public class ConfigProviderManager {
         private Registry getBackup() {
             try {
                 byte[] ret = FileUtils.readFileToByteArray(backup);
-                return ConfigUtils.parseFromContent(ret);
+                return CommonUtils.parseFromContent(ret);
             } catch (IOException e) {
                 LOG.error("[BackupConfig] get backup file", e);
                 return null;

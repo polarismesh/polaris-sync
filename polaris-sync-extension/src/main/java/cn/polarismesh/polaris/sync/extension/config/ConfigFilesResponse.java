@@ -24,11 +24,19 @@ import java.util.Collection;
  */
 public class ConfigFilesResponse {
 
+	private ConfigFilesResponse parent;
+
 	private int code;
 
 	private String info;
 
-	Collection<ConfigFile> files;
+	private ConfigGroup group;
+
+	private Collection<ConfigFile> files;
+
+	public ConfigGroup getGroup() {
+		return group;
+	}
 
 	public int getCode() {
 		return code;
@@ -42,14 +50,22 @@ public class ConfigFilesResponse {
 		return files;
 	}
 
+	public ConfigFilesResponse getParent() {
+		return parent;
+	}
+
+	public void setParent(ConfigFilesResponse parent) {
+		this.parent = parent;
+	}
+
 	public static Builder builder() {
 		return new Builder();
 	}
 
-
 	public static final class Builder {
 		private int code;
 		private String info;
+		private ConfigGroup group;
 		private Collection<ConfigFile> files;
 
 		private Builder() {
@@ -65,6 +81,11 @@ public class ConfigFilesResponse {
 			return this;
 		}
 
+		public Builder group(ConfigGroup group) {
+			this.group = group;
+			return this;
+		}
+
 		public Builder files(Collection<ConfigFile> files) {
 			this.files = files;
 			return this;
@@ -72,10 +93,22 @@ public class ConfigFilesResponse {
 
 		public ConfigFilesResponse build() {
 			ConfigFilesResponse configFilesResponse = new ConfigFilesResponse();
+			configFilesResponse.code = this.code;
 			configFilesResponse.files = this.files;
 			configFilesResponse.info = this.info;
-			configFilesResponse.code = this.code;
+			configFilesResponse.group = this.group;
 			return configFilesResponse;
 		}
+	}
+
+	@Override
+	public String toString() {
+		return "ConfigFilesResponse{" +
+				"parent=" + parent +
+				", code=" + code +
+				", info='" + info + '\'' +
+				", group=" + group +
+				", files=" + files +
+				'}';
 	}
 }

@@ -19,9 +19,8 @@ package cn.polarismesh.polaris.sync.core.tasks.registry;
 
 import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
 import cn.polarismesh.polaris.sync.core.tasks.AbstractTaskEngine;
-import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.core.utils.DurationUtils;
-import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigListener;
+import cn.polarismesh.polaris.sync.core.utils.RegistryUtils;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
@@ -43,7 +42,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang.StringUtils;
@@ -64,9 +62,9 @@ public class RegistryTaskEngine extends AbstractTaskEngine {
 
     private final Object configLock = new Object();
 
-    private final Map<RegistryType, Class<? extends RegistryCenter>> registryTypeMap = new HashMap<>();
-
     private final Map<String, RegistrySet> taskRegistryMap = new HashMap<>();
+
+    protected final Map<RegistryProto.RegistryEndpoint.RegistryType, Class<? extends RegistryCenter>> registryTypeMap = new HashMap<>();
 
     public RegistryTaskEngine(List<RegistryCenter> registries) {
         super("registry");
@@ -99,7 +97,7 @@ public class RegistryTaskEngine extends AbstractTaskEngine {
         NamedRegistryCenter sourceRegistry = registrySet.getSrcRegistry();
         NamedRegistryCenter destRegistry = registrySet.getDstRegistry();
         for (RegistryProto.Match match : syncTask.getMatchList()) {
-            if (ConfigUtils.isEmptyMatch(match)) {
+            if (RegistryUtils.isEmptyMatch(match)) {
                 continue;
             }
             WatchTask watchTask = new WatchTask(watchedServices, sourceRegistry, destRegistry, match,
@@ -181,6 +179,13 @@ public class RegistryTaskEngine extends AbstractTaskEngine {
         return new int[]{0,0};
     }
 
+    @Override
+    protected void verifyTask(Registry registryConfig) {
+        if (!RegistryUtils.verifyTasks(registryConfig, registryTypeMap.keySet())) {
+            throw new IllegalArgumentException("invalid configuration content " + registryConfig.toString());
+        }
+    }
+
     protected void deletePullTask(Task syncTask) {
         ScheduledFuture<?> future = pulledServices.remove(syncTask.getName());
         if (null != future) {
@@ -194,7 +199,7 @@ public class RegistryTaskEngine extends AbstractTaskEngine {
         NamedRegistryCenter sourceRegistry = getSrcRegistry(syncTask.getName());
         if (null != sourceRegistry) {
             for (RegistryProto.Match match : syncTask.getMatchList()) {
-                if (ConfigUtils.isEmptyMatch(match)) {
+                if (RegistryUtils.isEmptyMatch(match)) {
                     continue;
                 }
                 UnwatchTask unwatchTask = new UnwatchTask(sourceRegistry, match);

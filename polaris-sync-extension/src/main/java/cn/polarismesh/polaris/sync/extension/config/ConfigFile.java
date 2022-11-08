@@ -89,6 +89,10 @@ public class ConfigFile implements RecordInfo {
 		return modifyTime;
 	}
 
+	public void setValid(boolean valid) {
+		this.valid = valid;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;

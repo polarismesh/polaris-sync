@@ -88,14 +88,14 @@ public interface ConfigCenter {
 	/**
 	 * listener to watch the instance change events
 	 */
-	interface ResponseListener<T> {
+	interface ResponseListener {
 
 		/**
 		 * called when response event received
 		 *
 		 * @param watchEvent instances event
 		 */
-		void onEvent(WatchEvent<T> watchEvent);
+		void onEvent(WatchEvent watchEvent);
 	}
 
 	/**

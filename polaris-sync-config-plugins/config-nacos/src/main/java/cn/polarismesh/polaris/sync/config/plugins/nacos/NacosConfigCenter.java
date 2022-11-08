@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
@@ -50,6 +51,7 @@ import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ConfigEndpoint.Conf
 import com.alibaba.nacos.api.NacosFactory;
 import com.alibaba.nacos.api.config.ConfigService;
 import com.alibaba.nacos.api.exception.NacosException;
+import com.alibaba.nacos.common.utils.StringUtils;
 import com.tencent.polaris.client.pb.ResponseProto;
 import com.tencent.polaris.client.pb.ServiceProto;
 import com.zaxxer.hikari.HikariConfig;
@@ -59,7 +61,6 @@ import org.slf4j.LoggerFactory;
 
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
@@ -81,7 +82,7 @@ public class NacosConfigCenter implements ConfigCenter {
 
 	private HikariDataSource dataSource;
 
-	private Set<SubscribeDbChangeTask<ConfigFile>> watchFileTasks;
+	private Set<SubscribeDbChangeTask> watchFileTasks = new HashSet<>();
 
 	@Override
 	public ConfigType getType() {
@@ -111,6 +112,23 @@ public class NacosConfigCenter implements ConfigCenter {
 		buildWatchTask();
 	}
 
+	private void buildWatchTask() {
+		watchFileTasks = new HashSet<>();
+		SubscribeDbChangeTask watchFile = new SubscribeDbChangeTask(configInitRequest.getSourceName(), date -> {
+			String query = ConfigFileMapper.getInstance().getMoreSqlTemplate(Objects.isNull(date));
+			List<ConfigFile> files = Collections.emptyList();
+			if (Objects.isNull(date)) {
+				files = databaseOperator.queryList(query, null, ConfigFileMapper.getInstance());
+			} else {
+				files = databaseOperator.queryList(query, new Object[]{date}, ConfigFileMapper.getInstance());
+			}
+			return files;
+		});
+
+		watchFileTasks.add(watchFile);
+	}
+
+
 	@Override
 	public void destroy() {
 		if (!destroyed.compareAndSet(false, true)) {
@@ -136,7 +154,7 @@ public class NacosConfigCenter implements ConfigCenter {
 		RegistryProto.ConfigEndpoint configEndpoint = configInitRequest.getConfigEndpoint();
 		AuthResponse authResponse = new AuthResponse();
 		// 1. 先进行登录
-		if (StringUtils.hasText(configEndpoint.getServer().getUser()) && StringUtils.hasText(
+		if (StringUtils.isNotBlank(configEndpoint.getServer().getUser()) && StringUtils.isNotBlank(
 				configEndpoint.getServer().getPassword())) {
 			ResponseProto.DiscoverResponse discoverResponse = NacosRestUtils.auth(
 					restOperator, configEndpoint.getServer(), authResponse, null,
@@ -167,6 +185,13 @@ public class NacosConfigCenter implements ConfigCenter {
 				+ "FROM config_info ci LEFT JOIN config_tags_relation cr ON ci.tenant_id = cr.tenant_id "
 				+ "AND ci.group_id = cr.group_id AND ci.data_id = cr.data_id WHERE tenant_id = ? AND group_id = ?";
 
+		if (StringUtils.isNotBlank(configGroup.getNamespace())) {
+			query += " AND tenant_id = ?";
+		}
+		if (StringUtils.isNotBlank(configGroup.getName())) {
+			query += " AND group_id = ? ";
+		}
+
 		// 从对应的数据库中获取
 		Collection<ConfigFile> files = databaseOperator.queryList(query, new Object[] {
 				configGroup.getName(), configGroup.getNamespace()
@@ -178,25 +203,9 @@ public class NacosConfigCenter implements ConfigCenter {
 	@Override
 	public boolean watch(ConfigGroup group, ResponseListener eventListener) {
 		for (SubscribeDbChangeTask task : watchFileTasks) {
-			task.addListener(eventListener);
+			task.addListener(group, eventListener);
 		}
 		return true;
-	}
-
-	private void buildWatchTask() {
-		watchFileTasks = new HashSet<>();
-		SubscribeDbChangeTask<ConfigFile> watchFile = new SubscribeDbChangeTask<>("watchFile", date -> {
-			String query = ConfigFileMapper.getInstance().getMoreSqlTemplate(Objects.isNull(date));
-			List<ConfigFile> files = Collections.emptyList();
-			if (Objects.isNull(date)) {
-				files = databaseOperator.queryList(query, null, ConfigFileMapper.getInstance());
-			} else {
-				files = databaseOperator.queryList(query, new Object[]{date}, ConfigFileMapper.getInstance());
-			}
-			return files;
-		});
-
-		watchFileTasks.add(watchFile);
 	}
 
 	@Override
@@ -242,7 +251,7 @@ public class NacosConfigCenter implements ConfigCenter {
 			return;
 		}
 		//3. 新增命名空间
-		LOG.info("[Nacos] namespaces to add {}", namespaceIds);
+		LOG.info("[Nacos][Config] namespaces to add {}", namespaceIds);
 		for (String namespaceId : namespaceIds) {
 			NacosRestUtils.createNamespace(authResponse, restOperator, server, namespaceId);
 		}
@@ -261,13 +270,18 @@ public class NacosConfigCenter implements ConfigCenter {
 			String ns = group.getNamespace();
 			ConfigService configService = getOrCreateConfigService(ns);
 			if (null == configService) {
-				LOG.error("[Nacos] fail to lookup configService for group {}, config {}",
+				LOG.error("[Nacos][Config] fail to lookup configService for group {}, config {}",
 						group, configInitRequest.getSourceName());
 				return;
 			}
 			try {
 				boolean ok = configService.publishConfig(file.getFileName(), group.getName(),
 						file.getContent());
+				if (!ok) {
+					LOG.warn("[Nacos][Config] {} publish config not success namespace={} group={} name={} ",
+							configInitRequest.getSourceName(),
+							group.getNamespace(), group.getName(), file.getFileName());
+				}
 			}
 			catch (NacosException e) {
 				LOG.error("[Nacos][Config] {} publish config namespace={} group={} name={} ",
@@ -305,10 +319,10 @@ public class NacosConfigCenter implements ConfigCenter {
 				return null;
 			}
 			try {
-				//等待nacos连接建立完成
-				Thread.sleep(1000);
+				// 等待nacos连接建立完成
+				TimeUnit.SECONDS.sleep(1);
 			} catch (InterruptedException e) {
-				e.printStackTrace();
+				Thread.currentThread().interrupt();
 			}
 			ns2ConfigService.put(namespace, configService);
 			return configService;
@@ -317,7 +331,19 @@ public class NacosConfigCenter implements ConfigCenter {
 
 	@Override
 	public Health healthCheck() {
-		return new Health(0, 0);
+		int totalCount = 0;
+		int errorCount = 0;
+		if (ns2ConfigService.isEmpty()) {
+			return new Health(totalCount, errorCount);
+		}
+		for (Map.Entry<String, ConfigService> entry : ns2ConfigService.entrySet()) {
+			String serverStatus = entry.getValue().getServerStatus();
+			if (!serverStatus.equals("UP")) {
+				errorCount++;
+			}
+			totalCount++;
+		}
+		return new Health(totalCount, errorCount);
 	}
 
 	private static String toNamespaceId(String namespace) {

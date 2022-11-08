@@ -58,14 +58,21 @@ public class ConfigTaskEngine extends AbstractTaskEngine {
 
 	private final Object configLock = new Object();
 
-	private final Map<RegistryProto.ConfigEndpoint.ConfigType, Class<? extends ConfigCenter>> configTypeMap = new HashMap<>();
-
 	private final Map<String, ConfigTaskEngine.ConfigSet> taskRegistryMap = new HashMap<>();
+
+	protected final Map<RegistryProto.ConfigEndpoint.ConfigType, Class<? extends ConfigCenter>> configTypeMap = new HashMap<>();
 
 	public ConfigTaskEngine(List<ConfigCenter> configCenters) {
 		super("config");
 		for (ConfigCenter center : configCenters) {
 			configTypeMap.put(center.getType(), center.getClass());
+		}
+	}
+
+	@Override
+	protected void verifyTask(RegistryProto.Registry registryConfig) {
+		if (!ConfigUtils.verifyTasks(registryConfig, configTypeMap.keySet())) {
+			throw new IllegalArgumentException("invalid configuration content " + registryConfig.toString());
 		}
 	}
 
@@ -150,7 +157,7 @@ public class ConfigTaskEngine extends AbstractTaskEngine {
 		NamedConfigCenter sourceCenter = getSource(task.getName());
 		if (null != sourceCenter) {
 			for (RegistryProto.ConfigMatch match : task.getMatchList()) {
-				if (ConfigUtils.isEmptyConfigMatch(match)) {
+				if (ConfigUtils.isEmptyMatch(match)) {
 					continue;
 				}
 				UnwatchTask unwatchTask = new UnwatchTask(sourceCenter, match);
@@ -190,7 +197,7 @@ public class ConfigTaskEngine extends AbstractTaskEngine {
 		NamedConfigCenter sourceRegistry = registrySet.getSource();
 		NamedConfigCenter destRegistry = registrySet.getTarget();
 		for (RegistryProto.ConfigMatch match : task.getMatchList()) {
-			if (ConfigUtils.isEmptyConfigMatch(match)) {
+			if (ConfigUtils.isEmptyMatch(match)) {
 				continue;
 			}
 			WatchTask watchTask = new WatchTask(watchedConfigs, sourceRegistry, destRegistry, match,
