@@ -8,9 +8,9 @@ polaris:
   sync:
     registry:
       configProvider: file
-      configBackupPath: conf/registry/sync-config-backup.json
+      configBackupPath: conf/registry/sync-registry-backup.json
       options:
-        watchFile: conf/sync-config.json
+        watchFile: conf/sync-registry.json
     config:
       configProvider: file
       configBackupPath: conf/config/sync-config-backup.json
