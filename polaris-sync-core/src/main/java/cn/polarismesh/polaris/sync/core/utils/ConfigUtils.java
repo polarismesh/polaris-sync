@@ -17,14 +17,19 @@
 
 package cn.polarismesh.polaris.sync.core.utils;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ConfigEndpoint.ConfigType;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
+import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
+import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
+import cn.polarismesh.polaris.sync.extension.ResourceType;
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,17 +40,25 @@ public class ConfigUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ConfigUtils.class);
 
-	public static boolean isEmptyMatch(RegistryProto.ConfigMatch match) {
-		return !StringUtils.hasText(match.getNamespace()) && !StringUtils.hasText(match.getConfigGroup()) && match.getGroupsCount() == 0;
+	public static boolean isEmptyMatch(SyncTask.Match match) {
+		return !StringUtils.hasText(match.getNamespace()) && !StringUtils.hasText(match.getName()) && match.getGroups()
+				.size() == 0;
 	}
 
-	public static boolean verifyTasks(RegistryProto.Registry registry, Set<ConfigType> registryTypes) {
-		LOG.info("[Core] start to verify config tasks config {}", registry);
-		List<RegistryProto.ConfigTask> tasks = registry.getConfigTasksList();
+	public static <T extends SyncTask> boolean verifyTasks(
+			List<T> tasks,
+			Set<ResourceType> types,
+			List<ModelProto.Method> methods,
+			Function<T, Throwable>... filters) {
+
+		LOG.info("[Core] start to verify config tasks config {}", tasks);
+
+		Collection<Function<T, Throwable>> functions = Arrays.asList(filters);
+
 		Set<String> taskNames = new HashSet<>();
 		boolean hasTask = false;
-		for (RegistryProto.ConfigTask task : tasks) {
-			if (!task.getEnable()) {
+		for (T task : tasks) {
+			if (!task.isEnable()) {
 				continue;
 			}
 			hasTask = true;
@@ -59,45 +72,52 @@ public class ConfigUtils {
 				return false;
 			}
 			taskNames.add(name);
-			RegistryProto.ConfigEndpoint source = task.getSource();
-			if (!verifyEndpoint(source, name, registryTypes)) {
+			ResourceEndpoint source = task.getSource();
+			if (!verifyEndpoint(source, name, types)) {
 				return false;
 			}
-			RegistryProto.ConfigEndpoint destination = task.getDestination();
-			if (!verifyEndpoint(destination, name, registryTypes)) {
+			ResourceEndpoint destination = task.getDestination();
+			if (!verifyEndpoint(destination, name, types)) {
 				return false;
 			}
-			List<RegistryProto.ConfigMatch> matchList = task.getMatchList();
+			List<SyncTask.Match> matchList = task.getMatchList();
 			if (!verifyMatch(matchList, name)) {
 				return false;
 			}
+
+			for (Function<T, Throwable> function : functions) {
+				Throwable ex = function.apply(task);
+				if (Objects.nonNull(ex)) {
+					return false;
+				}
+			}
 		}
-		return CommonUtils.verifyMethod(hasTask, registry);
+		return CommonUtils.verifyMethod(hasTask, methods);
 	}
 
-	private static boolean verifyMatch(List<RegistryProto.ConfigMatch> matches, String taskName) {
+	private static boolean verifyMatch(List<SyncTask.Match> matches, String taskName) {
 		if (CollectionUtils.isEmpty(matches)) {
 			return true;
 		}
-		for (RegistryProto.ConfigMatch match : matches) {
+		for (SyncTask.Match match : matches) {
 			if (isEmptyMatch(match)) {
 				continue;
 			}
 			String namespace = match.getNamespace();
-			String configGroup = match.getConfigGroup();
-			List<Group> groups = match.getGroupsList();
+			String name = match.getName();
+			List<ModelProto.Group> groups = match.getGroups();
 			if (!StringUtils.hasText(namespace)) {
 				LOG.error("[Core] match namespace is empty, task {}", taskName);
 				return false;
 			}
-			if (!StringUtils.hasText(configGroup)) {
+			if (!StringUtils.hasText(name)) {
 				LOG.error("[Core] match config group is empty, task {}", taskName);
 				return false;
 			}
 			if (CollectionUtils.isEmpty(groups)) {
 				continue;
 			}
-			for (Group group : groups) {
+			for (ModelProto.Group group : groups) {
 				if (!StringUtils.hasText(group.getName())) {
 					LOG.error("[Core] match group name is invalid, task {}", taskName);
 					return false;
@@ -117,23 +137,23 @@ public class ConfigUtils {
 	}
 
 	private static boolean verifyEndpoint(
-			RegistryProto.ConfigEndpoint endpoint, String taskName, Set<ConfigType> supportedTypes) {
+			ResourceEndpoint endpoint, String taskName, Set<ResourceType> types) {
 		String name = endpoint.getName();
 		if (!StringUtils.hasText(name)) {
 			LOG.error("[Core] endpoint name is empty, task {}", taskName);
 			return false;
 		}
-		List<String> addressesList = endpoint.getServer().getAddressesList();
+		List<String> addressesList = endpoint.getServerAddresses();
 		if (CollectionUtils.isEmpty(addressesList)) {
 			LOG.error("[Core] addresses is empty for endpoint {}, task {}", name, taskName);
 			return false;
 		}
-		ConfigType type = endpoint.getType();
-		if (ConfigType.unknown.equals(type)) {
+		ResourceType type = endpoint.getResourceType();
+		if (ResourceType.UNKNOWN.equals(type)) {
 			LOG.error("[Core] unknown endpoint type for {}, task {}", name, taskName);
 			return false;
 		}
-		if (!supportedTypes.contains(type)) {
+		if (!types.contains(type)) {
 			LOG.error("[Core] unsupported endpoint type {} for {}, task {}", type.name(), name, taskName);
 			return false;
 		}

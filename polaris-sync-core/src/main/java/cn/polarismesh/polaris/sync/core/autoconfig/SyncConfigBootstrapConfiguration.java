@@ -17,34 +17,28 @@
 
 package cn.polarismesh.polaris.sync.core.autoconfig;
 
+import cn.polarismesh.polaris.sync.core.server.RegistrySyncServer;
+import cn.polarismesh.polaris.sync.core.taskconfig.SyncConfigProperties;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
-import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigProvider;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.report.ReportHandler;
-import cn.polarismesh.polaris.sync.core.taskconfig.ConfigProviderManager;
-import cn.polarismesh.polaris.sync.core.taskconfig.SyncProperties;
+import cn.polarismesh.polaris.sync.core.taskconfig.SyncRegistryProperties;
 import cn.polarismesh.polaris.sync.core.server.ResourceSyncServer;
 import java.util.List;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@EnableConfigurationProperties(SyncProperties.class)
+@EnableConfigurationProperties({SyncRegistryProperties.class, SyncConfigProperties.class})
 @Configuration(proxyBeanMethods = false)
 public class SyncConfigBootstrapConfiguration {
 
-    @Bean(initMethod = "init", destroyMethod = "destroy")
-    @ConditionalOnMissingBean
-    public ConfigProviderManager providerManager(List<ConfigProvider> providers, SyncProperties properties) {
-        return new ConfigProviderManager(providers, properties);
-    }
-
-    @Bean(initMethod = "init", destroyMethod = "destroy")
-    @ConditionalOnMissingBean
+    @Bean(initMethod = "init", destroyMethod = "destroy", name = "registrySyncServer")
     public ResourceSyncServer registrySyncServer(
-            ConfigProviderManager providerManager, List<RegistryCenter> registryCenters, List<ConfigCenter> configCenters,
+            SyncRegistryProperties registryProperties,
+            List<RegistryCenter> registryCenters,
+            List<ConfigCenter> configCenters,
             List<ReportHandler> reportHandlers) {
-        return new ResourceSyncServer(providerManager, registryCenters, configCenters, reportHandlers);
+        return new RegistrySyncServer(providerManager, registryCenters, configCenters, reportHandlers);
     }
 }

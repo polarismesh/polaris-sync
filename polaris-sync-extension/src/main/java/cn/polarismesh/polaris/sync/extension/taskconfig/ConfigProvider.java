@@ -17,9 +17,7 @@
 
 package cn.polarismesh.polaris.sync.extension.taskconfig;
 
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry.Builder;
+import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Parser;
 
@@ -28,28 +26,26 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public interface ConfigProvider {
+public interface ConfigProvider<T> {
 
-    void init(Map<String, Object> options) throws Exception;
+    void init(Map<String, Object> options, Supplier<Message.Builder> supplier) throws Exception;
 
     void addListener(ConfigListener listener);
 
-    Registry getConfig();
-
-    String name();
+    <T> T getConfig();
 
     void close();
 
-    default RegistryProto.Registry unmarshal(byte[] strBytes) throws IOException {
+    default T unmarshal(byte[] strBytes, Message.Builder builder) throws IOException {
         try (InputStreamReader reader = new InputStreamReader(new ByteArrayInputStream(strBytes), StandardCharsets.UTF_8)) {
-            Builder builder = Registry.newBuilder();
             Parser parser = JsonFormat.parser();
             parser.merge(reader, builder);
-            return builder.build();
+            return (T) builder.build();
         }
     }
 }

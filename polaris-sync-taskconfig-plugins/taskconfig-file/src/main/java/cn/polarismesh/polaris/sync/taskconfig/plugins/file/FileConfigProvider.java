@@ -17,17 +17,6 @@
 
 package cn.polarismesh.polaris.sync.taskconfig.plugins.file;
 
-import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
-import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
-import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigListener;
-import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigProvider;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
-import com.google.gson.Gson;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -38,102 +27,111 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.zip.CRC32;
-import org.springframework.stereotype.Component;
+
+import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
+import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
+import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigListener;
+import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigProvider;
+import com.google.gson.Gson;
+import com.google.protobuf.Message;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 基于本地文件的配置提供者
  *
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-@Component
-public class FileConfigProvider implements ConfigProvider {
+public class FileConfigProvider<T> implements ConfigProvider<T> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(FileConfigProvider.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FileConfigProvider.class);
 
-    private static final String PLUGIN_NAME = "file";
+	public static final String PLUGIN_NAME = "file";
 
-    private final ScheduledExecutorService fileWatchService = Executors.newSingleThreadScheduledExecutor(
-            new NamedThreadFactory("file-watch-worker"));
+	private final ScheduledExecutorService fileWatchService = Executors.newSingleThreadScheduledExecutor(
+			new NamedThreadFactory("file-watch-worker"));
 
-    private final CopyOnWriteArraySet<ConfigListener> listeners = new CopyOnWriteArraySet<>();
+	private final CopyOnWriteArraySet<ConfigListener> listeners = new CopyOnWriteArraySet<>();
 
-    private FileChangeWorker fileChangeWorker;
+	private FileChangeWorker fileChangeWorker;
 
-    @Override
-    public void init(Map<String, Object> options) throws Exception {
-        Gson gson = new Gson();
-        Config param = gson.fromJson(gson.toJson(options), Config.class);
-        if (StringUtils.isBlank(param.getWatchFile())) {
-            throw new IllegalArgumentException("watchFile must be specific in ConfigFileProvider");
-        }
-        fileChangeWorker = new FileChangeWorker(param.getWatchFile(), 0);
-        fileWatchService.scheduleWithFixedDelay(fileChangeWorker,
-                DefaultValues.DEFAULT_FILE_PULL_MS, DefaultValues.DEFAULT_FILE_PULL_MS, TimeUnit.MILLISECONDS);
-    }
+	private Supplier<Message.Builder> supplier;
 
-    @Override
-    public void addListener(ConfigListener listener) {
-        listeners.add(listener);
-    }
+	@Override
+	public void init(Map<String, Object> options, Supplier<Message.Builder> supplier) throws Exception {
+		this.supplier = supplier;
+		Gson gson = new Gson();
+		Config param = gson.fromJson(gson.toJson(options), Config.class);
+		if (StringUtils.isBlank(param.getWatchFile())) {
+			throw new IllegalArgumentException("watchFile must be specific in ConfigFileProvider");
+		}
+		fileChangeWorker = new FileChangeWorker(param.getWatchFile(), 0);
+		fileWatchService.scheduleWithFixedDelay(fileChangeWorker,
+				DefaultValues.DEFAULT_FILE_PULL_MS, DefaultValues.DEFAULT_FILE_PULL_MS, TimeUnit.MILLISECONDS);
+	}
 
-    @Override
-    public Registry getConfig() {
-        return fileChangeWorker.holder.get();
-    }
+	@Override
+	public void addListener(ConfigListener listener) {
+		listeners.add(listener);
+	}
 
-    @Override
-    public String name() {
-        return PLUGIN_NAME;
-    }
+	@Override
+	public T getConfig() {
+		return fileChangeWorker.holder.get();
+	}
 
-    @Override
-    public void close() {
-        fileWatchService.shutdown();
-    }
+	@Override
+	public void close() {
+		fileWatchService.shutdown();
+	}
 
-    private class FileChangeWorker implements Runnable {
+	private class FileChangeWorker implements Runnable {
 
-        private final String fullFileName;
+		private final String fullFileName;
 
-        private long crcValue;
+		private long crcValue;
 
-        private AtomicReference<Registry> holder = new AtomicReference<>();
+		private AtomicReference<T> holder = new AtomicReference<>();
 
-        public FileChangeWorker(String fullFileName, long crcValue) {
-            this.fullFileName = fullFileName;
-            this.crcValue = crcValue;
-            run();
-        }
+		public FileChangeWorker(String fullFileName, long crcValue) {
+			this.fullFileName = fullFileName;
+			this.crcValue = crcValue;
+			run();
+		}
 
-        @Override
-        public void run() {
-            File watchFile = new File(fullFileName);
-            try {
-                byte[] strBytes = FileUtils.readFileToByteArray(watchFile);
-                long newCrcValue = calcCrc32(strBytes);
-                if (newCrcValue == 0 || newCrcValue == crcValue) {
-                    return;
-                }
-                crcValue = newCrcValue;
+		@Override
+		public void run() {
+			File watchFile = new File(fullFileName);
+			try {
+				byte[] strBytes = FileUtils.readFileToByteArray(watchFile);
+				long newCrcValue = calcCrc32(strBytes);
+				if (newCrcValue == 0 || newCrcValue == crcValue) {
+					return;
+				}
+				crcValue = newCrcValue;
 
-                Registry config = unmarshal(strBytes);
-                holder.set(config);
-                for (ConfigListener listener : listeners) {
-                    Executor executor = listener.executor();
-                    executor.execute(() -> listener.onChange(config));
-                }
-                String content = new String(strBytes, StandardCharsets.UTF_8);
-                LOG.info("[ConfigProvider][File] config watchFile changed, new content {}", content);
-            } catch (IOException e) {
-                LOG.error("[ConfigProvider][File] fail to read watchFile {}", fullFileName, e);
-            }
-        }
-    }
+				T config = unmarshal(strBytes, FileConfigProvider.this.supplier.get());
+				holder.set(config);
+				for (ConfigListener listener : listeners) {
+					Executor executor = listener.executor();
+					executor.execute(() -> listener.onChange(config));
+				}
+				String content = new String(strBytes, StandardCharsets.UTF_8);
+				LOG.info("[ConfigProvider][File] config watchFile changed, new content {}", content);
+			}
+			catch (IOException e) {
+				LOG.error("[ConfigProvider][File] fail to read watchFile {}", fullFileName, e);
+			}
+		}
+	}
 
-    private static long calcCrc32(byte[] strBytes) {
-        CRC32 crc32 = new CRC32();
-        crc32.update(strBytes);
-        return crc32.getValue();
-    }
+	private static long calcCrc32(byte[] strBytes) {
+		CRC32 crc32 = new CRC32();
+		crc32.update(strBytes);
+		return crc32.getValue();
+	}
 }

@@ -17,23 +17,26 @@
 
 package cn.polarismesh.polaris.sync.core.tasks.registry;
 
+import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
+import cn.polarismesh.polaris.sync.extension.ResourceCenter;
+import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 
 public class UnwatchTask implements Runnable {
 
-    private final NamedRegistryCenter source;
+    private final RegistryCenter source;
 
     private final Service service;
 
-    public UnwatchTask(NamedRegistryCenter source, RegistryProto.Match match) {
-        this.source = source;
-        this.service = new Service(match.getNamespace(), match.getService());
+    public UnwatchTask(ResourceCenter source, SyncTask.Match match) {
+        this.source = (RegistryCenter) source;
+        this.service = new Service(match.getNamespace(), match.getName());
     }
 
     @Override
     public void run() {
-        this.source.getRegistry().unwatch(service);
+        this.source.unwatch(service);
     }
 
     public Service getService() {

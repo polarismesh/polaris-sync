@@ -17,25 +17,28 @@
 
 package cn.polarismesh.polaris.sync.extension.registry;
 
+import cn.polarismesh.polaris.sync.extension.InitRequest;
+import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
+import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
 
-public class RegistryInitRequest {
+public class RegistryInitRequest implements InitRequest {
 
     private final String sourceName;
 
-    private final RegistryType sourceType;
+    private final ResourceType sourceType;
 
-    private final RegistryEndpoint registryEndpoint;
+    private final ResourceEndpoint endpoint;
 
-    public RegistryInitRequest(String sourceName,RegistryType sourceType,
-            RegistryEndpoint registryEndpoint) {
+    public RegistryInitRequest(String sourceName,ResourceType sourceType,
+            ResourceEndpoint endpoint) {
         this.sourceName = sourceName;
         this.sourceType = sourceType;
-        this.registryEndpoint = registryEndpoint;
+        this.endpoint = endpoint;
     }
 
-    public RegistryType getSourceType() {
+    public ResourceType getSourceType() {
         return sourceType;
     }
 
@@ -43,8 +46,8 @@ public class RegistryInitRequest {
         return sourceName;
     }
 
-    public RegistryEndpoint getRegistryEndpoint() {
-        return registryEndpoint;
+    public ResourceEndpoint getResourceEndpoint() {
+        return endpoint;
     }
 
 }

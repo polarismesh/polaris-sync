@@ -15,25 +15,14 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package cn.polarismesh.polaris.sync.core.taskconfig;
-
-import java.util.Map;
+package cn.polarismesh.polaris.sync.extension.taskconfig;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public interface SyncProperties {
+public interface ConfigProviderFactory<T> {
 
-	String getConfigBackupPath();
+	ConfigProvider<T> create();
 
-	void setConfigBackupPath(String configBackupPath);
-
-	String getConfigProvider();
-
-	void setConfigProvider(String configProvider);
-
-	Map<String, Object> getOptions();
-
-	void setOptions(Map<String, Object> options);
-
+    String name();
 }

@@ -17,33 +17,10 @@
 
 package cn.polarismesh.polaris.sync.core.utils;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.zip.CRC32;
 
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ConfigEndpoint.ConfigType;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Match;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Method;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Method.MethodType;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry.Builder;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Report;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget.TargetType;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Task;
-import com.google.protobuf.util.JsonFormat;
-import com.google.protobuf.util.JsonFormat.Parser;
-import com.google.protobuf.util.JsonFormat.Printer;
+import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,147 +29,35 @@ import org.springframework.util.StringUtils;
 
 public class RegistryUtils {
 
-    private static final Logger LOG = LoggerFactory.getLogger(RegistryUtils.class);
+	private static final Logger LOG = LoggerFactory.getLogger(RegistryUtils.class);
 
-    public static boolean isEmptyMatch(Match match) {
-        return !StringUtils.hasText(match.getNamespace()) && !StringUtils.hasText(match.getService()) && match.getGroupsCount() == 0;
-    }
+	public static boolean isEmptyMatch(SyncTask.Match match) {
+		return !StringUtils.hasText(match.getNamespace()) && !StringUtils.hasText(match.getName()) && match.getGroups()
+				.size() == 0;
+	}
 
-    public static boolean verifyTasks(Registry registry, Set<RegistryType> registryTypes) {
-        LOG.info("[Core] start to verify tasks config {}", registry);
-        List<Task> tasks = registry.getTasksList();
-        Set<String> taskNames = new HashSet<>();
-        boolean hasTask = false;
-        for (Task task : tasks) {
-            if (!task.getEnable()) {
-                continue;
-            }
-            hasTask = true;
-            String name = task.getName();
-            if (!StringUtils.hasText(name)) {
-                LOG.error("[Core] task name is empty");
-                return false;
-            }
-            if (taskNames.contains(name)) {
-                LOG.error("[Core] duplicate task name {}", name);
-                return false;
-            }
-            taskNames.add(name);
-            RegistryEndpoint source = task.getSource();
-            if (!verifyEndpoint(source, name, registryTypes)) {
-                return false;
-            }
-            RegistryEndpoint destination = task.getDestination();
-            if (!verifyEndpoint(destination, name, registryTypes)) {
-                return false;
-            }
-            List<Match> matchList = task.getMatchList();
-            if (!verifyMatch(matchList, name)) {
-                return false;
-            }
-        }
-        return verifyMethod(hasTask, registry);
-    }
-
-    private static boolean verifyMethod(boolean hasTask, Registry registry) {
-        boolean hasMethod = false;
-        List<Method> methods = registry.getMethodsList();
-        if (!CollectionUtils.isEmpty(methods)) {
-            Set<MethodType> methodTypes = new HashSet<>();
-            for (Method method : methods) {
-                if (MethodType.unknown.equals(method.getType())) {
-                    LOG.error("[Core] unknown method type");
-                    return false;
-                }
-                if (methodTypes.contains(method.getType())) {
-                    LOG.error("[Core] duplicate method type");
-                    return false;
-                }
-                methodTypes.add(method.getType());
-                if (method.getEnable()) {
-                    hasMethod = true;
-                }
-            }
-        }
-        if (hasTask && !hasMethod) {
-            LOG.error("[Core] at least specific one sync method for tasks");
-            return false;
-        }
-
-        return true;
-    }
-
-    private static boolean verifyMatch(List<Match> matches, String taskName) {
-        if (CollectionUtils.isEmpty(matches)) {
-            return true;
-        }
-        for (Match match : matches) {
-            if (isEmptyMatch(match)) {
-                continue;
-            }
-            String namespace = match.getNamespace();
-            String service = match.getService();
-            List<Group> groups = match.getGroupsList();
-            if (!StringUtils.hasText(namespace)) {
-                LOG.error("[Core] match namespace is empty, task {}", taskName);
-                return false;
-            }
-            if (namespace.contains(".")) {
-                LOG.error("[Core] match namespace contains DOT, task {}", taskName);
-                return false;
-            }
-            if (!StringUtils.hasText(service)) {
-                LOG.error("[Core] match service is empty, task {}", taskName);
-                return false;
-            }
-            if (CollectionUtils.isEmpty(groups)) {
-                continue;
-            }
-            for (Group group : groups) {
-                if (!StringUtils.hasText(group.getName())) {
-                    LOG.error("[Core] match group name is invalid, task {}", taskName);
-                    return false;
-                }
-                if (group.getName().contains(".")) {
-                    LOG.error("[Core] match group name contains DOT, task {}", taskName);
-                    return false;
-                }
-                Map<String, String> metadataMap = group.getMetadataMap();
-                if (metadataMap.size() > 0) {
-                    for (Map.Entry<String, String> entry : metadataMap.entrySet()) {
-                        if (!StringUtils.hasText(entry.getKey()) || !StringUtils.hasText(entry.getValue())) {
-                            LOG.error("[Core] match group {} metadata is invalid, task {}", group.getName(), taskName);
-                            return false;
-                        }
-                    }
-                }
-            }
-        }
-        return true;
-    }
-
-    private static boolean verifyEndpoint(
-            RegistryEndpoint registryEndpoint, String taskName, Set<RegistryType> supportedTypes) {
-        String name = registryEndpoint.getName();
-        if (!StringUtils.hasText(name)) {
-            LOG.error("[Core] endpoint name is empty, task {}", taskName);
-            return false;
-        }
-        List<String> addressesList = registryEndpoint.getAddressesList();
-        if (CollectionUtils.isEmpty(addressesList)) {
-            LOG.error("[Core] addresses is empty for endpoint {}, task {}", name, taskName);
-            return false;
-        }
-        RegistryType type = registryEndpoint.getType();
-        if (RegistryType.unknown.equals(type)) {
-            LOG.error("[Core] unknown endpoint type for {}, task {}", name, taskName);
-            return false;
-        }
-        if (!supportedTypes.contains(type)) {
-            LOG.error("[Core] unsupported endpoint type {} for {}, task {}", type.name(), name, taskName);
-            return false;
-        }
-        return true;
-    }
+	public static boolean verifyMatch(List<SyncTask.Match> matches, String taskName) {
+		if (CollectionUtils.isEmpty(matches)) {
+			return true;
+		}
+		for (SyncTask.Match match : matches) {
+			if (isEmptyMatch(match)) {
+				continue;
+			}
+			String namespace = match.getNamespace();
+			List<ModelProto.Group> groups = match.getGroups();
+			if (namespace.contains(".")) {
+				LOG.error("[Core] match namespace contains DOT, task {}", taskName);
+				return false;
+			}
+			for (ModelProto.Group group : groups) {
+				if (group.getName().contains(".")) {
+					LOG.error("[Core] match group name contains DOT, task {}", taskName);
+					return false;
+				}
+			}
+		}
+		return true;
+	}
 
 }

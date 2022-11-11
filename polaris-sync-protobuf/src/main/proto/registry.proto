@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package v1;
+package registryv1;
 
-import "google/protobuf/any.proto";
+import "model.proto";
 
 option java_package = "cn.polarismesh.polaris.sync.registry.pb";
 option java_outer_classname = "RegistryProto";
@@ -12,58 +12,11 @@ message Registry {
 
   repeated Task tasks = 1;
 
-  repeated Method methods = 2;
+  repeated v1.Method methods = 2;
 
-  HealthCheck health_check = 3 [json_name = "health_check"];
+  v1.HealthCheck health_check = 3 [json_name = "health_check"];
 
-  Report report = 4;
-
-  repeated ConfigTask configTasks = 5;
-
-}
-
-message Report {
-
-  string interval = 1;
-
-  repeated ReportTarget targets = 2;
-}
-
-message ReportTarget {
-
-  bool enable = 1;
-
-  enum TargetType {
-    unknown = 0;
-    file = 1;
-    prometheus = 2;
-    balad = 3;
-  }
-  TargetType type = 2;
-
-  map<string, string> options = 3;
-}
-
-message HealthCheck {
-
-  bool enable = 1;
-
-  string interval = 2;
-
-  string timeout = 3;
-}
-
-message Method {
-  enum MethodType {
-    unknown = 0;
-    watch = 1;
-    pull = 2;
-  }
-  MethodType type = 1;
-
-  bool enable = 2;
-
-  string interval = 3;
+  v1.Report report = 4;
 }
 
 message Task {
@@ -77,19 +30,6 @@ message Task {
   RegistryEndpoint destination = 4;
 
   repeated Match match = 5;
-}
-
-message ConfigTask {
-
-  string name = 1;
-
-  bool enable = 2;
-
-  ConfigEndpoint source = 3;
-
-  ConfigEndpoint destination = 4;
-
-  repeated ConfigMatch match = 5;
 }
 
 message RegistryEndpoint {
@@ -118,64 +58,11 @@ message RegistryEndpoint {
   string product_name = 7 [json_name = "product_name"];
 }
 
-message ConfigEndpoint {
-
-  string name = 1;
-
-  enum ConfigType {
-    unknown = 0;
-    nacos = 1;
-    polaris = 2;
-  }
-
-  message Server {
-    repeated string addresses = 1;
-
-    string token = 2;
-
-    string user = 3;
-
-    string password = 4;
-  }
-
-  message DB {
-    string jdbc_url = 1;
-
-    string username = 2;
-
-    string password = 3;
-  }
-
-  ConfigType type = 2;
-
-  Server server = 3;
-
-  DB db = 4;
-
-  string product_name = 8 [json_name = "product_name"];
-}
-
 message Match {
 
   string namespace = 1;
 
   string service = 2;
 
-  repeated Group groups = 3;
-}
-
-message ConfigMatch {
-
-  string namespace = 1;
-
-  string config_group = 2;
-
-  repeated Group groups = 3;
-}
-
-message Group {
-
-  string name = 1;
-
-  map<string, string> metadata = 2;
+  repeated v1.Group groups = 3;
 }

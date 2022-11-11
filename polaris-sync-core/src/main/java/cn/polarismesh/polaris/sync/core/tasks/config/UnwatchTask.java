@@ -17,6 +17,7 @@
 
 package cn.polarismesh.polaris.sync.core.tasks.config;
 
+import cn.polarismesh.polaris.sync.config.pb.ConfigProto;
 import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 
@@ -28,7 +29,7 @@ public class UnwatchTask implements Runnable {
 
 	private final ConfigGroup configGroup;
 
-	public UnwatchTask(NamedConfigCenter source, RegistryProto.ConfigMatch match) {
+	public UnwatchTask(NamedConfigCenter source, ConfigProto.Match match) {
 		this.source = source;
 		this.configGroup = new ConfigGroup(match.getNamespace(), match.getConfigGroup());
 	}

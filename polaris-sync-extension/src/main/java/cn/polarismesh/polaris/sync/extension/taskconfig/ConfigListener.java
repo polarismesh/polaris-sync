@@ -17,16 +17,14 @@
 
 package cn.polarismesh.polaris.sync.extension.taskconfig;
 
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
-
 import java.util.concurrent.Executor;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public interface ConfigListener {
+public interface ConfigListener<T> {
 
-    void onChange(Registry registry);
+    void onChange(T registry);
 
     default Executor executor() {
         return Runnable::run;

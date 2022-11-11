@@ -17,88 +17,97 @@
 
 package cn.polarismesh.polaris.sync.core.server;
 
+import java.util.List;
+import java.util.Objects;
+
 import cn.polarismesh.polaris.sync.core.healthcheck.HealthCheckScheduler;
 import cn.polarismesh.polaris.sync.core.healthcheck.StatReportAggregator;
-import cn.polarismesh.polaris.sync.core.tasks.config.ConfigTaskEngine;
-import cn.polarismesh.polaris.sync.core.tasks.registry.RegistryTaskEngine;
+import cn.polarismesh.polaris.sync.core.taskconfig.ConfigProviderManager;
+import cn.polarismesh.polaris.sync.core.taskconfig.SyncProperties;
+import cn.polarismesh.polaris.sync.core.tasks.AbstractTaskEngine;
+import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
+import cn.polarismesh.polaris.sync.extension.ResourceCenter;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.report.ReportHandler;
-import cn.polarismesh.polaris.sync.core.taskconfig.ConfigProviderManager;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
-
-import java.util.List;
+import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigListener;
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
+import com.google.protobuf.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ResourceSyncServer {
+public abstract class ResourceSyncServer<T extends SyncTask, M extends Message, P extends SyncProperties> implements ConfigListener<M> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ResourceSyncServer.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ResourceSyncServer.class);
 
-    private final ConfigProviderManager providerManager;
+	private ConfigProviderManager<M, P> configManager;
 
-    private final List<RegistryCenter> registryCenters;
+	private AbstractTaskEngine<T> engine;
 
-    private final List<ConfigCenter> configCenters;
+	private HealthCheckScheduler healthCheckReporter;
 
-    private RegistryTaskEngine registryTaskEngine;
+	private List<ReportHandler> reportHandlers;
 
-    private ConfigTaskEngine configTaskEngine;
+	private StatReportAggregator statReportAggregator;
 
-    private HealthCheckScheduler healthCheckReporter;
+	protected void initResourceSyncServer(
+			ConfigProviderManager<M, P> manager,
+			AbstractTaskEngine<T> engine,
+			List<ReportHandler> reportHandlers) throws Exception {
 
-    private final List<ReportHandler> reportHandlers;
+		this.configManager = manager;
+		this.engine = engine;
+		this.reportHandlers = reportHandlers;
 
-    private StatReportAggregator statReportAggregator;
+        this.statReportAggregator = new StatReportAggregator(reportHandlers);
+        this.healthCheckReporter = new HealthCheckScheduler(statReportAggregator, engine);
+	}
 
-    public ResourceSyncServer(ConfigProviderManager providerManager,
-            List<RegistryCenter> registryCenters, List<ConfigCenter> configCenters, List<ReportHandler> reportHandlers) {
-        this.providerManager = providerManager;
-        this.registryCenters = registryCenters;
-        this.configCenters = configCenters;
-        this.reportHandlers = reportHandlers;
-    }
+	public void init() {
+		try {
+			M config = configManager.getConfig();
+            List<T> tasks = parseTasks(config);
+            List<ModelProto.Method> methods = parseMethods(config);
+            ModelProto.HealthCheck healthCheck = parseHealthCheck(config);
+			ModelProto.Report report = parseReport(config);
+			engine.init(tasks, methods);
+			healthCheckReporter.init(healthCheck);
+			statReportAggregator.init(report);
+		}
+		catch (Exception e) {
+			LOG.error("[Core] fail to init engine", e);
+		}
+	}
 
-    public void init() {
-        registryTaskEngine = new RegistryTaskEngine(registryCenters);
-        configTaskEngine = new ConfigTaskEngine(configCenters);
-        statReportAggregator = new StatReportAggregator(reportHandlers);
-        healthCheckReporter = new HealthCheckScheduler(statReportAggregator, registryTaskEngine);
-        providerManager.addListener(registryTaskEngine);
-        providerManager.addListener(configTaskEngine);
-        providerManager.addListener(healthCheckReporter);
-        providerManager.addListener(statReportAggregator);
+	public void destroy() {
+		if (Objects.nonNull(engine)) {
+			engine.destroy();
+		}
+		if (Objects.nonNull(configManager)) {
+			configManager.destroy();
+		}
+		if (null != healthCheckReporter) {
+			healthCheckReporter.destroy();
+		}
+		if (null != statReportAggregator) {
+			statReportAggregator.destroy();
+		}
+	}
 
-        try {
-            RegistryProto.Registry config = providerManager.getConfig();
-            registryTaskEngine.init(config);
-            configTaskEngine.init(config);
-            healthCheckReporter.init(config);
-            statReportAggregator.init(config);
-        } catch (Exception e) {
-            LOG.error("[Core] fail to init engine", e);
-        }
-    }
+    protected abstract List<T> parseTasks(M m);
 
-    public void destroy() {
-        if (null != registryTaskEngine) {
-            registryTaskEngine.destroy();
-        }
-        if (null != configTaskEngine) {
-            configTaskEngine.destroy();
-        }
-        if (null != providerManager) {
-            providerManager.destroy();
-        }
-        if (null != healthCheckReporter) {
-            healthCheckReporter.destroy();
-        }
-        if (null != statReportAggregator) {
-            statReportAggregator.destroy();
-        }
-    }
+    protected abstract List<ModelProto.Method> parseMethods(M m);
 
-    public RegistryTaskEngine getRegistryTaskEngine() {
-        return registryTaskEngine;
+    protected abstract ModelProto.HealthCheck parseHealthCheck(M m);
+
+	protected abstract ModelProto.Report parseReport(M m);
+
+	public AbstractTaskEngine getEngine() {
+		return engine;
+	}
+
+    @Override
+    public void onChange(M registry) {
+
     }
 }

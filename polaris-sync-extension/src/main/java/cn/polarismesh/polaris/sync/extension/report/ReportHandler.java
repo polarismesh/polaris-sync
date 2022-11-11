@@ -17,14 +17,13 @@
 
 package cn.polarismesh.polaris.sync.extension.report;
 
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget.TargetType;
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 
 public interface ReportHandler {
 
-    TargetType getType();
+	ModelProto.ReportTarget.TargetType getType();
 
-    void init(ReportTarget reportTarget);
+	void init(ModelProto.ReportTarget reportTarget);
 
-    void reportStat(StatInfo statInfo);
+	void reportStat(StatInfo statInfo);
 }

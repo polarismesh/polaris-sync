@@ -17,45 +17,46 @@
 
 package cn.polarismesh.polaris.sync.core.utils;
 
-import cn.polarismesh.polaris.sync.common.utils.CommonUtils;
-import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
-import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import cn.polarismesh.polaris.sync.common.utils.CommonUtils;
+import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
+import com.tencent.polaris.client.pb.ServiceProto.Instance;
+
 public class TaskUtils {
 
 
-    public static List<Instance> filterInstances(Group group, List<Instance> instances) {
-        Map<String, String> filters = group.getMetadataMap();
-        List<Instance> outInstances = new ArrayList<>();
-        for (Instance instance : instances) {
-            Map<String, String> metadataMap = instance.getMetadataMap();
-            boolean matched = CommonUtils.matchMetadata(metadataMap,filters);
-            if (matched) {
-                outInstances.add(instance);
-                break;
-            }
-        }
-        return outInstances;
-    }
+	public static List<Instance> filterInstances(ModelProto.Group group, List<Instance> instances) {
+		Map<String, String> filters = group.getMetadataMap();
+		List<Instance> outInstances = new ArrayList<>();
+		for (Instance instance : instances) {
+			Map<String, String> metadataMap = instance.getMetadataMap();
+			boolean matched = CommonUtils.matchMetadata(metadataMap, filters);
+			if (matched) {
+				outInstances.add(instance);
+				break;
+			}
+		}
+		return outInstances;
+	}
 
-    public static Collection<Group> verifyGroups(Collection<Group> groups) {
-        boolean hasDefault = false;
-        for (Group group : groups) {
-            if (group.getName().equals(DefaultValues.GROUP_NAME_DEFAULT)) {
-                hasDefault = true;
-            }
-        }
-        if (hasDefault) {
-            return groups;
-        }
-        List<Group> outGroups = new ArrayList<>();
-        outGroups.add(Group.newBuilder().setName(DefaultValues.GROUP_NAME_DEFAULT).build());
-        outGroups.addAll(groups);
-        return outGroups;
-    }
+	public static Collection<ModelProto.Group> verifyGroups(Collection<ModelProto.Group> groups) {
+		boolean hasDefault = false;
+		for (ModelProto.Group group : groups) {
+			if (group.getName().equals(DefaultValues.GROUP_NAME_DEFAULT)) {
+				hasDefault = true;
+			}
+		}
+		if (hasDefault) {
+			return groups;
+		}
+		List<ModelProto.Group> outGroups = new ArrayList<>();
+		outGroups.add(ModelProto.Group.newBuilder().setName(DefaultValues.GROUP_NAME_DEFAULT).build());
+		outGroups.addAll(groups);
+		return outGroups;
+	}
 }

@@ -17,124 +17,130 @@
 
 package cn.polarismesh.polaris.sync.core.taskconfig;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
+import java.util.ServiceLoader;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+
 import cn.polarismesh.polaris.sync.core.utils.CommonUtils;
-import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigListener;
 import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigProvider;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Registry;
-
-import java.util.List;
+import cn.polarismesh.polaris.sync.extension.taskconfig.ConfigProviderFactory;
+import com.google.protobuf.Message;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
-
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public class ConfigProviderManager {
+public class ConfigProviderManager<M extends Message, T extends SyncProperties> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ConfigProviderManager.class);
-    private final SyncProperties properties;
+	private static final Logger LOG = LoggerFactory.getLogger(ConfigProviderManager.class);
+	private final T properties;
 
-    private ConfigProvider provider;
+	private final BackupConfig backupConfig;
 
-    private final BackupConfig backupConfig;
+	private ConfigProvider<M> provider;
 
-    private final List<ConfigProvider> providers;
+	private Supplier<Message.Builder> supplier;
 
-    public ConfigProviderManager(List<ConfigProvider> providers, SyncProperties properties) {
-        this.properties = properties;
-        this.providers = providers;
-        this.backupConfig = new BackupConfig(properties.getConfigBackupPath());
-    }
+	public ConfigProviderManager(List<ConfigProviderFactory> factories, T properties, Supplier<Message.Builder> supplier) throws Exception {
+		this.properties = properties;
+		this.supplier = supplier;
+		this.backupConfig = new BackupConfig(properties.getConfigBackupPath());
 
-    private void init() throws Exception {
-        String providerType = properties.getConfigProvider();
-        for (ConfigProvider item : providers) {
-            if (Objects.equals(item.name(), providerType)) {
-                provider = item;
-                break;
-            }
-        }
+		init(factories);
+	}
 
-        Objects.requireNonNull(provider, "ConfigProvider");
-        provider.init(properties.getOptions());
-        provider.addListener(backupConfig);
-    }
+	private void init(List<ConfigProviderFactory> factories) throws Exception {
+		String providerType = properties.getConfigProvider();
+		for (ConfigProviderFactory item : factories) {
+			if (Objects.equals(item.name(), providerType)) {
+				provider = item.create();
+				break;
+			}
+		}
 
-    public void addListener(ConfigListener listener) {
-        provider.addListener(new WrapperConfigListener(listener));
-    }
+		Objects.requireNonNull(provider, "ConfigProvider");
+		provider.init(properties.getOptions(), supplier);
+		provider.addListener(backupConfig);
+	}
 
-    public Registry getConfig() {
-        Registry config = provider.getConfig();
-        if (config == null) {
-            return backupConfig.getBackup();
-        }
-        return config;
-    }
+	public void addListener(ConfigListener listener) {
+		provider.addListener(new WrapperConfigListener(listener));
+	}
 
-    public void destroy() {
-        if (provider != null) {
-            provider.close();
-        }
-    }
+	public M getConfig() {
+        M config = provider.getConfig();
+		if (config == null) {
+			return (M) backupConfig.getBackup();
+		}
+		return config;
+	}
 
-    private class BackupConfig implements ConfigListener {
+	public void destroy() {
+		if (provider != null) {
+			provider.close();
+		}
+	}
 
-        private final File backup;
+	private class BackupConfig<T extends Message> implements ConfigListener<T> {
 
-        private BackupConfig(String backup) {
-            this.backup = new File(backup);
-        }
+		private final File backup;
 
-        @Override
-        public void onChange(Registry registry) {
-            try {
-                byte[] ret = CommonUtils.marshal(registry);
-                FileUtils.writeByteArrayToFile(backup, ret);
-            } catch (IOException e) {
-                LOG.error("[BackupConfig] save backup file", e);
-            }
-        }
+		private BackupConfig(String backup) {
+			this.backup = new File(backup);
+		}
 
-        private Registry getBackup() {
-            try {
-                byte[] ret = FileUtils.readFileToByteArray(backup);
-                return CommonUtils.parseFromContent(ret);
-            } catch (IOException e) {
-                LOG.error("[BackupConfig] get backup file", e);
-                return null;
-            }
-        }
-    }
+		@Override
+		public void onChange(T registry) {
+			try {
+				byte[] ret = CommonUtils.marshal(registry);
+				FileUtils.writeByteArrayToFile(backup, ret);
+			}
+			catch (IOException e) {
+				LOG.error("[BackupConfig] save backup file", e);
+			}
+		}
 
-    private static class WrapperConfigListener implements ConfigListener {
+		private T getBackup() {
+			try {
+				byte[] ret = FileUtils.readFileToByteArray(backup);
+				return CommonUtils.parseFromContent(ret, supplier);
+			}
+			catch (IOException e) {
+				LOG.error("[BackupConfig] get backup file", e);
+				return null;
+			}
+		}
+	}
 
-        private final AtomicReference<Registry> lastVal = new AtomicReference<>();
+	private static class WrapperConfigListener<M extends Message> implements ConfigListener<M> {
 
-        private final ConfigListener listener;
+		private final AtomicReference<M> lastVal = new AtomicReference<>();
 
-        private WrapperConfigListener(ConfigListener listener) {
-            this.listener = listener;
-        }
+		private final ConfigListener listener;
 
-        @Override
-        public void onChange(Registry registry) {
-            try {
-                listener.onChange(registry);
-                lastVal.set(registry);
-            } catch (Throwable ex) {
-                Registry old = lastVal.get();
-                if (old != null) {
-                    listener.onChange(old);
-                }
-            }
-        }
-    }
+		private WrapperConfigListener(ConfigListener listener) {
+			this.listener = listener;
+		}
+
+		@Override
+		public void onChange(M registry) {
+			try {
+				listener.onChange(registry);
+				lastVal.set(registry);
+			}
+			catch (Throwable ex) {
+                M old = lastVal.get();
+				if (old != null) {
+					listener.onChange(old);
+				}
+			}
+		}
+	}
 }

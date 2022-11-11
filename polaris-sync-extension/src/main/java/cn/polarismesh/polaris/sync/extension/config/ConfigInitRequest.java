@@ -17,6 +17,7 @@
 
 package cn.polarismesh.polaris.sync.extension.config;
 
+import cn.polarismesh.polaris.sync.config.pb.ConfigProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 
 /**
@@ -26,18 +27,18 @@ public class ConfigInitRequest {
 
 	private final String sourceName;
 
-	private final RegistryProto.ConfigEndpoint.ConfigType sourceType;
+	private final ConfigProto.ConfigEndpoint.ConfigType sourceType;
 
-	private final RegistryProto.ConfigEndpoint configEndpoint;
+	private final ConfigProto.ConfigEndpoint configEndpoint;
 
-	public ConfigInitRequest(String sourceName, RegistryProto.ConfigEndpoint.ConfigType sourceType,
-			RegistryProto.ConfigEndpoint configEndpoint) {
+	public ConfigInitRequest(String sourceName, ConfigProto.ConfigEndpoint.ConfigType sourceType,
+			ConfigProto.ConfigEndpoint configEndpoint) {
 		this.sourceName = sourceName;
 		this.sourceType = sourceType;
 		this.configEndpoint = configEndpoint;
 	}
 
-	public RegistryProto.ConfigEndpoint.ConfigType getSourceType() {
+	public ConfigProto.ConfigEndpoint.ConfigType getSourceType() {
 		return sourceType;
 	}
 
@@ -45,7 +46,7 @@ public class ConfigInitRequest {
 		return sourceName;
 	}
 
-	public RegistryProto.ConfigEndpoint getConfigEndpoint() {
+	public ConfigProto.ConfigEndpoint getConfigEndpoint() {
 		return configEndpoint;
 	}
 }

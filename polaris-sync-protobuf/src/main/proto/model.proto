@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package v1;
+
+option java_package = "cn.polarismesh.polaris.sync.model.pb";
+option java_outer_classname = "ModelProto";
+
+message Report {
+
+  string interval = 1;
+
+  repeated ReportTarget targets = 2;
+}
+
+message ReportTarget {
+
+  bool enable = 1;
+
+  enum TargetType {
+    unknown = 0;
+    file = 1;
+    prometheus = 2;
+    balad = 3;
+  }
+  TargetType type = 2;
+
+  map<string, string> options = 3;
+}
+
+message HealthCheck {
+
+  bool enable = 1;
+
+  string interval = 2;
+
+  string timeout = 3;
+}
+
+message Method {
+  enum MethodType {
+    unknown = 0;
+    watch = 1;
+    pull = 2;
+  }
+  MethodType type = 1;
+
+  bool enable = 2;
+
+  string interval = 3;
+}
+
+
+message Group {
+
+  string name = 1;
+
+  map<string, string> metadata = 2;
+}

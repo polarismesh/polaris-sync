@@ -20,31 +20,14 @@ package cn.polarismesh.polaris.sync.extension.config;
 import java.util.Collection;
 
 import cn.polarismesh.polaris.sync.extension.Health;
+import cn.polarismesh.polaris.sync.extension.InitRequest;
+import cn.polarismesh.polaris.sync.extension.ResourceCenter;
 import com.tencent.polaris.client.pb.ResponseProto;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ConfigEndpoint.ConfigType;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public interface ConfigCenter {
-
-
-	/**
-	 * registry type, such as nacos, kong, consul, etc...
-	 *
-	 * @return type
-	 */
-	ConfigType getType();
-
-	/**
-	 * initialize registry
-	 */
-	void init(ConfigInitRequest request);
-
-	/**
-	 * destroy registry
-	 */
-	void destroy();
+public interface ConfigCenter<T extends InitRequest> extends ResourceCenter<T> {
 
 	/**
 	 * list the discovery namespaces
