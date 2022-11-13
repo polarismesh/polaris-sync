@@ -17,15 +17,17 @@
 
 package cn.polarismesh.polaris.sync.core.tasks.registry;
 
+import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
 import cn.polarismesh.polaris.sync.core.utils.TaskUtils;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.registry.WatchEvent;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -46,35 +48,32 @@ public class WatchTask implements Runnable {
 
     private final Service service;
 
-    private final Collection<Group> groups;
+    private final Collection<ModelProto.Group> groups;
 
     private final Executor registerExecutor;
 
     private final ScheduledExecutorService watchExecutor;
 
-    private final RegistryTaskEngine.ServiceWithSource serviceWithSource;
+    private final SyncTask.Match serviceWithSource;
 
-    private final Map<RegistryTaskEngine.ServiceWithSource, Future<?>> watchedServices;
+    private final Map<SyncTask.Match, Future<?>> watchedServices;
 
     private final ResponseListener responseListener;
 
-    public WatchTask(Map<RegistryTaskEngine.ServiceWithSource, Future<?>> watchedServices, NamedRegistryCenter source,
-            NamedRegistryCenter destination, RegistryProto.Match match, Executor registerExecutor,
+    public WatchTask(Map<SyncTask.Match, Future<?>> watchedServices, NamedRegistryCenter source,
+            NamedRegistryCenter destination, SyncTask.Match match, Executor registerExecutor,
             ScheduledExecutorService watchExecutor) {
         this.watchedServices = watchedServices;
         this.source = source;
         this.destination = destination;
-        this.service = new Service(match.getNamespace(), match.getService());
-        this.groups = TaskUtils.verifyGroups(match.getGroupsList());
+        this.service = new Service(match.getNamespace(), match.getName());
+        this.groups = TaskUtils.verifyGroups(match.getGroups());
         this.registerExecutor = registerExecutor;
         this.watchExecutor = watchExecutor;
-        this.serviceWithSource = new RegistryTaskEngine.ServiceWithSource(source.getName(), this.service);
+        this.serviceWithSource = match;
         responseListener = new ResponseListener();
     }
 
-    public RegistryTaskEngine.ServiceWithSource getService() {
-        return serviceWithSource;
-    }
 
     @Override
     public void run() {
@@ -99,7 +98,7 @@ public class WatchTask implements Runnable {
                 @Override
                 public void run() {
                     // diff by groups
-                    for (Group group : groups) {
+                    for (ModelProto.Group group : groups) {
                         DiscoverResponse discoverResponse = source.getRegistry().listInstances(service, group);
                         if (discoverResponse.getCode().getValue() != StatusCodes.SUCCESS) {
                             LOG.warn("[Core][Watch] fail to list service in source {}, group {}, code is {}",

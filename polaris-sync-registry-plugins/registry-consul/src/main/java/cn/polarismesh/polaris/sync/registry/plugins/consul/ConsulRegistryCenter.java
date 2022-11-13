@@ -20,6 +20,8 @@ package cn.polarismesh.polaris.sync.registry.plugins.consul;
 import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
 import cn.polarismesh.polaris.sync.common.rest.HostAndPort;
 import cn.polarismesh.polaris.sync.common.rest.RestOperator;
+import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
+import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.extension.registry.AbstractRegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
@@ -27,9 +29,7 @@ import cn.polarismesh.polaris.sync.extension.registry.WatchEvent;
 import cn.polarismesh.polaris.sync.common.utils.CommonUtils;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import com.ecwid.consul.ConsulException;
 import com.ecwid.consul.v1.ConsulClient;
 import com.ecwid.consul.v1.ConsulRawClient;
@@ -68,7 +68,7 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
 
     private static final Logger LOG = LoggerFactory.getLogger(ConsulRegistryCenter.class);
 
-    private RegistryEndpoint registryEndpoint;
+    private ResourceEndpoint registryEndpoint;
 
     private final ExecutorService longPullExecutor =
             Executors.newCachedThreadPool(new NamedThreadFactory("consul-pull-worker"));
@@ -78,13 +78,18 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
     private final Object lock = new Object();
 
     @Override
-    public RegistryType getType() {
-        return RegistryType.consul;
+    public String getName() {
+        return getType().name();
+    }
+
+    @Override
+    public ResourceType getType() {
+        return ResourceType.CONSUL;
     }
 
     @Override
     public void init(RegistryInitRequest request) {
-        registryEndpoint = request.getRegistryEndpoint();
+        registryEndpoint = request.getResourceEndpoint();
     }
 
     @Override
@@ -102,7 +107,7 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
 
     @Override
     public DiscoverResponse listServices(String namespace) {
-        String address = RestOperator.pickAddress(registryEndpoint.getAddressesList());
+        String address = RestOperator.pickAddress(registryEndpoint.getServerAddresses());
         ConsulClient consulClient = getConsulClient(address);
         Response<Map<String, List<String>>> catalogServices;
         Service service = new Service(namespace, "");
@@ -141,8 +146,8 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
     private CatalogServicesRequest buildCatalogServicesRequest() {
         CatalogServicesRequest.Builder builder = CatalogServicesRequest.newBuilder();
         builder.setDatacenter("dc1");
-        if (StringUtils.hasText(registryEndpoint.getToken())) {
-            builder.setToken(registryEndpoint.getToken());
+        if (StringUtils.hasText(registryEndpoint.getAuthorization().getToken())) {
+            builder.setToken(registryEndpoint.getAuthorization().getToken());
         }
         return builder.build();
     }
@@ -155,8 +160,8 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
     private HealthServicesRequest buildHealthServiceRequest(long index) {
         Builder builder = HealthServicesRequest.newBuilder();
         builder.setDatacenter("dc1").setPassing(true);
-        if (StringUtils.hasText(registryEndpoint.getToken())) {
-            builder.setToken(registryEndpoint.getToken());
+        if (StringUtils.hasText(registryEndpoint.getAuthorization().getToken())) {
+            builder.setToken(registryEndpoint.getAuthorization().getToken());
         }
         QueryParams.Builder paramBuilder = QueryParams.Builder.builder();
         paramBuilder.setIndex(index);
@@ -165,8 +170,8 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
     }
 
     @Override
-    public DiscoverResponse listInstances(Service service, Group group) {
-        String address = RestOperator.pickAddress(registryEndpoint.getAddressesList());
+    public DiscoverResponse listInstances(Service service, ModelProto.Group group) {
+        String address = RestOperator.pickAddress(registryEndpoint.getServerAddresses());
         ConsulClient consulClient = getConsulClient(address);
         Response<List<HealthService>> healthServices;
         String registryName = registryEndpoint.getName();
@@ -198,7 +203,7 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
         return discoverResponse;
     }
 
-    private List<Instance> convertConsulInstance(Service service, List<HealthService> instances, Group group) {
+    private List<Instance> convertConsulInstance(Service service, List<HealthService> instances, ModelProto.Group group) {
         List<Instance> outInstances = new ArrayList<>();
         if (CollectionUtils.isEmpty(instances)) {
             return outInstances;
@@ -283,12 +288,12 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
     }
 
     @Override
-    public void updateGroups(Service service, Collection<Group> groups) {
+    public void updateGroups(Service service, Collection<ModelProto.Group> groups) {
 
     }
 
     @Override
-    public void updateInstances(Service service, Group group, Collection<Instance> instances) {
+    public void updateInstances(Service service, ModelProto.Group group, Collection<Instance> instances) {
 
     }
 
@@ -349,12 +354,12 @@ public class ConsulRegistryCenter extends AbstractRegistryCenter {
                 watched = watchedServices.containsKey(service);
                 longPullContext = watchedServices.get(service);
             }
-            String address = RestOperator.pickAddress(registryEndpoint.getAddressesList());
+            String address = RestOperator.pickAddress(registryEndpoint.getServerAddresses());
             while (watched) {
                 try {
                     boolean result = processWatch(address, longPullContext);
                     if (!result) {
-                        address = RestOperator.pickAddress(registryEndpoint.getAddressesList());
+                        address = RestOperator.pickAddress(registryEndpoint.getServerAddresses());
                         longPullContext.setIndex(0L);
                     }
                 } catch (Throwable e) {

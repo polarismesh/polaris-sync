@@ -20,19 +20,18 @@ package cn.polarismesh.polaris.sync.core.tasks.config;
 import java.util.Collection;
 
 import cn.polarismesh.polaris.sync.extension.Health;
+import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFilesResponse;
 import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
 import cn.polarismesh.polaris.sync.extension.config.ConfigInitRequest;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
-import com.tencent.polaris.client.pb.ConfigFileProto;
 import com.tencent.polaris.client.pb.ResponseProto;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public class ConfigCenterWrapper implements ConfigCenter {
+public class ConfigCenterWrapper implements ConfigCenter<ConfigInitRequest> {
 
 	private final ConfigCenter center;
 
@@ -41,7 +40,12 @@ public class ConfigCenterWrapper implements ConfigCenter {
 	}
 
 	@Override
-	public RegistryProto.ConfigEndpoint.ConfigType getType() {
+	public String getName() {
+		return center.getName();
+	}
+
+	@Override
+	public ResourceType getType() {
 		return center.getType();
 	}
 

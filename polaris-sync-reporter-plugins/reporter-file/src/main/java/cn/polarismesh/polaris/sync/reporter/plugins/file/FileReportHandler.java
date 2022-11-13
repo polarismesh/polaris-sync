@@ -21,11 +21,11 @@ import cn.polarismesh.polaris.sync.extension.report.RegistryHealthStatus;
 import cn.polarismesh.polaris.sync.extension.report.RegistryHealthStatus.Dimension;
 import cn.polarismesh.polaris.sync.extension.report.ReportHandler;
 import cn.polarismesh.polaris.sync.extension.report.StatInfo;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget.TargetType;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
+
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -39,12 +39,12 @@ public class FileReportHandler implements ReportHandler {
     private static final Logger HEALTH_LOG = LoggerFactory.getLogger("sync-stat-logger");
 
     @Override
-    public TargetType getType() {
-        return TargetType.file;
+    public ModelProto.ReportTarget.TargetType getType() {
+        return ModelProto.ReportTarget.TargetType.file;
     }
 
     @Override
-    public void init(ReportTarget reportTarget) {
+    public void init(ModelProto.ReportTarget reportTarget) {
         LOG.info("[Report][File] FileReportHandler has been initialized, config {}", reportTarget);
     }
 
@@ -67,7 +67,7 @@ public class FileReportHandler implements ReportHandler {
                 Dimension dimension = registryHealthStatus.getDimension();
                 reportInfoStr.append(String
                         .format("%-48s|%12s|%12s|%12s|%12s|\n", dimension.getName(),
-                                dimension.getRegistryType().name(), dimension.getProductionName(),
+                                dimension.getResourceType().name(), dimension.getProductionName(),
                                 registryHealthStatus.getTotalCount(), registryHealthStatus.getErrorCount()));
             }
         }

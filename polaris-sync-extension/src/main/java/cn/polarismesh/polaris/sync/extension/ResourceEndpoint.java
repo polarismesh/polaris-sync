@@ -2,55 +2,103 @@ package cn.polarismesh.polaris.sync.extension;
 
 import java.util.List;
 
-import cn.polarismesh.polaris.sync.extension.ResourceType;
-
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public interface ResourceEndpoint {
+public class ResourceEndpoint {
 
-	String getName();
+	private String name;
 
-	String getProductName();
+	private String productName;
 
-	ResourceType getResourceType();
+	private ResourceType resourceType;
 
-	List<String> getServerAddresses();
+	private List<String> addresses;
 
-	Authorization getAuthorization();
+	private Authorization authorization;
 
-	Database getDatabase();
+	private Database database;
 
-	public static class Database {
 
-		private String jdbcUrl;
+	public String getName() {
+		return name;
+	}
 
-		private String username;
+	public String getProductName() {
+		return productName;
+	}
 
-		private String password;
+	public ResourceType getResourceType() {
+		return resourceType;
+	}
 
-		public String getJdbcUrl() {
-			return jdbcUrl;
+	public List<String> getServerAddresses() {
+		return addresses;
+	}
+
+	public Authorization getAuthorization() {
+		return authorization;
+	}
+
+	public Database getDatabase() {
+		return database;
+	}
+
+	public static ResourceEndpointBuilder builder() {
+		return new ResourceEndpointBuilder();
+	}
+
+
+	public static final class ResourceEndpointBuilder {
+		private String name;
+		private String productName;
+		private ResourceType resourceType;
+		private List<String> addresses;
+		private Authorization authorization;
+		private Database database;
+
+		private ResourceEndpointBuilder() {
 		}
 
-		public void setJdbcUrl(String jdbcUrl) {
-			this.jdbcUrl = jdbcUrl;
+		public ResourceEndpointBuilder name(String name) {
+			this.name = name;
+			return this;
 		}
 
-		public String getUsername() {
-			return username;
+		public ResourceEndpointBuilder productName(String productName) {
+			this.productName = productName;
+			return this;
 		}
 
-		public void setUsername(String username) {
-			this.username = username;
+		public ResourceEndpointBuilder resourceType(ResourceType resourceType) {
+			this.resourceType = resourceType;
+			return this;
 		}
 
-		public String getPassword() {
-			return password;
+		public ResourceEndpointBuilder addresses(List<String> addresses) {
+			this.addresses = addresses;
+			return this;
 		}
 
-		public void setPassword(String password) {
-			this.password = password;
+		public ResourceEndpointBuilder authorization(Authorization authorization) {
+			this.authorization = authorization;
+			return this;
+		}
+
+		public ResourceEndpointBuilder database(Database database) {
+			this.database = database;
+			return this;
+		}
+
+		public ResourceEndpoint build() {
+			ResourceEndpoint resourceEndpoint = new ResourceEndpoint();
+			resourceEndpoint.addresses = this.addresses;
+			resourceEndpoint.resourceType = this.resourceType;
+			resourceEndpoint.name = this.name;
+			resourceEndpoint.authorization = this.authorization;
+			resourceEndpoint.database = this.database;
+			resourceEndpoint.productName = this.productName;
+			return resourceEndpoint;
 		}
 	}
 }

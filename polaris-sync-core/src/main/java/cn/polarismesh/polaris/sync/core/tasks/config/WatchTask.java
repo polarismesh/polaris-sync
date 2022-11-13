@@ -26,11 +26,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
 import cn.polarismesh.polaris.sync.core.utils.TaskUtils;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
 import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
 import cn.polarismesh.polaris.sync.extension.config.WatchEvent;
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,34 +50,30 @@ public class WatchTask implements Runnable {
 
 	private final ConfigGroup configGroup;
 
-	private final Collection<RegistryProto.Group> groups;
+	private final Collection<ModelProto.Group> groups;
 
 	private final Executor executor;
 
 	private final ScheduledExecutorService watchExecutor;
 
-	private final ConfigTaskEngine.ConfigGroupWithSource groupWithSource;
+	private final SyncTask.Match groupWithSource;
 
-	private final Map<ConfigTaskEngine.ConfigGroupWithSource, Future<?>> watchedGroups;
+	private final Map<SyncTask.Match, Future<?>> watchedGroups;
 
 	private final ResponseListener responseListener;
 
-	public WatchTask(Map<ConfigTaskEngine.ConfigGroupWithSource, Future<?>> watchedGroups, NamedConfigCenter source,
-			NamedConfigCenter destination, RegistryProto.ConfigMatch match, Executor executor,
+	public WatchTask(Map<SyncTask.Match, Future<?>> watchedGroups, NamedConfigCenter source,
+			NamedConfigCenter destination, SyncTask.Match match, Executor executor,
 			ScheduledExecutorService watchExecutor) {
 		this.watchedGroups = watchedGroups;
 		this.source = source;
 		this.destination = destination;
-		this.configGroup = ConfigGroup.builder().namespace(match.getNamespace()).name(match.getConfigGroup()).build();
+		this.configGroup = ConfigGroup.builder().namespace(match.getNamespace()).name(match.getName()).build();
 		this.executor = executor;
 		this.watchExecutor = watchExecutor;
-		this.groups = TaskUtils.verifyGroups(match.getGroupsList());
-		this.groupWithSource = new ConfigTaskEngine.ConfigGroupWithSource(source.getName(), this.configGroup);
+		this.groups = TaskUtils.verifyGroups(match.getGroups());
+		this.groupWithSource = match;
 		this.responseListener = new WatchTask.ResponseListener();
-	}
-
-	public ConfigTaskEngine.ConfigGroupWithSource getGroupWithSource() {
-		return groupWithSource;
 	}
 
 	@Override

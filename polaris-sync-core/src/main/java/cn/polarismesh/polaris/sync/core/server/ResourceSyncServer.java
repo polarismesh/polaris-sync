@@ -36,28 +36,26 @@ import com.google.protobuf.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class ResourceSyncServer<T extends SyncTask, M extends Message, P extends SyncProperties> implements ConfigListener<M> {
+public abstract class ResourceSyncServer<C extends ResourceCenter, T extends SyncTask, M extends Message, P extends SyncProperties> implements ConfigListener<M> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResourceSyncServer.class);
 
 	private ConfigProviderManager<M, P> configManager;
 
-	private AbstractTaskEngine<T> engine;
+	protected AbstractTaskEngine<C, T> engine;
 
-	private HealthCheckScheduler healthCheckReporter;
+	protected HealthCheckScheduler healthCheckReporter;
 
-	private List<ReportHandler> reportHandlers;
 
-	private StatReportAggregator statReportAggregator;
+	protected StatReportAggregator statReportAggregator;
 
 	protected void initResourceSyncServer(
 			ConfigProviderManager<M, P> manager,
-			AbstractTaskEngine<T> engine,
+			AbstractTaskEngine<C, T> engine,
 			List<ReportHandler> reportHandlers) throws Exception {
 
 		this.configManager = manager;
 		this.engine = engine;
-		this.reportHandlers = reportHandlers;
 
         this.statReportAggregator = new StatReportAggregator(reportHandlers);
         this.healthCheckReporter = new HealthCheckScheduler(statReportAggregator, engine);
@@ -66,6 +64,10 @@ public abstract class ResourceSyncServer<T extends SyncTask, M extends Message, 
 	public void init() {
 		try {
 			M config = configManager.getConfig();
+			if (Objects.isNull(config)) {
+				return;
+			}
+
             List<T> tasks = parseTasks(config);
             List<ModelProto.Method> methods = parseMethods(config);
             ModelProto.HealthCheck healthCheck = parseHealthCheck(config);
@@ -76,6 +78,8 @@ public abstract class ResourceSyncServer<T extends SyncTask, M extends Message, 
 		}
 		catch (Exception e) {
 			LOG.error("[Core] fail to init engine", e);
+		} finally {
+			configManager.addListener(this);
 		}
 	}
 
@@ -106,8 +110,4 @@ public abstract class ResourceSyncServer<T extends SyncTask, M extends Message, 
 		return engine;
 	}
 
-    @Override
-    public void onChange(M registry) {
-
-    }
 }

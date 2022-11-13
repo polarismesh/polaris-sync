@@ -25,6 +25,7 @@ import cn.polarismesh.polaris.sync.common.rest.RestUtils;
 import cn.polarismesh.polaris.sync.config.plugins.nacos.model.AuthResponse;
 import cn.polarismesh.polaris.sync.config.plugins.nacos.model.NacosNamespace;
 import cn.polarismesh.polaris.sync.config.plugins.nacos.model.NacosNamespaceResponse;
+import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
@@ -47,8 +48,8 @@ public class NacosRestUtils {
     private static final Logger LOG = LoggerFactory.getLogger(NacosRestUtils.class);
 
     public static DiscoverResponse discoverAllNamespaces(AuthResponse authResponse,
-            RestOperator restOperator, RegistryProto.ConfigEndpoint.Server server, List<NacosNamespace> namespaces) {
-        String namespacesUrl = toNamespacesUrl(server.getAddressesList());
+            RestOperator restOperator, ResourceEndpoint endpoint, List<NacosNamespace> namespaces) {
+        String namespacesUrl = toNamespacesUrl(endpoint.getServerAddresses());
         if (StringUtils.hasText(authResponse.getAccessToken())) {
             namespacesUrl += "?accessToken=" + authResponse.getAccessToken();
         }
@@ -80,8 +81,8 @@ public class NacosRestUtils {
     }
 
     public static void createNamespace(AuthResponse authResponse,
-            RestOperator restOperator, RegistryProto.ConfigEndpoint.Server server, String namespace) {
-        String namespacesUrl = toNamespacesUrl(server.getAddressesList());
+            RestOperator restOperator, ResourceEndpoint endpoint, String namespace) {
+        String namespacesUrl = toNamespacesUrl(endpoint.getServerAddresses());
         if (StringUtils.hasText(authResponse.getAccessToken())) {
             namespacesUrl += "?accessToken=" + authResponse.getAccessToken();
         }
@@ -104,10 +105,10 @@ public class NacosRestUtils {
     }
 
     public static DiscoverResponse auth(RestOperator restOperator,
-            RegistryProto.ConfigEndpoint.Server server, AuthResponse authResponse, Service service, DiscoverResponseType type) {
-        String authUrl = toAuthUrl(server.getAddressesList());
+            ResourceEndpoint endpoint, AuthResponse authResponse, Service service, DiscoverResponseType type) {
+        String authUrl = toAuthUrl(endpoint.getServerAddresses());
         String authMessage = String.format(
-                "username=%s&password=%s", server.getUser(), server.getPassword());
+                "username=%s&password=%s", endpoint.getAuthorization().getUsername(), endpoint.getAuthorization().getPassword());
         HttpMethod method = HttpMethod.POST;
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);

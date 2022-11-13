@@ -22,19 +22,18 @@ import static cn.polarismesh.polaris.sync.common.rest.RestOperator.pickAddress;
 import cn.polarismesh.polaris.sync.common.rest.RestOperator;
 import cn.polarismesh.polaris.sync.common.rest.RestResponse;
 import cn.polarismesh.polaris.sync.common.rest.RestUtils;
+import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
+import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.extension.registry.AbstractRegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.ServiceObject;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.ServiceObjectList;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.TargetObject;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.TargetObjectList;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.UpstreamObject;
 import cn.polarismesh.polaris.sync.registry.plugins.kong.model.UpstreamObjectList;
-import com.google.protobuf.ProtocolStringList;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import java.util.ArrayList;
@@ -63,15 +62,20 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
     private RestOperator restOperator;
 
     @Override
-    public RegistryType getType() {
-        return RegistryType.kong;
+    public String getName() {
+        return getType().name();
+    }
+
+    @Override
+    public ResourceType getType() {
+        return ResourceType.KONG;
     }
 
     @Override
     public void init(RegistryInitRequest registryInitRequest) {
         Assert.hasText(registryInitRequest.getSourceName(), "source registry for kong is empty");
         this.registryInitRequest = registryInitRequest;
-        this.token = registryInitRequest.getRegistryEndpoint().getToken();
+        this.token = registryInitRequest.getResourceEndpoint().getAuthorization().getToken();
         restOperator = new RestOperator();
     }
 
@@ -88,7 +92,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
     }
 
     @Override
-    public DiscoverResponse listInstances(Service service, Group group) {
+    public DiscoverResponse listInstances(Service service, ModelProto.Group group) {
         throw new UnsupportedOperationException("listInstances is not supported in kong");
     }
 
@@ -141,19 +145,18 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
 
     @Override
     public void updateServices(Collection<Service> services) {
-        RegistryEndpoint registryEndpoint = registryInitRequest.getRegistryEndpoint();
-        ProtocolStringList addressesList = registryEndpoint.getAddressesList();
-        String address = pickAddress(addressesList);
+        ResourceEndpoint endpoint = registryInitRequest.getResourceEndpoint();
+        String address = pickAddress(endpoint.getServerAddresses());
         //query all services in the source
         List<ServiceObject> serviceObjects = new ArrayList<>();
         if (!resolveAllServices(address, "", serviceObjects)) {
-            LOG.error("[Kong] fail to query all services, registry {}, address {}", registryEndpoint, address);
+            LOG.error("[Kong] fail to query all services, registry {}, address {}", endpoint, address);
             return;
         }
         ServiceObjectList serviceObjectList = new ServiceObjectList();
         serviceObjectList.setData(serviceObjects);
         String sourceName = registryInitRequest.getSourceName();
-        RegistryType sourceType = registryInitRequest.getSourceType();
+        ResourceType sourceType = registryInitRequest.getSourceType();
         Map<Service, ServiceObject> serviceObjectMap = ConversionUtils.parseServiceObjects(serviceObjectList,
                 sourceName);
         Set<ServiceObject> servicesToCreate = new HashSet<>();
@@ -186,7 +189,7 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
         if (!servicesToDelete.isEmpty()) {
             LOG.info("[Kong] services(source {})  pending to delete are {}", sourceName, servicesToDelete);
             for (ServiceObject serviceObject : servicesToDelete) {
-                String serviceUrl = KongEndpointUtils.toServiceUrl(addressesList, serviceObject.getName());
+                String serviceUrl = KongEndpointUtils.toServiceUrl(endpoint.getServerAddresses(), serviceObject.getName());
                 processServiceRequest(serviceUrl, HttpMethod.DELETE, null, "delete");
                 serviceDeleteCount++;
             }
@@ -246,8 +249,8 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
     }
 
     @Override
-    public void updateGroups(Service service, Collection<Group> groups) {
-        ProtocolStringList addressesList = registryInitRequest.getRegistryEndpoint().getAddressesList();
+    public void updateGroups(Service service, Collection<ModelProto.Group> groups) {
+        List<String> addressesList = registryInitRequest.getResourceEndpoint().getServerAddresses();
         String address = pickAddress(addressesList);
         //query all upstreams in the source
         List<UpstreamObject> upstreams = new ArrayList<>();
@@ -258,13 +261,13 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
         UpstreamObjectList upstreamObjectList = new UpstreamObjectList();
         upstreamObjectList.setData(upstreams);
         String sourceName = registryInitRequest.getSourceName();
-        RegistryType sourceType = registryInitRequest.getSourceType();
+        ResourceType sourceType = registryInitRequest.getSourceType();
         Map<String, UpstreamObject> upstreamObjectMap =
                 ConversionUtils.parseUpstreamObjects(upstreamObjectList, service, sourceName);
         Set<UpstreamObject> upstreamsToCreate = new HashSet<>();
         Set<UpstreamObject> upstreamsToDelete = new HashSet<>();
         Set<String> processedGroups = new HashSet<>();
-        for (Group group : groups) {
+        for (ModelProto.Group group : groups) {
             UpstreamObject upstreamObject = upstreamObjectMap.get(group.getName());
             if (null == upstreamObject) {
                 //new add target
@@ -302,12 +305,12 @@ public class KongRegistryCenter extends AbstractRegistryCenter {
     }
 
     @Override
-    public void updateInstances(Service service, Group group, Collection<Instance> instances) {
+    public void updateInstances(Service service, ModelProto.Group group, Collection<Instance> instances) {
         String sourceName = registryInitRequest.getSourceName();
         LOG.info("[Kong] instances to update instances(source {}) group {}, service {}, is {}, ",
                 sourceName, group.getName(), service, instances);
         String upstreamName = ConversionUtils.getUpstreamName(service, group.getName(), sourceName);
-        ProtocolStringList addressesList = registryInitRequest.getRegistryEndpoint().getAddressesList();
+        List<String> addressesList = registryInitRequest.getResourceEndpoint().getServerAddresses();
         String targetReadUrl = KongEndpointUtils.toTargetsReadUrl(addressesList, upstreamName);
 
         RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(

@@ -36,6 +36,7 @@ import cn.polarismesh.polaris.sync.config.plugins.polaris.mapper.ConfigFileRelea
 import cn.polarismesh.polaris.sync.config.plugins.polaris.model.ConfigFileTemp;
 import cn.polarismesh.polaris.sync.config.plugins.polaris.model.ConfigFileRelease;
 import cn.polarismesh.polaris.sync.extension.Health;
+import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFilesResponse;
@@ -60,7 +61,7 @@ import org.springframework.stereotype.Component;
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
 @Component
-public class PolarisConfigCenter implements ConfigCenter {
+public class PolarisConfigCenter implements ConfigCenter<ConfigInitRequest> {
 
 	private static final String PREFIX_HTTP = "http://";
 
@@ -85,14 +86,19 @@ public class PolarisConfigCenter implements ConfigCenter {
 	private final List<String> grpcAddresses = new ArrayList<>();
 
 	@Override
-	public RegistryProto.ConfigEndpoint.ConfigType getType() {
-		return RegistryProto.ConfigEndpoint.ConfigType.polaris;
+	public String getName() {
+		return getType().name();
+	}
+
+	@Override
+	public ResourceType getType() {
+		return ResourceType.POLARIS;
 	}
 
 	@Override
 	public void init(ConfigInitRequest request) {
 		this.request = request;
-		parseAddresses(request.getConfigEndpoint().getServer().getAddressesList());
+		parseAddresses(request.getResourceEndpoint().getServerAddresses());
 		initDatabaseOperator();
 	}
 
@@ -112,9 +118,9 @@ public class PolarisConfigCenter implements ConfigCenter {
 		HikariConfig hikariConfig = new HikariConfig();
 		hikariConfig.setDriverClassName("com.mysql.cj.jdbc.Driver");
 		hikariConfig.setPoolName(request.getSourceName());
-		hikariConfig.setJdbcUrl(request.getConfigEndpoint().getDb().getJdbcUrl());
-		hikariConfig.setUsername(request.getConfigEndpoint().getDb().getUsername());
-		hikariConfig.setPassword(request.getConfigEndpoint().getDb().getPassword());
+		hikariConfig.setJdbcUrl(request.getResourceEndpoint().getDatabase().getJdbcUrl());
+		hikariConfig.setUsername(request.getResourceEndpoint().getDatabase().getUsername());
+		hikariConfig.setPassword(request.getResourceEndpoint().getDatabase().getPassword());
 		hikariConfig.setMaximumPoolSize(64);
 		hikariConfig.setMinimumIdle(16);
 		hikariConfig.setMaxLifetime(10 * 60 * 1000);
@@ -227,7 +233,7 @@ public class PolarisConfigCenter implements ConfigCenter {
 					.build();
 
 			ConfigFilesResponse resp = PolarisRestUtils.createAndPublishConfigFile(restOperator, httpAddresses,
-					request.getConfigEndpoint().getServer().getToken(), fileTemp);
+					request.getResourceEndpoint().getAuthorization().getToken(), fileTemp);
 			if (resp.getCode() != StatusCodes.SUCCESS) {
 				LOG.error("[Polaris][Config] {} publish config namespace={} group={} name={} error={}",
 						request.getSourceName(),

@@ -20,6 +20,7 @@ package cn.polarismesh.polaris.sync.registry.plugins.nacos;
 import cn.polarismesh.polaris.sync.common.rest.RestOperator;
 import cn.polarismesh.polaris.sync.common.rest.RestResponse;
 import cn.polarismesh.polaris.sync.common.rest.RestUtils;
+import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
@@ -48,8 +49,8 @@ public class NacosRestUtils {
     private static final Logger LOG = LoggerFactory.getLogger(NacosRestUtils.class);
 
     public static DiscoverResponse discoverAllNamespaces(AuthResponse authResponse,
-            RestOperator restOperator, RegistryEndpoint registryEndpoint, List<NacosNamespace> namespaces) {
-        String namespacesUrl = NacosEndpointUtils.toNamespacesUrl(registryEndpoint.getAddressesList());
+            RestOperator restOperator, ResourceEndpoint registryEndpoint, List<NacosNamespace> namespaces) {
+        String namespacesUrl = NacosEndpointUtils.toNamespacesUrl(registryEndpoint.getServerAddresses());
         if (StringUtils.hasText(authResponse.getAccessToken())) {
             namespacesUrl += "?accessToken=" + authResponse.getAccessToken();
         }
@@ -81,8 +82,8 @@ public class NacosRestUtils {
     }
 
     public static DiscoverResponse discoverAllServices(AuthResponse authResponse, RestOperator restOperator,
-            RegistryEndpoint endpoint, Service service, int pageno, Integer restCount, List<NacosServiceView> services) {
-        String servicesUrl = NacosEndpointUtils.toServicesUrl(endpoint.getAddressesList());
+            ResourceEndpoint endpoint, Service service, int pageno, Integer restCount, List<NacosServiceView> services) {
+        String servicesUrl = NacosEndpointUtils.toServicesUrl(endpoint.getServerAddresses());
         List<String> parameters = new ArrayList<>();
         if (StringUtils.hasText(authResponse.getAccessToken())) {
             parameters.add(String.format("accessToken=%s", authResponse.getAccessToken()));
@@ -134,8 +135,8 @@ public class NacosRestUtils {
     }
 
     public static void createNamespace(AuthResponse authResponse,
-            RestOperator restOperator, RegistryEndpoint registryEndpoint, String namespace) {
-        String namespacesUrl = NacosEndpointUtils.toNamespacesUrl(registryEndpoint.getAddressesList());
+            RestOperator restOperator, ResourceEndpoint registryEndpoint, String namespace) {
+        String namespacesUrl = NacosEndpointUtils.toNamespacesUrl(registryEndpoint.getServerAddresses());
         if (StringUtils.hasText(authResponse.getAccessToken())) {
             namespacesUrl += "?accessToken=" + authResponse.getAccessToken();
         }
@@ -158,10 +159,10 @@ public class NacosRestUtils {
     }
 
     public static DiscoverResponse auth(RestOperator restOperator,
-            RegistryEndpoint registryEndpoint, AuthResponse authResponse, Service service, DiscoverResponseType type) {
-        String authUrl = NacosEndpointUtils.toAuthUrl(registryEndpoint.getAddressesList());
+            ResourceEndpoint registryEndpoint, AuthResponse authResponse, Service service, DiscoverResponseType type) {
+        String authUrl = NacosEndpointUtils.toAuthUrl(registryEndpoint.getServerAddresses());
         String authMessage = String.format(
-                "username=%s&password=%s", registryEndpoint.getUser(), registryEndpoint.getPassword());
+                "username=%s&password=%s", registryEndpoint.getAuthorization().getUsername(), registryEndpoint.getAuthorization().getPassword());
         HttpMethod method = HttpMethod.POST;
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);

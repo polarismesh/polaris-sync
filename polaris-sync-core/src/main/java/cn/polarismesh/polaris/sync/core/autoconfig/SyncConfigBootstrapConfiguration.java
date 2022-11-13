@@ -17,6 +17,7 @@
 
 package cn.polarismesh.polaris.sync.core.autoconfig;
 
+import cn.polarismesh.polaris.sync.core.server.ConfigSyncServer;
 import cn.polarismesh.polaris.sync.core.server.RegistrySyncServer;
 import cn.polarismesh.polaris.sync.core.taskconfig.SyncConfigProperties;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
@@ -33,12 +34,19 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 public class SyncConfigBootstrapConfiguration {
 
-    @Bean(initMethod = "init", destroyMethod = "destroy", name = "registrySyncServer")
-    public ResourceSyncServer registrySyncServer(
-            SyncRegistryProperties registryProperties,
-            List<RegistryCenter> registryCenters,
-            List<ConfigCenter> configCenters,
-            List<ReportHandler> reportHandlers) {
-        return new RegistrySyncServer(providerManager, registryCenters, configCenters, reportHandlers);
+    @Bean(initMethod = "init", destroyMethod = "destroy")
+    public RegistrySyncServer registrySyncServer(
+            SyncRegistryProperties properties,
+            List<RegistryCenter> centers,
+            List<ReportHandler> reportHandlers) throws Exception {
+        return new RegistrySyncServer(properties, centers, reportHandlers);
+    }
+
+    @Bean(initMethod = "init", destroyMethod = "destroy")
+    public ConfigSyncServer configSyncServer(
+            SyncConfigProperties properties,
+            List<ConfigCenter> centers,
+            List<ReportHandler> reportHandlers) throws Exception {
+        return new ConfigSyncServer(properties, centers, reportHandlers);
     }
 }

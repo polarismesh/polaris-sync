@@ -6,27 +6,41 @@
       "source": {
         "name": "nacos",
         "type": "nacos",
-        "addresses": [
-          "127.0.0.1:8848"
-        ]
+        "server": {
+          "addresses": [
+            "127.0.0.1:8848"
+          ]
+        },
+        "db": {
+          "jdbc_url": "",
+          "username": "",
+          "password": ""
+        }
       },
       "destination": {
         "name": "polaris",
         "type": "polaris",
-        "token": "nu/0WRA4EqSR1FagrjRj0fZwPXuGlMpX+zCuWu4uMqy8xr1vRjisSbA25aAC3mtU8MeeRsKhQiDAynUR09I=",
-        "addresses": [
-          "http://127.0.0.1:8090",
-          "grpc://127.0.0.1:8091"
-        ]
+        "server": {
+          "addresses": [
+            "http://127.0.0.1:8090",
+            "grpc://127.0.0.1:8091"
+          ],
+          "token": "nu/0WRA4EqSR1FagrjRj0fZwPXuGlMpX+zCuWu4uMqy8xr1vRjisSbA25aAC3mtU8MeeRsKhQiDAynUR09I="
+        },
+        "db": {
+          "jdbc_url": "",
+          "username": "",
+          "password": ""
+        }
       },
       "match": [
         {
           "namespace": "atom-ns1",
-          "service": "nacos.test.3"
+          "config_group": "nacos.test.3"
         },
         {
           "namespace": "atom-ns1",
-          "service": "nacos.test.4"
+          "config_group": "nacos.test.4"
         }
       ]
     },
@@ -36,27 +50,43 @@
       "source": {
         "name": "polaris",
         "type": "polaris",
-        "token": "nu/0WRA4EqSR1FagrjRj0fZwPXuGlMpX+zCuWu4uMqy8xr1vRjisSbA25aAC3mtU8MeeRsKhQiDAynUR09I=",
-        "addresses": [
-          "http://127.0.0.1:8090",
-          "grpc://127.0.0.1:8091"
-        ]
+        "server": {
+          "token": "nu/0WRA4EqSR1FagrjRj0fZwPXuGlMpX+zCuWu4uMqy8xr1vRjisSbA25aAC3mtU8MeeRsKhQiDAynUR09I=",
+          "addresses": [
+            "http://127.0.0.1:8090",
+            "grpc://127.0.0.1:8091"
+          ]
+        },
+        "db": {
+          "jdbc_url": "",
+          "username": "",
+          "password": ""
+        }
       },
       "destination": {
         "name": "nacos",
         "type": "nacos",
-        "addresses": [
-          "127.0.0.1:8848"
-        ]
+        "server": {
+          "addresses": [
+            "127.0.0.1:8848"
+          ],
+          "user": "nacos",
+          "password": "nacos"
+        },
+        "db": {
+          "jdbc_url": "",
+          "username": "",
+          "password": ""
+        }
       },
       "match": [
         {
           "namespace": "atom-ns1",
-          "service": "nacos.test.3"
+          "config_group": "nacos.test.3"
         },
         {
           "namespace": "atom-ns1",
-          "service": "nacos.test.4"
+          "config_group": "nacos.test.4"
         }
       ]
     }

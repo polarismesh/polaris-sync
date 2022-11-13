@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
-import cn.polarismesh.polaris.sync.core.utils.RegistryUtils;
+import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.core.utils.TaskUtils;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
@@ -49,7 +49,7 @@ public class PullTask implements Runnable {
 		this.source = source;
 		this.destination = destination;
 		for (SyncTask.Match match : matches) {
-			if (RegistryUtils.isEmptyMatch(match)) {
+			if (ConfigUtils.isEmptyMatch(match)) {
 				continue;
 			}
 			serviceToGroups.put(

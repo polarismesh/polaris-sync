@@ -33,22 +33,14 @@ import java.util.concurrent.TimeUnit;
 
 import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
 import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
-import cn.polarismesh.polaris.sync.core.tasks.registry.NamedRegistryCenter;
-import cn.polarismesh.polaris.sync.core.tasks.registry.PullTask;
-import cn.polarismesh.polaris.sync.core.tasks.registry.RegistryTaskEngine;
-import cn.polarismesh.polaris.sync.core.tasks.registry.UnwatchTask;
-import cn.polarismesh.polaris.sync.core.tasks.registry.WatchTask;
 import cn.polarismesh.polaris.sync.core.utils.CommonUtils;
+import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.core.utils.DurationUtils;
-import cn.polarismesh.polaris.sync.core.utils.RegistryUtils;
 import cn.polarismesh.polaris.sync.extension.InitRequest;
 import cn.polarismesh.polaris.sync.extension.ResourceCenter;
 import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
 import cn.polarismesh.polaris.sync.extension.ResourceType;
-import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
-import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.model.pb.ModelProto;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +50,7 @@ import org.springframework.util.CollectionUtils;
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public abstract class AbstractTaskEngine<T extends SyncTask> {
+public abstract class AbstractTaskEngine<C extends ResourceCenter, T extends SyncTask> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(cn.polarismesh.polaris.sync.core.tasks.registry.RegistryTaskEngine.class);
 
@@ -70,15 +62,15 @@ public abstract class AbstractTaskEngine<T extends SyncTask> {
 
 	protected final ExecutorService reloadExecutor;
 
-	private final Map<SyncTask.Match, Future<?>> watchTasks = new ConcurrentHashMap<>();
+	protected final Map<SyncTask.Match, Future<?>> watchTasks = new ConcurrentHashMap<>();
 
-	private final Map<String, ScheduledFuture<?>> pulledTasks = new HashMap<>();
+	protected final Map<String, ScheduledFuture<?>> pulledTasks = new HashMap<>();
 
 	private List<T> tasks;
 
 	private List<ModelProto.Method> methods;
 
-	private final Map<String, ResourceSet> resources = new HashMap<>();
+	private final Map<String, ResourceSet<C>> resources = new HashMap<>();
 
 	protected final Map<ResourceType, Class<? extends ResourceCenter>> typeClassMap = new HashMap<>();
 
@@ -167,13 +159,13 @@ public abstract class AbstractTaskEngine<T extends SyncTask> {
 	}
 
 	private void addPullTask(T task, long intervalMilli) {
-		ResourceSet resourceSet = getOrCreateResourceSet(task);
+		ResourceSet<C> resourceSet = getOrCreateResourceSet(task);
 		if (Objects.isNull(resourceSet)) {
 			LOG.error("[Core] registry adding pull task {}, fail to init registry", task.getName());
 			return;
 		}
-		NamedResourceCenter source = resourceSet.getSource();
-		NamedResourceCenter dest = resourceSet.getDest();
+		NamedResourceCenter<C> source = resourceSet.getSource();
+		NamedResourceCenter<C> dest = resourceSet.getDest();
 		Runnable pull = buildPullTask(source, dest, task.getMatchList());
 		ScheduledFuture<?> future = pullExecutor
 				.scheduleWithFixedDelay(pull, 0, intervalMilli, TimeUnit.MILLISECONDS);
@@ -181,18 +173,18 @@ public abstract class AbstractTaskEngine<T extends SyncTask> {
 		LOG.info("[Core] registry task {} has been scheduled pulled", task.getName());
 	}
 
-	protected abstract Runnable buildPullTask(NamedResourceCenter source, NamedResourceCenter dest, List<SyncTask.Match> matches);
+	protected abstract Runnable buildPullTask(NamedResourceCenter<C> source, NamedResourceCenter<C> dest, List<SyncTask.Match> matches);
 
 	private void addWatchTask(T task) {
-		ResourceSet resourceSet = getOrCreateResourceSet(task);
+		ResourceSet<C> resourceSet = getOrCreateResourceSet(task);
 		if (Objects.isNull(resourceSet)) {
 			LOG.error("[Core] registry adding watch task {}, fail to init registry", task.getName());
 			return;
 		}
-		NamedResourceCenter source = resourceSet.getSource();
-		NamedResourceCenter dest = resourceSet.getDest();
+		NamedResourceCenter<C> source = resourceSet.getSource();
+		NamedResourceCenter<C> dest = resourceSet.getDest();
 		for (SyncTask.Match match : task.getMatchList()) {
-			if (RegistryUtils.isEmptyMatch(match)) {
+			if (ConfigUtils.isEmptyMatch(match)) {
 				continue;
 			}
 			Runnable watchTask = buildWatchTask(source, dest, match);
@@ -202,7 +194,7 @@ public abstract class AbstractTaskEngine<T extends SyncTask> {
 		}
 	}
 
-	protected abstract Runnable buildWatchTask(NamedResourceCenter source, NamedResourceCenter dest, SyncTask.Match match);
+	protected abstract Runnable buildWatchTask(NamedResourceCenter<C> source, NamedResourceCenter<C> dest, SyncTask.Match match);
 
 	protected int[] deleteTask(T task, List<ModelProto.Method> methods) {
 		int watchTasks = 0;
@@ -243,13 +235,13 @@ public abstract class AbstractTaskEngine<T extends SyncTask> {
 
 	private void deleteWatchTask(T task) {
 		ResourceEndpoint source = task.getSource();
-		NamedResourceCenter center = getResource(task.getName()).getSource();
+		NamedResourceCenter<C> center = getResource(task.getName()).getSource();
 		if (Objects.isNull(center)) {
 			for (SyncTask.Match match : task.getMatchList()) {
-				if (RegistryUtils.isEmptyMatch(match)) {
+				if (ConfigUtils.isEmptyMatch(match)) {
 					continue;
 				}
-				Runnable unwatchTask = buildUnWatchTask(center.getCenter(), match);
+				Runnable unwatchTask = buildUnWatchTask(center, match);
 				Future<?> future = watchTasks.remove(match);
 				if (null != future) {
 					future.cancel(true);
@@ -260,11 +252,13 @@ public abstract class AbstractTaskEngine<T extends SyncTask> {
 		}
 	}
 
-	protected abstract Runnable buildUnWatchTask(ResourceCenter center, SyncTask.Match match);
+	protected abstract Runnable buildUnWatchTask(NamedResourceCenter<C> center, SyncTask.Match match);
 
 	protected abstract void verifyTask(List<T> tasks , List<ModelProto.Method> methods);
 
-	protected final void reload(List<T> tasks, List<ModelProto.Method> methods) {
+	public final void reload(List<T> tasks, List<ModelProto.Method> methods) {
+		verifyTask(tasks, methods);
+
 		synchronized (configLock) {
 			int watchTasksAdded = 0;
 			int pullTasksAdded = 0;
@@ -353,50 +347,50 @@ public abstract class AbstractTaskEngine<T extends SyncTask> {
 
 	protected abstract InitRequest buildInitRequest(String sourceName, ResourceType resourceType, ResourceEndpoint endpoint);
 
-	private ResourceSet getOrCreateResourceSet(SyncTask task) {
-		ResourceSet resourceSet = resources.get(task.getName());
+	private ResourceSet<C> getOrCreateResourceSet(SyncTask task) {
+		ResourceSet<C> resourceSet = resources.get(task.getName());
 		if (Objects.nonNull(resourceSet)) {
 			return resourceSet;
 		}
 		ResourceEndpoint source = task.getSource();
 		ResourceEndpoint destination = task.getDestination();
-		ResourceCenter sourceCenter = createResource(source.getResourceType());
+		C sourceCenter = createResource(source.getResourceType());
 		if (null == sourceCenter) {
 			return null;
 		}
-		ResourceCenter destinationCenter = createResource(destination.getResourceType());
+		C destinationCenter = createResource(destination.getResourceType());
 		if (null == destinationCenter) {
 			return null;
 		}
 		sourceCenter.init(buildInitRequest("", ResourceType.UNKNOWN, source));
 		destinationCenter.init(buildInitRequest(source.getName(), source.getResourceType(), destination));
-		resourceSet = new ResourceSet(new NamedResourceCenter(
+		resourceSet = new ResourceSet<>(new NamedResourceCenter<C>(
 				source.getName(), source.getProductName(), sourceCenter),
-				new NamedResourceCenter(destination.getName(), destination.getProductName(), destinationCenter));
+				new NamedResourceCenter<C>(destination.getName(), destination.getProductName(), destinationCenter));
 		resources.put(task.getName(), resourceSet);
 		return resourceSet;
 	}
 
-	private ResourceCenter createResource(ResourceType resourceType) {
+	private C createResource(ResourceType resourceType) {
 		Class<? extends ResourceCenter> registryClazz = typeClassMap.get(resourceType);
-		ResourceCenter center;
+		C center;
 		try {
-			center = registryClazz.newInstance();
+			center = (C) registryClazz.newInstance();
 		} catch (Exception e) {
 			LOG.error("[Core] fail to create instance for class {}", registryClazz.getCanonicalName(), e);
 			return null;
 		}
-		return center;
+		return (C) center;
 	}
 
-	public ResourceSet getResource(String taskName) {
+	public ResourceSet<C> getResource(String taskName) {
 		synchronized (configLock) {
 			return resources.get(taskName);
 		}
 	}
 
-	public NamedResourceCenter getResourceCenter(String taskName, String name) {
-		ResourceSet resource = getResource(taskName);
+	public NamedResourceCenter<C> getResourceCenter(String taskName, String name) {
+		ResourceSet<C> resource = getResource(taskName);
 		if (Objects.isNull(resource)) {
 			return null;
 		}
@@ -447,22 +441,22 @@ public abstract class AbstractTaskEngine<T extends SyncTask> {
 		}
 	}
 
-	public static class ResourceSet {
+	public static class ResourceSet<C extends ResourceCenter> {
 
-		private final NamedResourceCenter source;
+		private final NamedResourceCenter<C> source;
 
-		private final NamedResourceCenter dest;
+		private final NamedResourceCenter<C> dest;
 
-		public ResourceSet(NamedResourceCenter source, NamedResourceCenter dest) {
+		public ResourceSet(NamedResourceCenter<C> source, NamedResourceCenter<C> dest) {
 			this.source = source;
 			this.dest = dest;
 		}
 
-		public NamedResourceCenter getSource() {
+		public NamedResourceCenter<C> getSource() {
 			return source;
 		}
 
-		public NamedResourceCenter getDest() {
+		public NamedResourceCenter<C> getDest() {
 			return dest;
 		}
 

@@ -95,7 +95,7 @@ public class ConfigUtils {
 		return CommonUtils.verifyMethod(hasTask, methods);
 	}
 
-	private static boolean verifyMatch(List<SyncTask.Match> matches, String taskName) {
+	public static boolean verifyMatch(List<SyncTask.Match> matches, String taskName) {
 		if (CollectionUtils.isEmpty(matches)) {
 			return true;
 		}

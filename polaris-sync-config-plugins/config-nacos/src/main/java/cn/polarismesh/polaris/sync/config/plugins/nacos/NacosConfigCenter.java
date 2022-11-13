@@ -37,6 +37,8 @@ import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.config.plugins.nacos.mapper.ConfigFileMapper;
 import cn.polarismesh.polaris.sync.config.plugins.nacos.model.AuthResponse;
 import cn.polarismesh.polaris.sync.config.plugins.nacos.model.NacosNamespace;
+import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
+import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.extension.config.SubscribeDbChangeTask;
 import cn.polarismesh.polaris.sync.extension.Health;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
@@ -46,8 +48,6 @@ import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
 import cn.polarismesh.polaris.sync.extension.config.ConfigInitRequest;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ConfigEndpoint.ConfigType;
 import com.alibaba.nacos.api.NacosFactory;
 import com.alibaba.nacos.api.config.ConfigService;
 import com.alibaba.nacos.api.exception.NacosException;
@@ -66,7 +66,7 @@ import org.springframework.util.CollectionUtils;
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
 @Component
-public class NacosConfigCenter implements ConfigCenter {
+public class NacosConfigCenter implements ConfigCenter<ConfigInitRequest> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NacosConfigCenter.class);
 
@@ -74,7 +74,7 @@ public class NacosConfigCenter implements ConfigCenter {
 
 	private final AtomicBoolean destroyed = new AtomicBoolean(false);
 
-	private ConfigInitRequest configInitRequest;
+	private ConfigInitRequest request;
 
 	private final RestOperator restOperator = new RestOperator();
 
@@ -85,23 +85,28 @@ public class NacosConfigCenter implements ConfigCenter {
 	private Set<SubscribeDbChangeTask> watchFileTasks = new HashSet<>();
 
 	@Override
-	public ConfigType getType() {
-		return ConfigType.nacos;
+	public String getName() {
+		return getType().name();
+	}
+
+	@Override
+	public ResourceType getType() {
+		return ResourceType.NACOS;
 	}
 
 	@Override
 	public void init(ConfigInitRequest request) {
-		configInitRequest = request;
+		request = request;
 		initDatabaseOperator();
 	}
 
 	private void initDatabaseOperator() {
 		HikariConfig hikariConfig = new HikariConfig();
 		hikariConfig.setDriverClassName("com.mysql.cj.jdbc.Driver");
-		hikariConfig.setPoolName(configInitRequest.getSourceName());
-		hikariConfig.setJdbcUrl(configInitRequest.getConfigEndpoint().getDb().getJdbcUrl());
-		hikariConfig.setUsername(configInitRequest.getConfigEndpoint().getDb().getUsername());
-		hikariConfig.setPassword(configInitRequest.getConfigEndpoint().getDb().getPassword());
+		hikariConfig.setPoolName(request.getSourceName());
+		hikariConfig.setJdbcUrl(request.getResourceEndpoint().getDatabase().getJdbcUrl());
+		hikariConfig.setUsername(request.getResourceEndpoint().getDatabase().getUsername());
+		hikariConfig.setPassword(request.getResourceEndpoint().getDatabase().getPassword());
 		hikariConfig.setMaximumPoolSize(64);
 		hikariConfig.setMinimumIdle(16);
 		hikariConfig.setMaxLifetime(10 * 60 * 1000);
@@ -114,7 +119,7 @@ public class NacosConfigCenter implements ConfigCenter {
 
 	private void buildWatchTask() {
 		watchFileTasks = new HashSet<>();
-		SubscribeDbChangeTask watchFile = new SubscribeDbChangeTask(configInitRequest.getSourceName(), date -> {
+		SubscribeDbChangeTask watchFile = new SubscribeDbChangeTask(request.getSourceName(), date -> {
 			String query = ConfigFileMapper.getInstance().getMoreSqlTemplate(Objects.isNull(date));
 			List<ConfigFile> files = Collections.emptyList();
 			if (Objects.isNull(date)) {
@@ -151,13 +156,13 @@ public class NacosConfigCenter implements ConfigCenter {
 
 	@Override
 	public ResponseProto.DiscoverResponse listNamespaces() {
-		RegistryProto.ConfigEndpoint configEndpoint = configInitRequest.getConfigEndpoint();
+		ResourceEndpoint endpoint = request.getResourceEndpoint();
 		AuthResponse authResponse = new AuthResponse();
 		// 1. 先进行登录
-		if (StringUtils.isNotBlank(configEndpoint.getServer().getUser()) && StringUtils.isNotBlank(
-				configEndpoint.getServer().getPassword())) {
+		if (StringUtils.isNotBlank(request.getResourceEndpoint().getAuthorization().getUsername()) && StringUtils.isNotBlank(
+				endpoint.getAuthorization().getPassword())) {
 			ResponseProto.DiscoverResponse discoverResponse = NacosRestUtils.auth(
-					restOperator, configEndpoint.getServer(), authResponse, null,
+					restOperator, endpoint, authResponse, null,
 					ResponseProto.DiscoverResponse.DiscoverResponseType.NAMESPACES);
 			if (null != discoverResponse) {
 				return discoverResponse;
@@ -166,7 +171,7 @@ public class NacosConfigCenter implements ConfigCenter {
 		//2. 查询命名空间是否已经创建
 		List<NacosNamespace> nacosNamespaces = new ArrayList<>();
 		ResponseProto.DiscoverResponse discoverResponse = NacosRestUtils
-				.discoverAllNamespaces(authResponse, restOperator, configEndpoint.getServer(), nacosNamespaces);
+				.discoverAllNamespaces(authResponse, restOperator, endpoint, nacosNamespaces);
 		if (null != discoverResponse) {
 			return discoverResponse;
 		}
@@ -226,13 +231,13 @@ public class NacosConfigCenter implements ConfigCenter {
 			return;
 		}
 
-		RegistryProto.ConfigEndpoint.Server server  = configInitRequest.getConfigEndpoint().getServer();
+		ResourceEndpoint endpoint = request.getResourceEndpoint();
 		AuthResponse authResponse = new AuthResponse();
 		// 1. 先进行登录
-		if (StringUtils.hasText(server.getUser()) && StringUtils.hasText(
-				server.getPassword())) {
+		if (StringUtils.hasText(endpoint.getAuthorization().getUsername()) && StringUtils.hasText(
+				endpoint.getAuthorization().getPassword())) {
 			ResponseProto.DiscoverResponse discoverResponse = NacosRestUtils.auth(
-					restOperator, server, authResponse, null, ResponseProto.DiscoverResponse.DiscoverResponseType.NAMESPACES);
+					restOperator, endpoint, authResponse, null, ResponseProto.DiscoverResponse.DiscoverResponseType.NAMESPACES);
 			if (null != discoverResponse) {
 				return;
 			}
@@ -240,7 +245,7 @@ public class NacosConfigCenter implements ConfigCenter {
 		//2. 查询命名空间是否已经创建
 		List<NacosNamespace> nacosNamespaces = new ArrayList<>();
 		ResponseProto.DiscoverResponse discoverResponse = NacosRestUtils
-				.discoverAllNamespaces(authResponse, restOperator, server, nacosNamespaces);
+				.discoverAllNamespaces(authResponse, restOperator, endpoint, nacosNamespaces);
 		if (null == discoverResponse) {
 			return;
 		}
@@ -253,7 +258,7 @@ public class NacosConfigCenter implements ConfigCenter {
 		//3. 新增命名空间
 		LOG.info("[Nacos][Config] namespaces to add {}", namespaceIds);
 		for (String namespaceId : namespaceIds) {
-			NacosRestUtils.createNamespace(authResponse, restOperator, server, namespaceId);
+			NacosRestUtils.createNamespace(authResponse, restOperator, endpoint, namespaceId);
 		}
 	}
 
@@ -271,7 +276,7 @@ public class NacosConfigCenter implements ConfigCenter {
 			ConfigService configService = getOrCreateConfigService(ns);
 			if (null == configService) {
 				LOG.error("[Nacos][Config] fail to lookup configService for group {}, config {}",
-						group, configInitRequest.getSourceName());
+						group, request.getSourceName());
 				return;
 			}
 			try {
@@ -279,13 +284,13 @@ public class NacosConfigCenter implements ConfigCenter {
 						file.getContent());
 				if (!ok) {
 					LOG.warn("[Nacos][Config] {} publish config not success namespace={} group={} name={} ",
-							configInitRequest.getSourceName(),
+							request.getSourceName(),
 							group.getNamespace(), group.getName(), file.getFileName());
 				}
 			}
 			catch (NacosException e) {
 				LOG.error("[Nacos][Config] {} publish config namespace={} group={} name={} ",
-						configInitRequest.getSourceName(),
+						request.getSourceName(),
 						group.getNamespace(), group.getName(), file.getFileName(), e);
 			}
 		});
@@ -297,20 +302,20 @@ public class NacosConfigCenter implements ConfigCenter {
 			return configService;
 		}
 		synchronized (this) {
-			RegistryProto.ConfigEndpoint.Server server = configInitRequest.getConfigEndpoint().getServer();
+			ResourceEndpoint endpoint = request.getResourceEndpoint();
 			configService = ns2ConfigService.get(namespace);
 			if (null != configService) {
 				return configService;
 			}
-			String address = String.join(",", server.getAddressesList());
+			String address = String.join(",", endpoint.getServerAddresses());
 			Properties properties = new Properties();
 			properties.setProperty("serverAddr", address);
 			properties.setProperty("namespace", toNamespaceId(namespace));
-			if (StringUtils.hasText(server.getUser())) {
-				properties.setProperty("username", server.getUser());
+			if (StringUtils.hasText(endpoint.getAuthorization().getUsername())) {
+				properties.setProperty("username", endpoint.getAuthorization().getUsername());
 			}
-			if (StringUtils.hasText(server.getPassword())) {
-				properties.setProperty("password", server.getPassword());
+			if (StringUtils.hasText(endpoint.getAuthorization().getPassword())) {
+				properties.setProperty("password", endpoint.getAuthorization().getPassword());
 			}
 			try {
 				configService = NacosFactory.createConfigService(properties);

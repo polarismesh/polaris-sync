@@ -24,12 +24,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
 import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.core.utils.TaskUtils;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFilesResponse;
 import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,21 +43,21 @@ public class PullTask implements Runnable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(cn.polarismesh.polaris.sync.core.tasks.registry.PullTask.class);
 
-	private final Map<ConfigGroup, Collection<RegistryProto.Group>> configGroupToMatchGroups = new HashMap<>();
+	private final Map<ConfigGroup, Collection<ModelProto.Group>> configGroupToMatchGroups = new HashMap<>();
 
 	private final NamedConfigCenter source;
 
 	private final NamedConfigCenter destination;
 
-	public PullTask(NamedConfigCenter source, NamedConfigCenter destination, List<RegistryProto.ConfigMatch> matches) {
+	public PullTask(NamedConfigCenter source, NamedConfigCenter destination, List<SyncTask.Match> matches) {
 		this.source = source;
 		this.destination = destination;
-		for (RegistryProto.ConfigMatch match : matches) {
+		for (SyncTask.Match match : matches) {
 			if (ConfigUtils.isEmptyMatch(match)) {
 				continue;
 			}
 			configGroupToMatchGroups.put(
-					new ConfigGroup(match.getNamespace(), match.getConfigGroup()), TaskUtils.verifyGroups(match.getGroupsList()));
+					new ConfigGroup(match.getNamespace(), match.getName()), TaskUtils.verifyGroups(match.getGroups()));
 		}
 	}
 
@@ -67,9 +69,9 @@ public class PullTask implements Runnable {
 			destination.getConfigCenter().updateGroups(configGroupToMatchGroups.keySet());
 
 			// check instances
-			for (Map.Entry<ConfigGroup, Collection<RegistryProto.Group>> entry : configGroupToMatchGroups.entrySet()) {
+			for (Map.Entry<ConfigGroup, Collection<ModelProto.Group>> entry : configGroupToMatchGroups.entrySet()) {
 				ConfigGroup configGroup = entry.getKey();
-				for (RegistryProto.Group group : entry.getValue()) {
+				for (ModelProto.Group group : entry.getValue()) {
 					ConfigFilesResponse response = source.getConfigCenter().listConfigFile(configGroup);
 					if (response.getCode() != StatusCodes.SUCCESS) {
 						LOG.warn("[Core][Pull] config fail to list service in source {}, type {}, group {}, code is {}",

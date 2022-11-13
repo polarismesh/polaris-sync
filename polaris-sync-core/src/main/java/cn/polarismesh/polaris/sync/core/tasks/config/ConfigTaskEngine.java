@@ -28,6 +28,7 @@ import cn.polarismesh.polaris.sync.extension.ResourceCenter;
 import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
 import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
+import cn.polarismesh.polaris.sync.extension.config.ConfigInitRequest;
 import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +36,7 @@ import org.slf4j.LoggerFactory;
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public class ConfigTaskEngine extends AbstractTaskEngine<ConfigSyncTask> {
+public class ConfigTaskEngine extends AbstractTaskEngine<ConfigCenter, ConfigSyncTask> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ConfigTaskEngine.class);
 
@@ -47,19 +48,35 @@ public class ConfigTaskEngine extends AbstractTaskEngine<ConfigSyncTask> {
 	}
 
 	@Override
-	protected Runnable buildPullTask(NamedResourceCenter source, NamedResourceCenter dest, List<SyncTask.Match> matches) {
-		return null;
+	protected Runnable buildPullTask(NamedResourceCenter<ConfigCenter> source, NamedResourceCenter<ConfigCenter> dest, List<SyncTask.Match> matches) {
+		PullTask pullTask = new PullTask(
+				new NamedConfigCenter(source.getName(), source.getProductName(), source.getCenter()),
+				new NamedConfigCenter(dest.getName(), dest.getProductName(), dest.getCenter()),
+				matches
+		);
+		return pullTask;
 	}
 
 	@Override
-	protected Runnable buildWatchTask(NamedResourceCenter source, NamedResourceCenter dest, SyncTask.Match match) {
-		return null;
+	protected Runnable buildWatchTask(NamedResourceCenter<ConfigCenter> source, NamedResourceCenter<ConfigCenter> dest, SyncTask.Match match) {
+		return new WatchTask(
+				watchTasks,
+				new NamedConfigCenter(source.getName(), source.getProductName(), source.getCenter()),
+				new NamedConfigCenter(dest.getName(), dest.getProductName(), dest.getCenter()),
+				match,
+				watchExecutor,
+				watchExecutor
+		);
 	}
 
 	@Override
-	protected Runnable buildUnWatchTask(ResourceCenter center, SyncTask.Match match) {
-		return null;
+	protected Runnable buildUnWatchTask(NamedResourceCenter<ConfigCenter> center, SyncTask.Match match) {
+		return new UnwatchTask(
+				new NamedConfigCenter(center.getName(), center.getProductName(), center.getCenter()),
+				match
+		);
 	}
+
 
 	@Override
 	protected void verifyTask(List<ConfigSyncTask> tasks, List<ModelProto.Method> methods) {
@@ -70,6 +87,6 @@ public class ConfigTaskEngine extends AbstractTaskEngine<ConfigSyncTask> {
 
 	@Override
 	protected InitRequest buildInitRequest(String sourceName, ResourceType resourceType, ResourceEndpoint endpoint) {
-		return null;
+		return new ConfigInitRequest(sourceName, resourceType, endpoint);
 	}
 }

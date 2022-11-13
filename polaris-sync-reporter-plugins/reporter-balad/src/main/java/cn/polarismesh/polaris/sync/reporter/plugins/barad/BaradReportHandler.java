@@ -23,8 +23,8 @@ import cn.polarismesh.polaris.sync.common.rest.RestUtils;
 import cn.polarismesh.polaris.sync.extension.report.RegistryHealthStatus;
 import cn.polarismesh.polaris.sync.extension.report.ReportHandler;
 import cn.polarismesh.polaris.sync.extension.report.StatInfo;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.ReportTarget.TargetType;
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
+import cn.polarismesh.polaris.sync.model.pb.ModelProto.ReportTarget.TargetType;
 import cn.polarismesh.polaris.sync.reporter.plugins.barad.model.Batch;
 import cn.polarismesh.polaris.sync.reporter.plugins.barad.model.Metric;
 import java.util.ArrayList;
@@ -60,7 +60,7 @@ public class BaradReportHandler  implements ReportHandler {
     }
 
     @Override
-    public void init(ReportTarget reportTarget) {
+    public void init(ModelProto.ReportTarget reportTarget) {
         Map<String, String> optionsMap = reportTarget.getOptionsMap();
         if (optionsMap.containsKey(ReportOptions.KEY_URL)) {
             url = String.format("http://%s", optionsMap.get(ReportOptions.KEY_URL));

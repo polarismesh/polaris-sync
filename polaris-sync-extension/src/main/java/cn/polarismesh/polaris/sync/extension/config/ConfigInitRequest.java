@@ -17,28 +17,28 @@
 
 package cn.polarismesh.polaris.sync.extension.config;
 
-import cn.polarismesh.polaris.sync.config.pb.ConfigProto;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
+import cn.polarismesh.polaris.sync.extension.InitRequest;
+import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
+import cn.polarismesh.polaris.sync.extension.ResourceType;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public class ConfigInitRequest {
+public class ConfigInitRequest implements InitRequest {
 
 	private final String sourceName;
 
-	private final ConfigProto.ConfigEndpoint.ConfigType sourceType;
+	private final ResourceType sourceType;
 
-	private final ConfigProto.ConfigEndpoint configEndpoint;
+	private final ResourceEndpoint configEndpoint;
 
-	public ConfigInitRequest(String sourceName, ConfigProto.ConfigEndpoint.ConfigType sourceType,
-			ConfigProto.ConfigEndpoint configEndpoint) {
+	public ConfigInitRequest(String sourceName, ResourceType sourceType, ResourceEndpoint configEndpoint) {
 		this.sourceName = sourceName;
 		this.sourceType = sourceType;
 		this.configEndpoint = configEndpoint;
 	}
 
-	public ConfigProto.ConfigEndpoint.ConfigType getSourceType() {
+	public ResourceType getSourceType() {
 		return sourceType;
 	}
 
@@ -46,7 +46,8 @@ public class ConfigInitRequest {
 		return sourceName;
 	}
 
-	public ConfigProto.ConfigEndpoint getConfigEndpoint() {
+	@Override
+	public ResourceEndpoint getResourceEndpoint() {
 		return configEndpoint;
 	}
 }

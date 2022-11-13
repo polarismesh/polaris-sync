@@ -54,7 +54,7 @@ message ConfigEndpoint {
   }
 
   message DB {
-    string jdbc_url = 1;
+    string jdbc_url = 1 [json_name = "jdbc_url"];
 
     string username = 2;
 
@@ -74,7 +74,7 @@ message Match {
 
   string namespace = 1;
 
-  string config_group = 2;
+  string config_group = 2 [json_name = "product_name"];
 
   repeated v1.Group groups = 3;
 }

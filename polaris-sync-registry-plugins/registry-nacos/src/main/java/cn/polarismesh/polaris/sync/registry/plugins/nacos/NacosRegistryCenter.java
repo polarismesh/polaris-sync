@@ -20,6 +20,8 @@ package cn.polarismesh.polaris.sync.registry.plugins.nacos;
 import cn.polarismesh.polaris.sync.common.rest.HostAndPort;
 import cn.polarismesh.polaris.sync.common.rest.RestOperator;
 import cn.polarismesh.polaris.sync.extension.Health;
+import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
+import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
@@ -28,9 +30,7 @@ import cn.polarismesh.polaris.sync.common.utils.CommonUtils;
 import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import cn.polarismesh.polaris.sync.registry.plugins.nacos.model.AuthResponse;
 import cn.polarismesh.polaris.sync.registry.plugins.nacos.model.NacosNamespace;
 import cn.polarismesh.polaris.sync.registry.plugins.nacos.model.NacosServiceView;
@@ -84,8 +84,13 @@ public class NacosRegistryCenter implements RegistryCenter {
     private final RestOperator restOperator = new RestOperator();
 
     @Override
-    public RegistryType getType() {
-        return RegistryType.nacos;
+    public String getName() {
+        return getType().name();
+    }
+
+    @Override
+    public ResourceType getType() {
+        return ResourceType.NACOS;
     }
 
     @Override
@@ -101,18 +106,18 @@ public class NacosRegistryCenter implements RegistryCenter {
                 entry.getValue().shutDown();
             } catch (NacosException e) {
                 LOG.error("[Nacos] fail to shutdown namingService {}, name {}",
-                        entry.getKey(), registryInitRequest.getRegistryEndpoint().getName(), e);
+                        entry.getKey(), registryInitRequest.getResourceEndpoint().getName(), e);
             }
         }
     }
 
     @Override
     public DiscoverResponse listNamespaces() {
-        RegistryEndpoint registryEndpoint = registryInitRequest.getRegistryEndpoint();
+        ResourceEndpoint registryEndpoint = registryInitRequest.getResourceEndpoint();
         AuthResponse authResponse = new AuthResponse();
         // 1. 先进行登录
-        if (StringUtils.hasText(registryEndpoint.getUser()) && StringUtils.hasText(
-                registryEndpoint.getPassword())) {
+        if (StringUtils.hasText(registryEndpoint.getAuthorization().getUsername()) && StringUtils.hasText(
+                registryEndpoint.getAuthorization().getPassword())) {
             DiscoverResponse discoverResponse = NacosRestUtils.auth(
                     restOperator, registryEndpoint, authResponse, null, DiscoverResponseType.NAMESPACES);
             if (null != discoverResponse) {
@@ -142,11 +147,11 @@ public class NacosRegistryCenter implements RegistryCenter {
         if (null == namingService) {
             return ResponseUtils.toConnectException(service, DiscoverResponseType.SERVICES);
         }
-        RegistryEndpoint registryEndpoint = registryInitRequest.getRegistryEndpoint();
+        ResourceEndpoint registryEndpoint = registryInitRequest.getResourceEndpoint();
         AuthResponse authResponse = new AuthResponse();
         // 1. 先进行登录
-        if (StringUtils.hasText(registryEndpoint.getUser()) && StringUtils.hasText(
-                registryEndpoint.getPassword())) {
+        if (StringUtils.hasText(registryEndpoint.getAuthorization().getUsername()) && StringUtils.hasText(
+                registryEndpoint.getAuthorization().getPassword())) {
             DiscoverResponse discoverResponse = NacosRestUtils.auth(
                     restOperator, registryEndpoint, authResponse, service, DiscoverResponseType.SERVICES);
             if (null != discoverResponse) {
@@ -192,20 +197,20 @@ public class NacosRegistryCenter implements RegistryCenter {
             return namingService;
         }
         synchronized (lock) {
-            RegistryEndpoint registryEndpoint = registryInitRequest.getRegistryEndpoint();
+            ResourceEndpoint registryEndpoint = registryInitRequest.getResourceEndpoint();
             namingService = ns2NamingService.get(namespace);
             if (null != namingService) {
                 return namingService;
             }
-            String address = String.join(",", registryEndpoint.getAddressesList());
+            String address = String.join(",", registryEndpoint.getServerAddresses());
             Properties properties = new Properties();
             properties.setProperty("serverAddr", address);
             properties.setProperty("namespace", toNamespaceId(namespace));
-            if (StringUtils.hasText(registryEndpoint.getUser())) {
-                properties.setProperty("username", registryEndpoint.getUser());
+            if (StringUtils.hasText(registryEndpoint.getAuthorization().getUsername())) {
+                properties.setProperty("username", registryEndpoint.getAuthorization().getUsername());
             }
-            if (StringUtils.hasText(registryEndpoint.getPassword())) {
-                properties.setProperty("password", registryEndpoint.getPassword());
+            if (StringUtils.hasText(registryEndpoint.getAuthorization().getPassword())) {
+                properties.setProperty("password", registryEndpoint.getAuthorization().getPassword());
             }
             try {
                 namingService = NacosFactory.createNamingService(properties);
@@ -252,8 +257,8 @@ public class NacosRegistryCenter implements RegistryCenter {
     }
 
     @Override
-    public DiscoverResponse listInstances(Service service, Group group) {
-        RegistryEndpoint registryEndpoint = registryInitRequest.getRegistryEndpoint();
+    public DiscoverResponse listInstances(Service service, ModelProto.Group group) {
+        ResourceEndpoint registryEndpoint = registryInitRequest.getResourceEndpoint();
         List<Instance> allInstances = queryNacosInstances(service, registryEndpoint.getName());
         if (null == allInstances) {
             return ResponseUtils.toConnectException(service);
@@ -265,7 +270,7 @@ public class NacosRegistryCenter implements RegistryCenter {
         return builder.build();
     }
 
-    private List<ServiceProto.Instance> convertNacosInstances(Service service, List<Instance> instances, Group group) {
+    private List<ServiceProto.Instance> convertNacosInstances(Service service, List<Instance> instances, ModelProto.Group group) {
         Map<String, String> filters = (null == group ? null : group.getMetadataMap());
         List<ServiceProto.Instance> polarisInstances = new ArrayList<>();
         for (Instance instance : instances) {
@@ -297,7 +302,7 @@ public class NacosRegistryCenter implements RegistryCenter {
 
     @Override
     public boolean watch(Service service, ResponseListener eventListener) {
-        RegistryEndpoint registryEndpoint = registryInitRequest.getRegistryEndpoint();
+        ResourceEndpoint registryEndpoint = registryInitRequest.getResourceEndpoint();
         NamingService namingService = getOrCreateNamingService(service.getNamespace());
         if (null == namingService) {
             LOG.error("[Nacos] fail to lookup namingService for service {}, registry {}",
@@ -336,7 +341,7 @@ public class NacosRegistryCenter implements RegistryCenter {
 
     @Override
     public void unwatch(Service service) {
-        RegistryEndpoint registryEndpoint = registryInitRequest.getRegistryEndpoint();
+        ResourceEndpoint registryEndpoint = registryInitRequest.getResourceEndpoint();
         NamingService namingService = getOrCreateNamingService(service.getNamespace());
         if (null == namingService) {
             LOG.error("[Nacos] fail to lookup namingService for service {}, registry {}",
@@ -372,11 +377,11 @@ public class NacosRegistryCenter implements RegistryCenter {
             return;
         }
 
-        RegistryEndpoint registryEndpoint = registryInitRequest.getRegistryEndpoint();
+        ResourceEndpoint registryEndpoint = registryInitRequest.getResourceEndpoint();
         AuthResponse authResponse = new AuthResponse();
         // 1. 先进行登录
-        if (StringUtils.hasText(registryEndpoint.getUser()) && StringUtils.hasText(
-                registryEndpoint.getPassword())) {
+        if (StringUtils.hasText(registryEndpoint.getAuthorization().getUsername()) && StringUtils.hasText(
+                registryEndpoint.getAuthorization().getPassword())) {
             DiscoverResponse discoverResponse = NacosRestUtils.auth(
                     restOperator, registryEndpoint, authResponse, null, DiscoverResponseType.NAMESPACES);
             if (null != discoverResponse) {
@@ -404,13 +409,13 @@ public class NacosRegistryCenter implements RegistryCenter {
     }
 
     @Override
-    public void updateGroups(Service service, Collection<Group> groups) {
+    public void updateGroups(Service service, Collection<ModelProto.Group> groups) {
 
     }
 
     @Override
-    public void updateInstances(Service service, Group group, Collection<ServiceProto.Instance> srcInstances) {
-        RegistryEndpoint registryEndpoint = registryInitRequest.getRegistryEndpoint();
+    public void updateInstances(Service service, ModelProto.Group group, Collection<ServiceProto.Instance> srcInstances) {
+        ResourceEndpoint registryEndpoint = registryInitRequest.getResourceEndpoint();
         List<Instance> allInstances = queryNacosInstances(service, registryEndpoint.getName());
         if (null == allInstances) {
             LOG.info("[Nacos] cancel update instances for query nacos errors");

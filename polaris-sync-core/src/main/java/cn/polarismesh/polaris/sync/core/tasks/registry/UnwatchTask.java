@@ -29,8 +29,8 @@ public class UnwatchTask implements Runnable {
 
     private final Service service;
 
-    public UnwatchTask(ResourceCenter source, SyncTask.Match match) {
-        this.source = (RegistryCenter) source;
+    public UnwatchTask(RegistryCenter source, SyncTask.Match match) {
+        this.source = source;
         this.service = new Service(match.getNamespace(), match.getName());
     }
 

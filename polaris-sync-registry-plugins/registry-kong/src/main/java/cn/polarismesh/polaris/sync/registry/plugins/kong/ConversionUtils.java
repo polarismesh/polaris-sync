@@ -21,6 +21,7 @@ import static cn.polarismesh.polaris.sync.common.rest.RestUtils.urlDecode;
 import static cn.polarismesh.polaris.sync.common.rest.RestUtils.urlEncode;
 
 import cn.polarismesh.polaris.sync.common.rest.HostAndPort;
+import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.registry.ServiceGroup;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
@@ -47,7 +48,7 @@ public class ConversionUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(ConversionUtils.class);
 
-    public static ServiceObject serviceToServiceObject(Service service, String currentSource, RegistryType sourceType) {
+    public static ServiceObject serviceToServiceObject(Service service, String currentSource, ResourceType sourceType) {
         ServiceObject serviceObject = new ServiceObject();
         serviceObject.setName(getServiceName(service, currentSource));
         serviceObject.setHost(getUpstreamName(service, KongConsts.GROUP_NAME_DEFAULT, currentSource));
@@ -126,7 +127,7 @@ public class ConversionUtils {
     }
 
     public static UpstreamObject groupToUpstreamObject(
-            String groupName, Service service, String currentSource, RegistryType sourceType) {
+            String groupName, Service service, String currentSource, ResourceType sourceType) {
         UpstreamObject upstreamObject = new UpstreamObject();
         upstreamObject.setName(getUpstreamName(service, groupName, currentSource));
         List<String> tags = new ArrayList<>();
