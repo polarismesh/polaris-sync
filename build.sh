@@ -21,6 +21,8 @@ mkdir -p "polaris-sync-server-${VERSION}"
 cp "polaris-sync-server/target/polaris-sync-server-${VERSION}.jar" "./polaris-sync-server-${VERSION}/"
 mv ./conf "./polaris-sync-server-${VERSION}/"
 
+mv ./deploy "./polaris-sync-server-${VERSION}/"
+
 zip -r "polaris-sync-server-${VERSION}.zip" "polaris-sync-server-${VERSION}/"
 
 popd

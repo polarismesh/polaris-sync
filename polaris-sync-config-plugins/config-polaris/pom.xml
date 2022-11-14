@@ -5,7 +5,7 @@
 	<parent>
 		<artifactId>polaris-sync-config-plugins</artifactId>
 		<groupId>com.tencent.polaris</groupId>
-		<version>0.2.0</version>
+		<version>${revision}</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 

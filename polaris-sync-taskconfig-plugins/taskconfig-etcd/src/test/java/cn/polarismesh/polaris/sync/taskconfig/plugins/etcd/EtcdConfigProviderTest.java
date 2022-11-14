@@ -18,6 +18,7 @@
 package cn.polarismesh.polaris.sync.taskconfig.plugins.etcd;
 
 
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import io.etcd.jetcd.ByteSequence;
 import io.etcd.jetcd.Client;
@@ -79,12 +80,12 @@ public class EtcdConfigProviderTest {
             options.put("keyFile", "classpath:ssl/cert/client.key");
             options.put("dataId", "/polaris/sync-config.json");
 
-            EtcdConfigProvider provider = new EtcdConfigProvider();
-            provider.init(options);
+            EtcdConfigProvider<RegistryProto.Registry> provider = new EtcdConfigProvider<>();
+            provider.init(options, RegistryProto.Registry::newBuilder);
 
             RegistryProto.Registry registry = provider.getConfig();
             Assert.assertEquals(registry.getTasks(0).getName(), "ins-3ad0f6e7");
-            Assert.assertEquals(registry.getMethods(0).getType(), RegistryProto.Method.MethodType.watch);
+            Assert.assertEquals(registry.getMethods(0).getType(), ModelProto.Method.MethodType.watch);
             Assert.assertTrue(registry.getHealthCheck().getEnable());
             Assert.assertEquals(registry.getReport().getInterval(), "1m");
 
@@ -93,7 +94,7 @@ public class EtcdConfigProviderTest {
 
             RegistryProto.Registry updateRegistry = provider.getConfig();
             Assert.assertEquals(updateRegistry.getTasks(0).getName(), "ins-3ad0f6e7-update");
-            Assert.assertEquals(updateRegistry.getMethods(0).getType(), RegistryProto.Method.MethodType.pull);
+            Assert.assertEquals(updateRegistry.getMethods(0).getType(), ModelProto.Method.MethodType.pull);
             Assert.assertFalse(updateRegistry.getHealthCheck().getEnable());
             Assert.assertEquals(updateRegistry.getReport().getInterval(), "2m");
 

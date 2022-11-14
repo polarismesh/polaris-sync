@@ -1,19 +1,19 @@
 package cn.polarismesh.polaris.sync.registry.plugins.consul;
 
-import static org.junit.jupiter.api.Assertions.*;
 
 import com.ecwid.consul.v1.health.model.HealthService.Service;
+import org.junit.Assert;
+import org.junit.Test;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
 
-class ConsulRegistryCenterTest {
+public class ConsulRegistryCenterTest {
 
     @Test
-    void convertConsulMetadata() {
+    public void convertConsulMetadata() {
         Service service = new Service();
         List<String> tags = new ArrayList<>();
         tags.add("localkey=localvalue");
@@ -26,6 +26,6 @@ class ConsulRegistryCenterTest {
         expect.put("localkey", "localvalue");
         expect.put("secure", "false");
 
-        Assertions.assertEquals(expect, ret);
+        Assert.assertEquals(expect, ret);
     }
 }
