@@ -18,9 +18,12 @@
 package cn.polarismesh.polaris.sync.config.plugins.polaris.model;
 
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 import cn.polarismesh.polaris.sync.extension.config.RecordInfo;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -40,7 +43,7 @@ public class ConfigFileRelease implements RecordInfo {
 	@JsonProperty("group")
 	private String group;
 
-	@JsonProperty("fileName")
+	@JsonProperty("file_name")
 	private String fileName;
 
 	@JsonProperty("content")
@@ -52,9 +55,13 @@ public class ConfigFileRelease implements RecordInfo {
 	@JsonProperty("version")
 	private long version;
 
-	@JsonProperty("modifyTime")
+	@JsonProperty("modify_time")
 	private Date modifyTime;
 
+	@JsonIgnore
+	private Map<String, String> labels = new HashMap<>();
+
+	@JsonIgnore
 	private boolean valid = true;
 
 	public long getId() {
@@ -91,6 +98,14 @@ public class ConfigFileRelease implements RecordInfo {
 
 	public Date getModifyTime() {
 		return modifyTime;
+	}
+
+	public Map<String, String> getLabels() {
+		return labels;
+	}
+
+	public void setLabels(Map<String, String> labels) {
+		this.labels = labels;
 	}
 
 	@Override
@@ -147,6 +162,7 @@ public class ConfigFileRelease implements RecordInfo {
 		private String md5;
 		private long version;
 		private Date modifyTime;
+		private Map<String, String> labels;
 		private boolean valid;
 
 		private Builder() {
@@ -197,6 +213,11 @@ public class ConfigFileRelease implements RecordInfo {
 			return this;
 		}
 
+		public Builder labels(Map<String, String> labels) {
+			this.labels = labels;
+			return this;
+		}
+
 		public Builder valid(boolean valid) {
 			this.valid = valid;
 			return this;
@@ -204,16 +225,17 @@ public class ConfigFileRelease implements RecordInfo {
 
 		public ConfigFileRelease build() {
 			ConfigFileRelease configFileRelease = new ConfigFileRelease();
-			configFileRelease.name = this.name;
-			configFileRelease.fileName = this.fileName;
-			configFileRelease.content = this.content;
-			configFileRelease.version = this.version;
-			configFileRelease.group = this.group;
 			configFileRelease.id = this.id;
+			configFileRelease.labels = this.labels;
+			configFileRelease.content = this.content;
 			configFileRelease.valid = this.valid;
+			configFileRelease.name = this.name;
+			configFileRelease.group = this.group;
 			configFileRelease.namespace = this.namespace;
-			configFileRelease.md5 = this.md5;
+			configFileRelease.version = this.version;
 			configFileRelease.modifyTime = this.modifyTime;
+			configFileRelease.fileName = this.fileName;
+			configFileRelease.md5 = this.md5;
 			return configFileRelease;
 		}
 	}

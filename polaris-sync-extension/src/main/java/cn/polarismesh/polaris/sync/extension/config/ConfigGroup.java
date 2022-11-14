@@ -18,6 +18,7 @@
 package cn.polarismesh.polaris.sync.extension.config;
 
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
@@ -28,12 +29,20 @@ public class ConfigGroup implements RecordInfo {
 
 	private String name;
 
+	private Pattern pattern;
+
 	public ConfigGroup() {
 	}
 
 	public ConfigGroup(String namespace, String name) {
 		this.namespace = namespace;
 		this.name = name;
+
+		try {
+			pattern = Pattern.compile(name);
+		} catch (Throwable ignore) {
+
+		}
 	}
 
 	public String getNamespace() {
@@ -110,5 +119,23 @@ public class ConfigGroup implements RecordInfo {
 				"namespace='" + namespace + '\'' +
 				", name='" + name + '\'' +
 				'}';
+	}
+
+	public boolean match(ConfigGroup group) {
+		if (!Objects.equals(getNamespace(), group.getNamespace())) {
+			return false;
+		}
+
+		if (Objects.equals(getName(), group.getName())) {
+			return true;
+		}
+
+		if (Objects.equals(getName(), "*")) {
+			return true;
+		}
+		if (Objects.nonNull(pattern)) {
+			return pattern.matcher(group.getName()).find();
+		}
+		return false;
 	}
 }

@@ -1,10 +1,10 @@
 {
   "tasks": [
     {
-      "name": "task1",
+      "name": "nacos-polaris",
       "enable": true,
       "source": {
-        "name": "nacos",
+        "name": "nacos->polaris",
         "type": "nacos",
         "server": {
           "addresses": [
@@ -12,9 +12,9 @@
           ]
         },
         "db": {
-          "jdbc_url": "",
-          "username": "",
-          "password": ""
+          "jdbc_url": "jdbc:mysql://127.0.0.1:3306/nacos",
+          "username": "root",
+          "password": "root"
         }
       },
       "destination": {
@@ -28,27 +28,27 @@
           "token": "nu/0WRA4EqSR1FagrjRj0fZwPXuGlMpX+zCuWu4uMqy8xr1vRjisSbA25aAC3mtU8MeeRsKhQiDAynUR09I="
         },
         "db": {
-          "jdbc_url": "",
-          "username": "",
-          "password": ""
+          "jdbc_url": "jdbc:mysql://127.0.0.1:3306/polaris_server",
+          "username": "root",
+          "password": "root"
         }
       },
       "match": [
         {
-          "namespace": "atom-ns1",
-          "config_group": "nacos.test.3"
+          "namespace": "empty_ns",
+          "config_group": "DEFAULT_GROUP"
         },
         {
-          "namespace": "atom-ns1",
-          "config_group": "nacos.test.4"
+          "namespace": "springliao",
+          "config_group": "*"
         }
       ]
     },
     {
-      "name": "task2",
+      "name": "polaris-nacos",
       "enable": true,
       "source": {
-        "name": "polaris",
+        "name": "polaris->nacos",
         "type": "polaris",
         "server": {
           "token": "nu/0WRA4EqSR1FagrjRj0fZwPXuGlMpX+zCuWu4uMqy8xr1vRjisSbA25aAC3mtU8MeeRsKhQiDAynUR09I=",
@@ -58,9 +58,9 @@
           ]
         },
         "db": {
-          "jdbc_url": "",
-          "username": "",
-          "password": ""
+          "jdbc_url": "jdbc:mysql://127.0.0.1:3306/polaris_server",
+          "username": "root",
+          "password": "root"
         }
       },
       "destination": {
@@ -74,19 +74,15 @@
           "password": "nacos"
         },
         "db": {
-          "jdbc_url": "",
-          "username": "",
-          "password": ""
+          "jdbc_url": "jdbc:mysql://127.0.0.1:3306/nacos",
+          "username": "root",
+          "password": "root"
         }
       },
       "match": [
         {
-          "namespace": "atom-ns1",
-          "config_group": "nacos.test.3"
-        },
-        {
-          "namespace": "atom-ns1",
-          "config_group": "nacos.test.4"
+          "namespace": "ns1",
+          "config_group": "*"
         }
       ]
     }

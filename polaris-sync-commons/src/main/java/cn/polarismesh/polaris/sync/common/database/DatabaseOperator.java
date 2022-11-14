@@ -17,7 +17,15 @@
 
 package cn.polarismesh.polaris.sync.common.database;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import javax.sql.DataSource;
@@ -34,8 +42,33 @@ public class DatabaseOperator {
 		this.dataSource = dataSource;
 	}
 
-	public <R> List<R> queryList(String sql, Object[] args, RecordSupplier<R> convert) {
-		return null;
+	public <R> List<R> queryList(String sql, Object[] args, RecordSupplier<R> convert) throws Exception {
+		try (Connection connection = dataSource.getConnection()) {
+			PreparedStatement statement = connection.prepareStatement(sql);
+
+			if (Objects.nonNull(args)) {
+				for (int i = 0; i < args.length; i ++) {
+					statement.setObject(i + 1, args[i]);
+				}
+			}
+
+			ResultSet rs = statement.executeQuery();
+
+			Map<R, R> records = new HashMap<>();
+
+			List<R> list = new ArrayList<>();
+			while (rs.next()) {
+				R cur = convert.apply(rs);
+				R r = cur;
+				if (Objects.nonNull(records.get(cur))) {
+					r = convert.merge(cur, records.get(cur));
+				}
+				list.add(r);
+				records.put(r, r);
+			}
+
+			return list;
+		}
 	}
 
 	public void destroy() {

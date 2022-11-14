@@ -20,23 +20,32 @@ package cn.polarismesh.polaris.sync.config.plugins.polaris.model;
 import java.util.List;
 import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
 public class ConfigFileTemp {
 
+	@JsonProperty("namespace")
 	private String namespace;
 
+	@JsonProperty("group")
 	private String group;
 
+	@JsonProperty("name")
 	private String fileName;
 
+	@JsonProperty("content")
 	private String content;
 
+	@JsonProperty("comment")
 	private String comment;
 
+	@JsonProperty("tags")
 	private List<Tag> tags;
 
+	@JsonProperty("format")
 	private String format;
 
 	public String getNamespace() {
@@ -101,6 +110,11 @@ public class ConfigFileTemp {
 		private String key;
 
 		private String value;
+
+		public Tag(String key, String value) {
+			this.key = key;
+			this.value = value;
+		}
 
 		public String getKey() {
 			return key;

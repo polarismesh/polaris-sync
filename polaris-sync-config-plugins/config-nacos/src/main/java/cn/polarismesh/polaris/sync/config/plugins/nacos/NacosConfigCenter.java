@@ -29,23 +29,25 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import cn.polarismesh.polaris.sync.common.database.DatabaseOperator;
 import cn.polarismesh.polaris.sync.common.rest.RestOperator;
+import cn.polarismesh.polaris.sync.common.rest.RestResponse;
 import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.config.plugins.nacos.mapper.ConfigFileMapper;
 import cn.polarismesh.polaris.sync.config.plugins.nacos.model.AuthResponse;
 import cn.polarismesh.polaris.sync.config.plugins.nacos.model.NacosNamespace;
+import cn.polarismesh.polaris.sync.extension.Health;
 import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
 import cn.polarismesh.polaris.sync.extension.ResourceType;
-import cn.polarismesh.polaris.sync.extension.config.SubscribeDbChangeTask;
-import cn.polarismesh.polaris.sync.extension.Health;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFilesResponse;
 import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
 import cn.polarismesh.polaris.sync.extension.config.ConfigInitRequest;
+import cn.polarismesh.polaris.sync.extension.config.SubscribeDbChangeTask;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import com.alibaba.nacos.api.NacosFactory;
@@ -59,6 +61,8 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -69,8 +73,6 @@ import org.springframework.util.CollectionUtils;
 public class NacosConfigCenter implements ConfigCenter<ConfigInitRequest> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NacosConfigCenter.class);
-
-	private final Map<String, ConfigService> ns2ConfigService = new ConcurrentHashMap<>();
 
 	private final AtomicBoolean destroyed = new AtomicBoolean(false);
 
@@ -96,7 +98,7 @@ public class NacosConfigCenter implements ConfigCenter<ConfigInitRequest> {
 
 	@Override
 	public void init(ConfigInitRequest request) {
-		request = request;
+		this.request = request;
 		initDatabaseOperator();
 	}
 
@@ -119,17 +121,24 @@ public class NacosConfigCenter implements ConfigCenter<ConfigInitRequest> {
 
 	private void buildWatchTask() {
 		watchFileTasks = new HashSet<>();
+
 		SubscribeDbChangeTask watchFile = new SubscribeDbChangeTask(request.getSourceName(), date -> {
 			String query = ConfigFileMapper.getInstance().getMoreSqlTemplate(Objects.isNull(date));
 			List<ConfigFile> files = Collections.emptyList();
-			if (Objects.isNull(date)) {
-				files = databaseOperator.queryList(query, null, ConfigFileMapper.getInstance());
-			} else {
-				files = databaseOperator.queryList(query, new Object[]{date}, ConfigFileMapper.getInstance());
+
+			try {
+				if (Objects.isNull(date)) {
+					files = databaseOperator.queryList(query, null, ConfigFileMapper.getInstance());
+				}
+				else {
+					files = databaseOperator.queryList(query, new Object[] {date}, ConfigFileMapper.getInstance());
+				}
+			}
+			catch (Exception ex) {
+				LOG.error("[Nacos][Config] pull config file info from db fail ", ex);
 			}
 			return files;
 		});
-
 		watchFileTasks.add(watchFile);
 	}
 
@@ -139,17 +148,6 @@ public class NacosConfigCenter implements ConfigCenter<ConfigInitRequest> {
 		if (!destroyed.compareAndSet(false, true)) {
 			return;
 		}
-
-		ns2ConfigService.forEach((s, configService) -> {
-			try {
-				configService.shutDown();
-			}
-			catch (NacosException e) {
-				LOG.error("[Nacos][Config] close ConfigsService", e);
-			}
-		});
-
-		ns2ConfigService.clear();
 		databaseOperator.destroy();
 		dataSource.close();
 	}
@@ -159,7 +157,8 @@ public class NacosConfigCenter implements ConfigCenter<ConfigInitRequest> {
 		ResourceEndpoint endpoint = request.getResourceEndpoint();
 		AuthResponse authResponse = new AuthResponse();
 		// 1. 先进行登录
-		if (StringUtils.isNotBlank(request.getResourceEndpoint().getAuthorization().getUsername()) && StringUtils.isNotBlank(
+		if (StringUtils.isNotBlank(request.getResourceEndpoint().getAuthorization()
+				.getUsername()) && StringUtils.isNotBlank(
 				endpoint.getAuthorization().getPassword())) {
 			ResponseProto.DiscoverResponse discoverResponse = NacosRestUtils.auth(
 					restOperator, endpoint, authResponse, null,
@@ -179,30 +178,50 @@ public class NacosConfigCenter implements ConfigCenter<ConfigInitRequest> {
 				.toDiscoverResponse(null, StatusCodes.SUCCESS, ResponseProto.DiscoverResponse.DiscoverResponseType.NAMESPACES);
 		for (NacosNamespace nacosNamespace : nacosNamespaces) {
 			builder.addNamespaces(
-					ServiceProto.Namespace.newBuilder().setName(ResponseUtils.toStringValue(nacosNamespace.getNamespace())).build());
+					ServiceProto.Namespace.newBuilder()
+							.setName(ResponseUtils.toStringValue(nacosNamespace.getNamespace())).build());
 		}
 		return builder.build();
 	}
 
 	@Override
 	public ConfigFilesResponse listConfigFile(ConfigGroup configGroup) {
-		String query = "SELECT tenant_id, group_id, data_id, content, c_desc, tag_name, gmt_modified "
+		String query = "SELECT ci.tenant_id, ci.group_id, ci.data_id, content, c_desc, tag_name, md5, ci.gmt_modified "
 				+ "FROM config_info ci LEFT JOIN config_tags_relation cr ON ci.tenant_id = cr.tenant_id "
-				+ "AND ci.group_id = cr.group_id AND ci.data_id = cr.data_id WHERE tenant_id = ? AND group_id = ?";
+				+ "AND ci.group_id = cr.group_id AND ci.data_id = cr.data_id WHERE 1=1 ";
 
+		List<Object> args = new ArrayList<>();
 		if (StringUtils.isNotBlank(configGroup.getNamespace())) {
-			query += " AND tenant_id = ?";
+			query += " AND ci.tenant_id = ?";
+			String tenant = configGroup.getNamespace();
+			if (Objects.equals(DefaultValues.EMPTY_NAMESPACE_HOLDER, configGroup.getNamespace())) {
+				tenant = "";
+			}
+			args.add(tenant);
 		}
-		if (StringUtils.isNotBlank(configGroup.getName())) {
-			query += " AND group_id = ? ";
+		if (StringUtils.isNotBlank(configGroup.getName()) && !StringUtils.equals("*", configGroup.getName())) {
+			query += " AND ci.group_id = ? ";
+			args.add(configGroup.getName());
 		}
 
-		// 从对应的数据库中获取
-		Collection<ConfigFile> files = databaseOperator.queryList(query, new Object[] {
-				configGroup.getName(), configGroup.getNamespace()
-		}, ConfigFileMapper.getInstance());
+		try {
+			// 从对应的数据库中获取
+			Collection<ConfigFile> files = databaseOperator.queryList(query, args.toArray(), ConfigFileMapper.getInstance())
+					.stream().peek(file -> {
+						if (Objects.equals("", file.getNamespace())) {
+							file.setNamespace(DefaultValues.DEFAULT_POLARIS_NAMESPACE);
+						}
+						Map<String, String> labels = file.getLabels();
+						labels.put(DefaultValues.META_SYNC, request.getSourceName());
+						file.setLabels(labels);
+					}).collect(Collectors.toList());
 
-		return ConfigFilesResponse.builder().files(files).code(StatusCodes.SUCCESS).build();
+			return ConfigFilesResponse.builder().files(files).code(StatusCodes.SUCCESS).build();
+		}
+		catch (Exception ex) {
+			LOG.error("[Nacos][Config] list config file info from db fail ", ex);
+			return ConfigFilesResponse.builder().code(StatusCodes.STORE_LAYER_EXCEPTION).info(ex.getMessage()).build();
+		}
 	}
 
 	@Override
@@ -267,87 +286,64 @@ public class NacosConfigCenter implements ConfigCenter<ConfigInitRequest> {
 		Stream<ConfigFile> stream = null;
 		if (files.size() < 128) {
 			stream = files.stream();
-		} else {
+		}
+		else {
 			stream = files.parallelStream();
 		}
 
-		stream.forEach(file -> {
-			String ns = group.getNamespace();
-			ConfigService configService = getOrCreateConfigService(ns);
-			if (null == configService) {
-				LOG.error("[Nacos][Config] fail to lookup configService for group {}, config {}",
-						group, request.getSourceName());
+		ResourceEndpoint endpoint = request.getResourceEndpoint();
+		AuthResponse authResponse = new AuthResponse();
+		// 1. 先进行登录
+		if (StringUtils.hasText(endpoint.getAuthorization().getUsername()) && StringUtils.hasText(
+				endpoint.getAuthorization().getPassword())) {
+			ResponseProto.DiscoverResponse discoverResponse = NacosRestUtils.auth(
+					restOperator, endpoint, authResponse, null, ResponseProto.DiscoverResponse.DiscoverResponseType.NAMESPACES);
+			if (null != discoverResponse) {
 				return;
 			}
+		}
+
+		stream.peek(file -> {
+			Map<String, String> labels = file.getLabels();
+			labels.put(DefaultValues.META_SYNC, request.getSourceName());
+			file.setLabels(labels);
+		}).forEach(file -> {
+			if (file.isBeta() || !file.isValid()) {
+				return;
+			}
+
+			if (Objects.equals(file.getLabels().get(DefaultValues.META_SYNC), request.getResourceEndpoint().getName())) {
+				return;
+			}
+
 			try {
-				boolean ok = configService.publishConfig(file.getFileName(), group.getName(),
-						file.getContent());
+				boolean ok = NacosRestUtils.publishConfig(authResponse, restOperator, endpoint, file);
 				if (!ok) {
 					LOG.warn("[Nacos][Config] {} publish config not success namespace={} group={} name={} ",
 							request.getSourceName(),
-							group.getNamespace(), group.getName(), file.getFileName());
+							file.getNamespace(), file.getGroup(), file.getFileName());
 				}
 			}
-			catch (NacosException e) {
+			catch (Exception e) {
 				LOG.error("[Nacos][Config] {} publish config namespace={} group={} name={} ",
 						request.getSourceName(),
-						group.getNamespace(), group.getName(), file.getFileName(), e);
+						file.getNamespace(), file.getGroup(), file.getFileName(), e);
 			}
 		});
 	}
 
-	private ConfigService getOrCreateConfigService(String namespace) {
-		ConfigService configService = ns2ConfigService.get(namespace);
-		if (null != configService) {
-			return configService;
-		}
-		synchronized (this) {
-			ResourceEndpoint endpoint = request.getResourceEndpoint();
-			configService = ns2ConfigService.get(namespace);
-			if (null != configService) {
-				return configService;
-			}
-			String address = String.join(",", endpoint.getServerAddresses());
-			Properties properties = new Properties();
-			properties.setProperty("serverAddr", address);
-			properties.setProperty("namespace", toNamespaceId(namespace));
-			if (StringUtils.hasText(endpoint.getAuthorization().getUsername())) {
-				properties.setProperty("username", endpoint.getAuthorization().getUsername());
-			}
-			if (StringUtils.hasText(endpoint.getAuthorization().getPassword())) {
-				properties.setProperty("password", endpoint.getAuthorization().getPassword());
-			}
-			try {
-				configService = NacosFactory.createConfigService(properties);
-			} catch (NacosException e) {
-				LOG.error("[Nacos] fail to create naming service to {}, namespace {}", address, namespace, e);
-				return null;
-			}
-			try {
-				// 等待nacos连接建立完成
-				TimeUnit.SECONDS.sleep(1);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
-			ns2ConfigService.put(namespace, configService);
-			return configService;
-		}
-	}
-
 	@Override
 	public Health healthCheck() {
+		String address = RestOperator.pickAddress(request.getResourceEndpoint().getServerAddresses());
+		String url = String.format("http://%s/", address);
+		RestResponse<String> response = restOperator
+				.curlRemoteEndpoint(url, HttpMethod.GET, new HttpEntity<>(""), String.class);
 		int totalCount = 0;
 		int errorCount = 0;
-		if (ns2ConfigService.isEmpty()) {
-			return new Health(totalCount, errorCount);
+		if (response.hasServerError()) {
+			errorCount++;
 		}
-		for (Map.Entry<String, ConfigService> entry : ns2ConfigService.entrySet()) {
-			String serverStatus = entry.getValue().getServerStatus();
-			if (!serverStatus.equals("UP")) {
-				errorCount++;
-			}
-			totalCount++;
-		}
+		totalCount++;
 		return new Health(totalCount, errorCount);
 	}
 

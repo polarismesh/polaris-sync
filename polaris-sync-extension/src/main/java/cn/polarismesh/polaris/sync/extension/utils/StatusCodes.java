@@ -31,4 +31,6 @@ public interface StatusCodes {
 
     int INVALID_RESPONSE_EXCEPTION = 502000;
 
+    int STORE_LAYER_EXCEPTION = 500001;
+
 }

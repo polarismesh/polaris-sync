@@ -17,15 +17,20 @@
 
 package cn.polarismesh.polaris.sync.config.plugins.nacos;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.BiConsumer;
 
 import cn.polarismesh.polaris.sync.common.rest.RestOperator;
 import cn.polarismesh.polaris.sync.common.rest.RestResponse;
 import cn.polarismesh.polaris.sync.common.rest.RestUtils;
+import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.config.plugins.nacos.model.AuthResponse;
 import cn.polarismesh.polaris.sync.config.plugins.nacos.model.NacosNamespace;
 import cn.polarismesh.polaris.sync.config.plugins.nacos.model.NacosNamespaceResponse;
 import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
+import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
@@ -139,6 +144,47 @@ public class NacosRestUtils {
         return null;
     }
 
+    public static boolean publishConfig(AuthResponse authResponse,
+            RestOperator restOperator, ResourceEndpoint endpoint, ConfigFile file) {
+        String namespacesUrl = toPublishConfig(endpoint.getServerAddresses());
+        if (StringUtils.hasText(authResponse.getAccessToken())) {
+            namespacesUrl += "?accessToken=" + authResponse.getAccessToken();
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE);
+
+        HttpMethod method = HttpMethod.POST;
+        String requestText = "";
+
+        List<String> tags = new ArrayList<>();
+        file.getLabels().forEach((key, value) -> tags.add(key + "=" + value));
+
+        if (Objects.equals(file.getNamespace(), "")) {
+            requestText = String.format("dataId=%s&group=%s&content=%s&config_tags=%s",
+                    file.getFileName(), file.getGroup(), file.getContent(), String.join(",", tags));
+        } else {
+            requestText = String.format("tenant=%s&dataId=%s&group=%s&content=%s&config_tags=%s",
+                    file.getNamespace(), file.getFileName(), file.getGroup(), file.getContent(), String.join(",", tags));
+        }
+
+        RestResponse<String> restResponse = restOperator
+                .curlRemoteEndpoint(namespacesUrl, method, new HttpEntity<>(requestText, headers), String.class);
+        if (restResponse.hasServerError()) {
+            LOG.error("[Nacos] server error to create namespaces {}, method {}, request {}, reason {}",
+                    namespacesUrl, method.name(), requestText, restResponse.getException().getMessage());
+            return false;
+        }
+        if (restResponse.hasTextError()) {
+            LOG.warn("[Nacos] text error to create namespaces {}, method {}, request {}, code {}, reason {}",
+                    namespacesUrl, method.name(), requestText, restResponse.getRawStatusCode(),
+                    restResponse.getStatusText());
+            return false;
+        }
+        LOG.info("[Nacos] success to publish config {}, method {}, request {}", namespacesUrl, method, requestText);
+        return true;
+    }
+
     public static String toNamespacesUrl(List<String> addresses) {
         String address = pickAddress(addresses);
         return String.format("http://%s/nacos/v1/console/namespaces", address);
@@ -147,6 +193,11 @@ public class NacosRestUtils {
     public static String toAuthUrl(List<String> addresses) {
         String address = pickAddress(addresses);
         return String.format("http://%s/nacos/v1/auth/login", address);
+    }
+
+    public static String toPublishConfig(List<String> addresses) {
+        String address = pickAddress(addresses);
+        return String.format("http://%s/nacos/v1/cs/configs", address);
     }
 
 }

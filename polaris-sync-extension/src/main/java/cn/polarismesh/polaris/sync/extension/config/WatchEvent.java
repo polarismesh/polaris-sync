@@ -79,4 +79,47 @@ public class WatchEvent {
 	public void setRemove(List<ConfigFile> remove) {
 		this.remove = remove;
 	}
+
+	public static WatchEventBuilder builder() {
+		return new WatchEventBuilder();
+	}
+
+	public static final class WatchEventBuilder {
+		private ConfigGroup configGroup;
+		private List<ConfigFile> add = new ArrayList<>();
+		private List<ConfigFile> update = new ArrayList<>();
+		private List<ConfigFile> remove = new ArrayList<>();
+
+		private WatchEventBuilder() {
+		}
+
+		public WatchEventBuilder configGroup(ConfigGroup configGroup) {
+			this.configGroup = configGroup;
+			return this;
+		}
+
+		public WatchEventBuilder add(List<ConfigFile> add) {
+			this.add = add;
+			return this;
+		}
+
+		public WatchEventBuilder update(List<ConfigFile> update) {
+			this.update = update;
+			return this;
+		}
+
+		public WatchEventBuilder remove(List<ConfigFile> remove) {
+			this.remove = remove;
+			return this;
+		}
+
+		public WatchEvent build() {
+			WatchEvent watchEvent = new WatchEvent();
+			watchEvent.setConfigGroup(configGroup);
+			watchEvent.setAdd(add);
+			watchEvent.setUpdate(update);
+			watchEvent.setRemove(remove);
+			return watchEvent;
+		}
+	}
 }

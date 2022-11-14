@@ -31,9 +31,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import com.sun.org.slf4j.internal.Logger;
-import com.sun.org.slf4j.internal.LoggerFactory;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
@@ -56,7 +55,7 @@ public class SubscribeDbChangeTask implements Runnable {
 
 	private final ExecutorService listenerExecutor;
 
-	private Map<String, Set<ConfigCenter.ResponseListener>> matchGroups = new ConcurrentHashMap<>();
+	private final Map<ConfigGroup, Set<ConfigCenter.ResponseListener>> matchGroups = new ConcurrentHashMap<>();
 
 	private final Map<String, WatchEvent> tmp = new HashMap<>();
 
@@ -79,9 +78,8 @@ public class SubscribeDbChangeTask implements Runnable {
 	}
 
 	public synchronized void addListener(ConfigGroup group, ConfigCenter.ResponseListener listener) {
-		String groupKey = group.keyInfo();
-		matchGroups.computeIfAbsent(groupKey, k -> new CopyOnWriteArraySet<>());
-		matchGroups.get(groupKey).add(listener);
+		matchGroups.computeIfAbsent(group, k -> new CopyOnWriteArraySet<>());
+		matchGroups.get(group).add(listener);
 	}
 
 	public void destroy() {
@@ -110,7 +108,12 @@ public class SubscribeDbChangeTask implements Runnable {
 
 			for (ConfigFile t : result) {
 				String groupKey = t.getNamespace() + "@" + t.getGroup();
-				tmp.computeIfAbsent(groupKey, k -> new WatchEvent());
+				tmp.computeIfAbsent(groupKey, k -> WatchEvent.builder()
+						.configGroup(ConfigGroup.builder()
+								.namespace(t.getNamespace())
+								.name(t.getGroup())
+								.build())
+						.build());
 
 				WatchEvent event = tmp.get(groupKey);
 
@@ -139,11 +142,13 @@ public class SubscribeDbChangeTask implements Runnable {
 
 			this.lastUpdateTime = maxUpdateTime;
 
-			tmp.forEach((s, watchEvent) -> {
-				Set<ConfigCenter.ResponseListener> listeners = SubscribeDbChangeTask.this.matchGroups.get(s);
-				listenerExecutor.execute(() -> listeners.forEach(responseListener -> responseListener.onEvent(watchEvent)));
+			tmp.forEach((s, e) -> {
+				SubscribeDbChangeTask.this.matchGroups.forEach((g, l) -> {
+					if (g.match(e.getConfigGroup())) {
+						listenerExecutor.execute(() -> l.forEach(responseListener -> responseListener.onEvent(e)));
+					}
+				});
 			});
-
 		}
 		catch (Throwable ex) {
 			LOG.error("[Config][Watch] {} watch config file change error ", name, ex);

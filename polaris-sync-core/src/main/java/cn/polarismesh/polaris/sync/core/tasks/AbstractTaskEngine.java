@@ -60,6 +60,8 @@ public abstract class AbstractTaskEngine<C extends ResourceCenter, T extends Syn
 
 	protected final ScheduledExecutorService watchExecutor;
 
+	protected final ScheduledExecutorService commonExecutor;
+
 	protected final ExecutorService reloadExecutor;
 
 	protected final Map<SyncTask.Match, Future<?>> watchTasks = new ConcurrentHashMap<>();
@@ -83,6 +85,8 @@ public abstract class AbstractTaskEngine<C extends ResourceCenter, T extends Syn
 				.newScheduledThreadPool(1, new NamedThreadFactory(name + "-watch-worker"));
 		reloadExecutor = Executors.newFixedThreadPool(
 				1, new NamedThreadFactory(name + "-reload-worker"));
+		commonExecutor = Executors.newScheduledThreadPool(
+				Runtime.getRuntime().availableProcessors(), new NamedThreadFactory(name + "-common-worker"));
 	}
 
 	public void init(List<T> tasks, List<ModelProto.Method> methods) {

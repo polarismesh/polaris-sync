@@ -64,7 +64,7 @@ public class ConfigTaskEngine extends AbstractTaskEngine<ConfigCenter, ConfigSyn
 				new NamedConfigCenter(source.getName(), source.getProductName(), source.getCenter()),
 				new NamedConfigCenter(dest.getName(), dest.getProductName(), dest.getCenter()),
 				match,
-				watchExecutor,
+				commonExecutor,
 				watchExecutor
 		);
 	}

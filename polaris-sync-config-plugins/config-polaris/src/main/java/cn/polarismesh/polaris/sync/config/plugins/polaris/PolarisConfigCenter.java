@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -31,10 +32,10 @@ import java.util.stream.Stream;
 import cn.polarismesh.polaris.sync.common.database.DatabaseOperator;
 import cn.polarismesh.polaris.sync.common.rest.RestOperator;
 import cn.polarismesh.polaris.sync.common.rest.RestResponse;
-import cn.polarismesh.polaris.sync.config.plugins.polaris.mapper.ConfigFileMapper;
+import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.config.plugins.polaris.mapper.ConfigFileReleaseMapper;
-import cn.polarismesh.polaris.sync.config.plugins.polaris.model.ConfigFileTemp;
 import cn.polarismesh.polaris.sync.config.plugins.polaris.model.ConfigFileRelease;
+import cn.polarismesh.polaris.sync.config.plugins.polaris.model.ConfigFileTemp;
 import cn.polarismesh.polaris.sync.extension.Health;
 import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
@@ -45,7 +46,6 @@ import cn.polarismesh.polaris.sync.extension.config.ConfigInitRequest;
 import cn.polarismesh.polaris.sync.extension.config.SubscribeDbChangeTask;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 import com.tencent.polaris.client.pb.ResponseProto;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -106,9 +106,11 @@ public class PolarisConfigCenter implements ConfigCenter<ConfigInitRequest> {
 		for (String address : addresses) {
 			if (address.startsWith(PREFIX_HTTP)) {
 				httpAddresses.add(address.substring(PREFIX_HTTP.length()));
-			} else if (address.startsWith(PREFIX_GRPC)) {
+			}
+			else if (address.startsWith(PREFIX_GRPC)) {
 				grpcAddresses.add(address.substring(PREFIX_GRPC.length()));
-			} else {
+			}
+			else {
 				httpAddresses.add(address);
 			}
 		}
@@ -137,12 +139,19 @@ public class PolarisConfigCenter implements ConfigCenter<ConfigInitRequest> {
 		SubscribeDbChangeTask watchFile = new SubscribeDbChangeTask(request.getSourceName(), date -> {
 			String query = ConfigFileReleaseMapper.getInstance().getMoreSqlTemplate(Objects.isNull(date));
 			List<ConfigFileRelease> files = Collections.emptyList();
-			if (Objects.isNull(date)) {
-				files = databaseOperator.queryList(query, null, ConfigFileReleaseMapper.getInstance());
+
+			try {
+				if (Objects.isNull(date)) {
+					files = databaseOperator.queryList(query, null, ConfigFileReleaseMapper.getInstance());
+				}
+				else {
+					files = databaseOperator.queryList(query, new Object[] {date}, ConfigFileReleaseMapper.getInstance());
+				}
 			}
-			else {
-				files = databaseOperator.queryList(query, new Object[] {date}, ConfigFileReleaseMapper.getInstance());
+			catch (Exception ex) {
+				LOG.error("[Polaris][Config] pull config file info from db fail ", ex);
 			}
+
 			return files.stream().map(item -> ConfigFile.builder()
 					.fileName(item.getFileName())
 					.group(item.getGroup())
@@ -151,6 +160,7 @@ public class PolarisConfigCenter implements ConfigCenter<ConfigInitRequest> {
 					.content(item.getContent())
 					.md5(item.getMd5())
 					.modifyTime(item.getModifyTime())
+					.labels(item.getLabels())
 					.build()).collect(Collectors.toList());
 		});
 
@@ -176,22 +186,40 @@ public class PolarisConfigCenter implements ConfigCenter<ConfigInitRequest> {
 
 	@Override
 	public ConfigFilesResponse listConfigFile(ConfigGroup configGroup) {
-		String query = "SELECT id, name, namespace, `group`, file_name, content, IFNULL(comment, ''), md5, version, "
-				+ " modify_time, flag FROM config_file_release WHERE 1=1 ";
+		String query = "SELECT cr.id, cr.name, cr.namespace, cr.`group`, cr.file_name, cr.content, IFNULL(cr.comment, ''), ct.key, ct.value, "
+				+ "cr.md5, cr.version, cr.modify_time, cr.flag FROM config_file_release cr LEFT JOIN config_file_tag ct "
+				+ "ON cr.namespace = ct.namespace AND cr.`group` = ct.`group` AND cr.file_name = ct.file_name WHERE 1=1 ";
 
+		List<Object> args = new ArrayList<>();
 		if (StringUtils.isNotBlank(configGroup.getNamespace())) {
-			query += " AND namespace = ?";
+			query += " AND cr.namespace = ?";
+			args.add(configGroup.getNamespace());
 		}
-		if (StringUtils.isNotBlank(configGroup.getName())) {
-			query += " AND group = ? ";
+		if (StringUtils.isNotBlank(configGroup.getName()) && !StringUtils.equals(DefaultValues.MATCH_ALL, configGroup.getName())) {
+			query += " AND cr.`group` = ? ";
+			args.add(configGroup.getName());
 		}
 
-		// 从对应的数据库中获取
-		Collection<ConfigFile> files = databaseOperator.queryList(query, new Object[] {
-				configGroup.getNamespace(), configGroup.getName()
-		}, ConfigFileMapper.getInstance());
+		try {
+			// 从对应的数据库中获取
+			Collection<ConfigFile> files = databaseOperator.queryList(query, args.toArray(), ConfigFileReleaseMapper.getInstance()).stream().map(releaseFile -> {
+				return ConfigFile.builder()
+						.namespace(releaseFile.getNamespace())
+						.group(releaseFile.getGroup())
+						.fileName(releaseFile.getFileName())
+						.content(releaseFile.getContent())
+						.valid(releaseFile.isValid())
+						.beta(false)
+						.labels(releaseFile.getLabels())
+						.build();
+			}).collect(Collectors.toList());
 
-		return ConfigFilesResponse.builder().group(configGroup).files(files).code(StatusCodes.SUCCESS).build();
+			return ConfigFilesResponse.builder().group(configGroup).files(files).code(StatusCodes.SUCCESS).build();
+		}
+		catch (Exception ex) {
+			LOG.error("[Polaris][Config] list config file info from db fail ", ex);
+			return ConfigFilesResponse.builder().code(StatusCodes.STORE_LAYER_EXCEPTION).info(ex.getMessage()).build();
+		}
 	}
 
 	@Override
@@ -222,14 +250,26 @@ public class PolarisConfigCenter implements ConfigCenter<ConfigInitRequest> {
 			stream = files.parallelStream();
 		}
 
-		stream.forEach(file -> {
-			if (file.isBeta()) {
+		stream.peek(file -> {
+			Map<String, String> labels = file.getLabels();
+			labels.put(DefaultValues.META_SYNC, request.getSourceName());
+			file.setLabels(labels);
+		}).forEach(file -> {
+			if (file.isBeta() || !file.isValid()) {
 				return;
 			}
+			if (Objects.equals(file.getLabels().get(DefaultValues.META_SYNC), request.getResourceEndpoint().getName())) {
+				return;
+			}
+
 			ConfigFileTemp fileTemp = ConfigFileTemp.builder()
+					.namespace(file.getNamespace())
 					.fileName(file.getFileName())
 					.group(file.getGroup())
 					.content(file.getContent())
+					.tags(file.getLabels().entrySet().stream()
+							.map(entry -> new ConfigFileTemp.Tag(entry.getKey(), entry.getValue()))
+							.collect(Collectors.toList()))
 					.build();
 
 			ConfigFilesResponse resp = PolarisRestUtils.createAndPublishConfigFile(restOperator, httpAddresses,
@@ -237,7 +277,7 @@ public class PolarisConfigCenter implements ConfigCenter<ConfigInitRequest> {
 			if (resp.getCode() != StatusCodes.SUCCESS) {
 				LOG.error("[Polaris][Config] {} publish config namespace={} group={} name={} error={}",
 						request.getSourceName(),
-						group.getNamespace(), group.getName(), file.getFileName(), resp.getInfo());
+						fileTemp.getNamespace(), fileTemp.getGroup(), file.getFileName(), resp.getInfo());
 			}
 		});
 	}

@@ -94,21 +94,18 @@ public class WatchTask implements Runnable {
 
         @Override
         public void onEvent(WatchEvent watchEvent) {
-            registerExecutor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    // diff by groups
-                    for (ModelProto.Group group : groups) {
-                        DiscoverResponse discoverResponse = source.getRegistry().listInstances(service, group);
-                        if (discoverResponse.getCode().getValue() != StatusCodes.SUCCESS) {
-                            LOG.warn("[Core][Watch] fail to list service in source {}, group {}, code is {}",
-                                    source.getName(), group.getName(), discoverResponse.getCode().getValue());
-                            return;
-                        }
-                        List<Instance> instances = discoverResponse.getInstancesList();
-                        LOG.info("[Core][Watch]prepare to update group {} instances {}", group.getName(), instances);
-                        destination.getRegistry().updateInstances(service, group, instances);
+            registerExecutor.execute(() -> {
+                // diff by groups
+                for (ModelProto.Group group : groups) {
+                    DiscoverResponse discoverResponse = source.getRegistry().listInstances(service, group);
+                    if (discoverResponse.getCode().getValue() != StatusCodes.SUCCESS) {
+                        LOG.warn("[Core][Watch] fail to list service in source {}, group {}, code is {}",
+                                source.getName(), group.getName(), discoverResponse.getCode().getValue());
+                        return;
                     }
+                    List<Instance> instances = discoverResponse.getInstancesList();
+                    LOG.info("[Core][Watch]prepare to update group {} instances {}", group.getName(), instances);
+                    destination.getRegistry().updateInstances(service, group, instances);
                 }
             });
         }

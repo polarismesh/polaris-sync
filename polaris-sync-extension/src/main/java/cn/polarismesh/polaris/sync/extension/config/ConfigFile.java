@@ -53,6 +53,10 @@ public class ConfigFile implements RecordInfo {
 		return namespace;
 	}
 
+	public void setNamespace(String namespace) {
+		this.namespace = namespace;
+	}
+
 	public String getGroup() {
 		return group;
 	}
@@ -75,6 +79,10 @@ public class ConfigFile implements RecordInfo {
 
 	public Map<String, String> getLabels() {
 		return labels;
+	}
+
+	public void setLabels(Map<String, String> labels) {
+		this.labels = labels;
 	}
 
 	public boolean isBeta() {
@@ -148,7 +156,7 @@ public class ConfigFile implements RecordInfo {
 		private boolean beta;
 		private String betaIps;
 		private boolean valid;
-		private Map<String, String> labels;
+		private Map<String, String> labels = new HashMap<>();
 		private Date modifyTime;
 
 		private Builder() {

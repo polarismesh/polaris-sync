@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 
 import static cn.polarismesh.polaris.sync.common.rest.RestOperator.pickAddress;
 
@@ -152,6 +153,7 @@ public class PolarisRestUtils {
 
 		HttpHeaders headers = new HttpHeaders();
 		headers.add("X-Polaris-Token", token);
+		headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
 
 		HttpEntity<String> entity = new HttpEntity<>(body, headers);
 
@@ -180,4 +182,5 @@ public class PolarisRestUtils {
 	private static String toReleaseConfigFileUrl(String address) {
 		return String.format("http://%s/config/v1/configfiles/release", address);
 	}
+
 }

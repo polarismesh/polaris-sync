@@ -66,7 +66,7 @@ public class RegistryTaskEngine extends AbstractTaskEngine<RegistryCenter, Regis
 				new NamedRegistryCenter(source.getName(), source.getProductName(), source.getCenter()),
 				new NamedRegistryCenter(dest.getName(), dest.getProductName(), dest.getCenter()),
 				match,
-				watchExecutor,
+				commonExecutor,
 				watchExecutor
 		);
 	}

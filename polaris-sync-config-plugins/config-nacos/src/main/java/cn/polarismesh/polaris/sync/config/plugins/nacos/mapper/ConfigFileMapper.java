@@ -19,9 +19,12 @@ package cn.polarismesh.polaris.sync.config.plugins.nacos.mapper;
 
 import java.sql.ResultSet;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 import cn.polarismesh.polaris.sync.common.database.RecordSupplier;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * 对应的 Nacos 配置表结构信息
@@ -73,7 +76,9 @@ public class ConfigFileMapper implements RecordSupplier<ConfigFile> {
 	}
 
 	public String getMoreSqlTemplate(boolean first) {
-		String query = "SELECT tenant_id, group_id, data_id, content, md5, encrypted_data_key, gmt_modified FROM config_info ";
+		String query = "SELECT ci.tenant_id, ci.group_id, ci.data_id, content, c_desc, tag_name, md5, ci.gmt_modified "
+				+ "FROM config_info ci LEFT JOIN config_tags_relation cr ON ci.tenant_id = cr.tenant_id "
+				+ "AND ci.group_id = cr.group_id AND ci.data_id = cr.data_id ";
 
 		if (!first) {
 			query += " WHERE gmt_modified >= ? ";
@@ -83,7 +88,25 @@ public class ConfigFileMapper implements RecordSupplier<ConfigFile> {
 	}
 
 	@Override
+	public ConfigFile merge(ConfigFile cur, ConfigFile pre) {
+		Map<String, String> curLabels = cur.getLabels();
+		Map<String, String> preLabels = pre.getLabels();
+		preLabels.putAll(curLabels);
+		pre.setLabels(preLabels);
+		return pre;
+	}
+
+	@Override
 	public ConfigFile apply(ResultSet row) throws Exception {
+		Map<String, String> labels = new HashMap<>();
+		String tag = row.getString("tag_name");
+		if (StringUtils.contains(tag, "=")) {
+			String[] kv = StringUtils.split(tag, "=");
+			labels.put(kv[0], kv[1]);
+		} else {
+			labels.put(tag, tag);
+		}
+
 		return ConfigFile.builder()
 				.namespace((String) row.getString("tenant_id"))
 				.group((String) row.getString("group_id"))
@@ -93,6 +116,7 @@ public class ConfigFileMapper implements RecordSupplier<ConfigFile> {
 				.valid(true)
 				.md5((String) row.getString("md5"))
 				.modifyTime((Date) row.getDate("gmt_modified"))
+				.labels(labels)
 				.build();
 	}
 }

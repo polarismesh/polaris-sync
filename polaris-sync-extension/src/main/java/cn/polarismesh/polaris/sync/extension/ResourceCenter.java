@@ -5,6 +5,10 @@ package cn.polarismesh.polaris.sync.extension;
  */
 public interface ResourceCenter<T extends InitRequest> {
 
+	/**
+	 *
+	 * @return resource center name
+	 */
 	String getName();
 
 
