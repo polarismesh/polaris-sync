@@ -14,14 +14,20 @@ SCRIPTDIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 pushd "$SCRIPTDIR/"
 #java build the app.
-docker run --rm -u root -v "$(pwd)":/home/maven/project -w /home/maven/project maven:3.8.1-openjdk-8-slim mvn clean package
+#docker run --rm -u root -v "$(pwd)":/home/maven/project -w /home/maven/project maven:3.8.1-openjdk-8-slim mvn clean package
+mvn clean package
 
+rm -rf "polaris-sync-server-${VERSION}"
+mkdir -p "polaris-sync-server-${VERSION}"
 mkdir -p "polaris-sync-server-${VERSION}"
 
-cp "polaris-sync-server/target/polaris-sync-server-${VERSION}.jar" "./polaris-sync-server-${VERSION}/"
-mv ./conf "./polaris-sync-server-${VERSION}/"
+cp -rf ./conf "./polaris-sync-server-${VERSION}/"
 
-mv ./deploy "./polaris-sync-server-${VERSION}/"
+echo "${VERSION}" > "./polaris-sync-server-${VERSION}/VERSION"
+
+cp -rf ./deploy/vm "./polaris-sync-server-${VERSION}/bin"
+
+cp "polaris-sync-server/target/polaris-sync-server-${VERSION}.jar" "./polaris-sync-server-${VERSION}/bin/polaris-sync-server.jar"
 
 zip -r "polaris-sync-server-${VERSION}.zip" "polaris-sync-server-${VERSION}/"
 
