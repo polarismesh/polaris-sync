@@ -1,22 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <parent>
-        <artifactId>polaris-sync</artifactId>
-        <groupId>com.tencent.polaris</groupId>
-        <version>${revision}</version>
-    </parent>
-    <modelVersion>4.0.0</modelVersion>
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<parent>
+		<artifactId>polaris-sync</artifactId>
+		<groupId>com.tencent.polaris</groupId>
+		<version>${revision}</version>
+	</parent>
+	<modelVersion>4.0.0</modelVersion>
 
-    <artifactId>polaris-sync-config-plugins</artifactId>
-    <name>Polaris Sync Config Plugins</name>
-    <modules>
-        <module>config-file</module>
-        <module>config-kubernetes</module>
-        <module>config-etcd</module>
-    </modules>
-    <packaging>pom</packaging>
-    <description>Polaris Sync Plugins POM</description>
+	<artifactId>polaris-sync-config-plugins</artifactId>
+	<name>Polaris Sync Config Plugins</name>
+	<modules>
+		<module>config-polaris</module>
+		<module>config-nacos</module>
+	</modules>
+	<packaging>pom</packaging>
+	<description>Polaris Sync Plugins POM</description>
 
 </project>

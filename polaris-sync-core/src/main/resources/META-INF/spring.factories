@@ -1,0 +1,2 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  cn.polarismesh.polaris.sync.core.autoconfig.SyncConfigBootstrapConfiguration

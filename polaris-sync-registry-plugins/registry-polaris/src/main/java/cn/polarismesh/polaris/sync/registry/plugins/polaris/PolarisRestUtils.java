@@ -19,6 +19,7 @@ package cn.polarismesh.polaris.sync.registry.plugins.polaris;
 
 import cn.polarismesh.polaris.sync.common.rest.RestOperator;
 import cn.polarismesh.polaris.sync.common.rest.RestResponse;
+import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
@@ -52,31 +53,31 @@ public class PolarisRestUtils {
     private static int CODE_NOT_FOUND_RESOURCE = 400202;
 
     public static void createInstances(RestOperator restOperator, Collection<ServiceProto.Instance> instances,
-            RegistryEndpoint registryEndpoint, List<String> httpAddresses) {
+            ResourceEndpoint registryEndpoint, List<String> httpAddresses) {
         String instancesUrl = PolarisEndpointUtils.toInstancesUrl(httpAddresses);
         operateInstances(instancesUrl, HttpMethod.POST, "create", restOperator, instances, registryEndpoint);
     }
 
     public static void updateInstances(RestOperator restOperator, Collection<ServiceProto.Instance> instances,
-            RegistryEndpoint registryEndpoint, List<String> httpAddresses) {
+            ResourceEndpoint registryEndpoint, List<String> httpAddresses) {
         String instancesUrl = PolarisEndpointUtils.toInstancesUrl(httpAddresses);
         operateInstances(instancesUrl, HttpMethod.PUT, "update", restOperator, instances, registryEndpoint);
     }
 
     public static void deleteInstances(RestOperator restOperator, Collection<ServiceProto.Instance> instances,
-            RegistryEndpoint registryEndpoint, List<String> httpAddresses) {
+            ResourceEndpoint registryEndpoint, List<String> httpAddresses) {
         String instancesUrl = PolarisEndpointUtils.toInstancesDeleteUrl(httpAddresses);
         operateInstances(instancesUrl, HttpMethod.POST, "delete", restOperator, instances, registryEndpoint);
     }
 
     private static void operateInstances(String instancesUrl, HttpMethod method, String operation,
-            RestOperator restOperator, Collection<ServiceProto.Instance> instances, RegistryEndpoint registryEndpoint) {
+            RestOperator restOperator, Collection<ServiceProto.Instance> instances, ResourceEndpoint registryEndpoint) {
         String jsonText = "[]";
         if (null != instances) {
             jsonText = marshalProtoInstancesJsonText(instances);
         }
         RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(
-                instancesUrl, method, getRequestEntity(registryEndpoint.getToken(), jsonText), String.class);
+                instancesUrl, method, getRequestEntity(registryEndpoint.getAuthorization().getToken(), jsonText), String.class);
         if (restResponse.hasServerError()) {
             LOG.error("[Polaris] server error to {} instances to {}, method {}, request {}",
                     operation, instancesUrl, method.name(), jsonText, restResponse.getException());
@@ -93,7 +94,7 @@ public class PolarisRestUtils {
     }
 
     public static DiscoverResponse discoverAllInstances(RestOperator restOperator, Service service,
-            RegistryEndpoint registryEndpoint, List<String> httpAddresses, DiscoverResponse.Builder builder) {
+            ResourceEndpoint registryEndpoint, List<String> httpAddresses, DiscoverResponse.Builder builder) {
         DiscoverRequest.Builder requestBuilder = DiscoverRequest.newBuilder();
         requestBuilder.setType(DiscoverRequestType.INSTANCE);
         ServiceProto.Service requestService = ServiceProto.Service.newBuilder()
@@ -104,7 +105,7 @@ public class PolarisRestUtils {
         String discoverUrl = PolarisEndpointUtils.toDiscoverUrl(httpAddresses);
         HttpMethod method = HttpMethod.POST;
         RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(
-                discoverUrl, method, getRequestEntity(registryEndpoint.getToken(), jsonText), String.class);
+                discoverUrl, method, getRequestEntity(registryEndpoint.getAuthorization().getToken(), jsonText), String.class);
         if (restResponse.hasServerError()) {
             LOG.error("[Polaris] server error to discover instances to {}, method {}, request {}, reason {}",
                     discoverUrl, method.name(), jsonText, restResponse.getException().getMessage());

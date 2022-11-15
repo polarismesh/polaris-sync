@@ -22,9 +22,11 @@
         </dependency>
         <dependency>
             <groupId>com.tencent.polaris</groupId>
-            <artifactId>polaris-sync-registry-core</artifactId>
+            <artifactId>polaris-sync-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+        <!--    注册中心插件    -->
         <dependency>
             <groupId>com.tencent.polaris</groupId>
             <artifactId>registry-nacos</artifactId>
@@ -50,6 +52,21 @@
             <artifactId>registry-kubernetes</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+        <!--    配置中心插件    -->
+        <dependency>
+            <groupId>com.tencent.polaris</groupId>
+            <artifactId>config-nacos</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.tencent.polaris</groupId>
+            <artifactId>config-polaris</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+
+        <!--    指标监控插件    -->
         <dependency>
             <groupId>com.tencent.polaris</groupId>
             <artifactId>reporter-file</artifactId>
@@ -64,17 +81,17 @@
         <!--    配置来源插件依赖    -->
         <dependency>
             <groupId>com.tencent.polaris</groupId>
-            <artifactId>config-file</artifactId>
+            <artifactId>taskconfig-file</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.tencent.polaris</groupId>
-            <artifactId>config-kubernetes</artifactId>
+            <artifactId>taskconfig-kubernetes</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.tencent.polaris</groupId>
-            <artifactId>config-etcd</artifactId>
+            <artifactId>taskconfig-etcd</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

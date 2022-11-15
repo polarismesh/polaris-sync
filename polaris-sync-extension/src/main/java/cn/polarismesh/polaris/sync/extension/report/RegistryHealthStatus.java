@@ -17,6 +17,7 @@
 
 package cn.polarismesh.polaris.sync.extension.report;
 
+import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,8 +31,8 @@ public class RegistryHealthStatus {
     private final AtomicInteger errorCount;
 
     public RegistryHealthStatus(String name,
-            RegistryType registryType, String productionName, int totalCount, int errorCount) {
-        this.dimension = new Dimension(name, registryType, productionName);
+            ResourceType resourceType, String productionName, int totalCount, int errorCount) {
+        this.dimension = new Dimension(name, resourceType, productionName);
         this.totalCount = new AtomicInteger(totalCount);
         this.errorCount = new AtomicInteger(errorCount);
     }
@@ -84,14 +85,14 @@ public class RegistryHealthStatus {
 
         private final String name;
 
-        private final RegistryType registryType;
+        private final ResourceType resourceType;
 
         private final String productionName;
 
         public Dimension(String name,
-                RegistryType registryType, String productionName) {
+                ResourceType resourceType, String productionName) {
             this.name = name;
-            this.registryType = registryType;
+            this.resourceType = resourceType;
             this.productionName = productionName;
         }
 
@@ -105,21 +106,21 @@ public class RegistryHealthStatus {
             }
             Dimension dimension = (Dimension) o;
             return Objects.equals(name, dimension.name) &&
-                    registryType == dimension.registryType &&
+                    resourceType == dimension.resourceType &&
                     Objects.equals(productionName, dimension.productionName);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(name, registryType, productionName);
+            return Objects.hash(name, resourceType, productionName);
         }
 
         public String getName() {
             return name;
         }
 
-        public RegistryType getRegistryType() {
-            return registryType;
+        public ResourceType getResourceType() {
+            return resourceType;
         }
 
         public String getProductionName() {

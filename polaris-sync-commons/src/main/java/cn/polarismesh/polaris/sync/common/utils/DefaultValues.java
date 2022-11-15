@@ -25,10 +25,14 @@ public interface DefaultValues {
 
     long DEFAULT_PULL_INTERVAL_MS = 5 * 60 * 1000;
 
+    String DEFAULT_POLARIS_NAMESPACE = "default";
+
     String GROUP_NAME_DEFAULT = "default";
 
     // EMPTY_NAMESPACE_HOLDER 空命名空间占位符
     String EMPTY_NAMESPACE_HOLDER = "empty_ns";
 
     String META_SYNC = "__sync__";
+
+    String MATCH_ALL = "*";
 }

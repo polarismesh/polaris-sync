@@ -25,6 +25,7 @@ import org.springframework.context.annotation.ComponentScan;
         "cn.polarismesh.polaris.sync.registry.plugins",
         "cn.polarismesh.polaris.sync.config.plugins",
         "cn.polarismesh.polaris.sync.reporter.plugins",
+        "cn.polarismesh.polaris.sync.taskconfig.plugins",
         "cn.polarismesh.polaris.server"
 })
 @SpringBootApplication

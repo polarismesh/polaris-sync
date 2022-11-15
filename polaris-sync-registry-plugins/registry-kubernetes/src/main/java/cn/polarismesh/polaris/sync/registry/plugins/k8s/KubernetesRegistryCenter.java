@@ -19,15 +19,15 @@ package cn.polarismesh.polaris.sync.registry.plugins.k8s;
 
 import static cn.polarismesh.polaris.sync.common.rest.RestOperator.pickAddress;
 
+import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
+import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.extension.registry.AbstractRegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.common.utils.CommonUtils;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse.DiscoverResponseType;
 import com.tencent.polaris.client.pb.ServiceProto;
@@ -60,20 +60,25 @@ public class KubernetesRegistryCenter extends AbstractRegistryCenter {
 
     private static final Logger LOG = LoggerFactory.getLogger(KubernetesRegistryCenter.class);
 
-    private RegistryEndpoint registryEndpoint;
+    private ResourceEndpoint registryEndpoint;
 
     @Override
-    public RegistryType getType() {
-        return RegistryType.kubernetes;
+    public String getName() {
+        return getType().name();
+    }
+
+    @Override
+    public ResourceType getType() {
+        return ResourceType.KUBERNETES;
     }
 
     @Override
     public void init(RegistryInitRequest request) {
-        registryEndpoint = request.getRegistryEndpoint();
+        registryEndpoint = request.getResourceEndpoint();
     }
 
     private ApiClient createApiClient(String address) {
-        return Config.fromToken(getAddress(address), registryEndpoint.getToken(), false);
+        return Config.fromToken(getAddress(address), registryEndpoint.getAuthorization().getToken(), false);
     }
 
     private static String getAddress(String address) {
@@ -89,8 +94,8 @@ public class KubernetesRegistryCenter extends AbstractRegistryCenter {
     }
 
     @Override
-    public DiscoverResponse listInstances(Service service, Group group) {
-        String apiServerAddress = pickAddress(registryEndpoint.getAddressesList());
+    public DiscoverResponse listInstances(Service service, ModelProto.Group group) {
+        String apiServerAddress = pickAddress(registryEndpoint.getServerAddresses());
         LOG.info("[Kubernetes] start to list endpoints for service {} from k8s {}", service, apiServerAddress);
         ApiClient apiClient = createApiClient(apiServerAddress);
         CoreV1Api coreV1Api = new CoreV1Api(apiClient);
@@ -227,12 +232,12 @@ public class KubernetesRegistryCenter extends AbstractRegistryCenter {
     }
 
     @Override
-    public void updateGroups(Service service, Collection<Group> groups) {
+    public void updateGroups(Service service, Collection<ModelProto.Group> groups) {
 
     }
 
     @Override
-    public void updateInstances(Service service, Group group, Collection<Instance> instances) {
+    public void updateInstances(Service service, ModelProto.Group group, Collection<Instance> instances) {
 
     }
 }

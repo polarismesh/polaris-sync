@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package configv1;
+
+import "model.proto";
+
+option java_package = "cn.polarismesh.polaris.sync.config.pb";
+option java_outer_classname = "ConfigProto";
+
+// main entry for json
+message Config {
+
+  repeated Task tasks = 1;
+
+  repeated v1.Method methods = 2;
+
+  v1.HealthCheck health_check = 3 [json_name = "health_check"];
+
+  v1.Report report = 4;
+}
+
+message Task {
+
+  string name = 1;
+
+  bool enable = 2;
+
+  ConfigEndpoint source = 3;
+
+  ConfigEndpoint destination = 4;
+
+  repeated Match match = 5;
+}
+
+message ConfigEndpoint {
+
+  string name = 1;
+
+  enum ConfigType {
+    unknown = 0;
+    nacos = 1;
+    polaris = 2;
+    apollo = 3;
+  }
+
+  message Server {
+    repeated string addresses = 1;
+
+    string token = 2;
+
+    string user = 3;
+
+    string password = 4;
+  }
+
+  message DB {
+    string jdbc_url = 1 [json_name = "jdbc_url"];
+
+    string username = 2;
+
+    string password = 3;
+  }
+
+  ConfigType type = 2;
+
+  Server server = 3;
+
+  DB db = 4;
+
+  string product_name = 8 [json_name = "product_name"];
+}
+
+message Match {
+
+  string namespace = 1;
+
+  string config_group = 2 [json_name = "product_name"];
+
+  repeated v1.Group groups = 3;
+}

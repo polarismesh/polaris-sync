@@ -17,30 +17,13 @@
 
 package cn.polarismesh.polaris.sync.extension.registry;
 
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.Group;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint.RegistryType;
+import cn.polarismesh.polaris.sync.extension.ResourceCenter;
+import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import java.util.Collection;
 
-public interface RegistryCenter {
-
-    /**
-     * registry type, such as nacos, kong, consul, etc...
-     *
-     * @return type
-     */
-    RegistryType getType();
-
-    /**
-     * initialize registry
-     */
-    void init(RegistryInitRequest request);
-
-    /**
-     * destroy registry
-     */
-    void destroy();
+public interface RegistryCenter extends ResourceCenter<RegistryInitRequest> {
 
     /**
      * list the discovery namespaces
@@ -63,7 +46,7 @@ public interface RegistryCenter {
      * @param service service to list
      * @return instances
      */
-    DiscoverResponse listInstances(Service service, Group group);
+    DiscoverResponse listInstances(Service service, ModelProto.Group group);
 
     /**
      * watch the instances changed
@@ -93,7 +76,7 @@ public interface RegistryCenter {
      * @param service service
      * @param groups groups name
      */
-    void updateGroups(Service service, Collection<Group> groups);
+    void updateGroups(Service service, Collection<ModelProto.Group> groups);
 
     /**
      * update the instances to destinations
@@ -102,7 +85,7 @@ public interface RegistryCenter {
      * @param group service group
      * @param instances service instances
      */
-    void updateInstances(Service service, Group group, Collection<Instance> instances);
+    void updateInstances(Service service, ModelProto.Group group, Collection<Instance> instances);
 
     /**
      * listener to watch the instance change events
@@ -117,11 +100,5 @@ public interface RegistryCenter {
         void onEvent(WatchEvent watchEvent);
     }
 
-    /**
-     * process health checking
-     *
-     * @return check result
-     */
-    Health healthCheck();
 
 }

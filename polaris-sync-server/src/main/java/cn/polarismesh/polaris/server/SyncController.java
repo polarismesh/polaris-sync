@@ -17,15 +17,15 @@
 
 package cn.polarismesh.polaris.server;
 
+import cn.polarismesh.polaris.sync.core.server.RegistrySyncServer;
+import cn.polarismesh.polaris.sync.core.tasks.NamedResourceCenter;
+import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
-import cn.polarismesh.polaris.sync.registry.server.RegistrySyncServer;
-import cn.polarismesh.polaris.sync.registry.tasks.NamedRegistryCenter;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,8 +39,11 @@ public class SyncController {
 
     private static final Logger LOG = LoggerFactory.getLogger(SyncController.class);
 
-    @Autowired
-    private RegistrySyncServer registrySyncServer;
+    private final RegistrySyncServer server;
+
+    public SyncController(RegistrySyncServer server) {
+        this.server = server;
+    }
 
     /**
      * health check.
@@ -59,11 +62,11 @@ public class SyncController {
     @GetMapping("/maintain/v1/namespaces")
     public ResponseEntity<String> maintainV1Namespaces(
             @RequestParam("task") String taskName, @RequestParam("registry") String registryName) {
-        NamedRegistryCenter registry = registrySyncServer.getTaskEngine().getRegistry(taskName, registryName);
+        NamedResourceCenter<RegistryCenter> registry = server.getEngine().getResourceCenter(taskName, registryName);
         if (null == registry) {
             return ResponseEntity.notFound().build();
         }
-        DiscoverResponse discoverResponse = registry.getRegistry().listNamespaces();
+        DiscoverResponse discoverResponse = registry.getCenter().listNamespaces();
         String jsonText = "{}";
         try {
             jsonText = JsonFormat.printer().print(discoverResponse);
@@ -80,11 +83,11 @@ public class SyncController {
     @GetMapping("/maintain/v1/services")
     public ResponseEntity<String> maintainV1Services(@RequestParam("task") String taskName,
             @RequestParam("registry") String registryName, @RequestParam("namespace") String namespace) {
-        NamedRegistryCenter registry = registrySyncServer.getTaskEngine().getRegistry(taskName, registryName);
+        NamedResourceCenter<RegistryCenter> registry = server.getEngine().getResourceCenter(taskName, registryName);
         if (null == registry) {
             return ResponseEntity.notFound().build();
         }
-        DiscoverResponse discoverResponse = registry.getRegistry().listServices(namespace);
+        DiscoverResponse discoverResponse = registry.getCenter().listServices(namespace);
         String jsonText = "{}";
         try {
             jsonText = JsonFormat.printer().print(discoverResponse);
