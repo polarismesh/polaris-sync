@@ -18,7 +18,6 @@ docker run --rm -u root -v "$(pwd)":/home/maven/project -w /home/maven/project m
 
 rm -rf "polaris-sync-server-${VERSION}"
 mkdir -p "polaris-sync-server-${VERSION}"
-mkdir -p "polaris-sync-server-${VERSION}"
 
 cp -rf ./conf "./polaris-sync-server-${VERSION}/"
 
