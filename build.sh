@@ -14,8 +14,7 @@ SCRIPTDIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 pushd "$SCRIPTDIR/"
 #java build the app.
-#docker run --rm -u root -v "$(pwd)":/home/maven/project -w /home/maven/project maven:3.8.1-openjdk-8-slim mvn clean package
-mvn clean package
+docker run --rm -u root -v "$(pwd)":/home/maven/project -w /home/maven/project maven:3.8.1-openjdk-8-slim mvn clean package
 
 rm -rf "polaris-sync-server-${VERSION}"
 mkdir -p "polaris-sync-server-${VERSION}"
