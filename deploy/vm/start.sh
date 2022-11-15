@@ -17,4 +17,4 @@
 
 #!/bin/bash
 
-java -jar polaris-sync-server.jar --spring.config.location=./application.yaml
+java -jar ./bin/polaris-sync-server.jar --spring.config.location=./bin/application.yml
