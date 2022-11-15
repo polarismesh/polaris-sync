@@ -29,6 +29,7 @@ import io.netty.handler.ssl.ApplicationProtocolConfig;
 import io.netty.handler.ssl.ApplicationProtocolNames;
 import io.netty.handler.ssl.SslProvider;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.InputStream;
@@ -43,6 +44,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author jarvisxiong
  */
+@Ignore
 public class EtcdConfigProviderTest {
 
     private final ByteSequence key = ByteSequence.from("/polaris/sync-config.json", StandardCharsets.UTF_8);
