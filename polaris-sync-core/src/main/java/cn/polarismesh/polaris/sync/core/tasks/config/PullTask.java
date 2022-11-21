@@ -23,10 +23,14 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
+import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
 import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.core.utils.TaskUtils;
+import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFilesResponse;
 import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
@@ -39,7 +43,7 @@ import org.slf4j.LoggerFactory;
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public class PullTask implements Runnable {
+public class PullTask implements AbstractTask {
 
 	private static final Logger LOG = LoggerFactory.getLogger(cn.polarismesh.polaris.sync.core.tasks.registry.PullTask.class);
 
@@ -65,7 +69,7 @@ public class PullTask implements Runnable {
 	@Override
 	public void run() {
 		try {
-			// check services, add or remove the services from destination
+			// check config_group, add or remove the config_group from destination
 			destination.getConfigCenter().updateGroups(configGroupToMatchGroups.keySet());
 
 			// check instances
@@ -79,7 +83,7 @@ public class PullTask implements Runnable {
 								response.getCode());
 						return;
 					}
-					Collection<ConfigFile> files = response.getFiles();
+					Collection<ConfigFile> files = handle(source, destination, response.getFiles());
 					LOG.debug(
 							"[Core][Pull] config prepare to update from registry {}, type {}, service {}, group {}, instances {}",
 							source.getName(), source.getConfigCenter().getType(), configGroup, group.getName(), files);
@@ -93,4 +97,6 @@ public class PullTask implements Runnable {
 			LOG.error("[Core] config pull task(source {}) encounter exception {}", source.getName(), sw);
 		}
 	}
+
 }
+

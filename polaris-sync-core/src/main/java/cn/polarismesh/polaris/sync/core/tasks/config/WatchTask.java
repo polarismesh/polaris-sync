@@ -18,16 +18,22 @@
 package cn.polarismesh.polaris.sync.core.tasks.config;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
+import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
 import cn.polarismesh.polaris.sync.core.utils.TaskUtils;
+import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;
 import cn.polarismesh.polaris.sync.extension.config.ConfigFile;
 import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
@@ -40,7 +46,7 @@ import org.slf4j.LoggerFactory;
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public class WatchTask implements Runnable {
+public class WatchTask implements AbstractTask {
 
 	private static final Logger LOG = LoggerFactory.getLogger(cn.polarismesh.polaris.sync.core.tasks.registry.WatchTask.class);
 
@@ -95,12 +101,15 @@ public class WatchTask implements Runnable {
 
 		@Override
 		public void onEvent(WatchEvent watchEvent) {
+			// check services, add or remove the services from destination
+			destination.getConfigCenter().updateGroups(Collections.singletonList(watchEvent.getConfigGroup()));
 			Collection<ConfigFile> files = new ArrayList<>(watchEvent.getAdd());
 			files.addAll(watchEvent.getUpdate());
+			files = WatchTask.this.handle(WatchTask.this.source, WatchTask.this.destination, files);
 			destination.getConfigCenter().updateConfigFiles(configGroup, files);
 			// 配置同步删除能力暂不实现
 			// destination.getConfigCenter().updateConfigFiles(configGroup, watchEvent.getRemove());
 		}
-	}
 
+	}
 }
