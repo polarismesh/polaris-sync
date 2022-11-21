@@ -24,10 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -50,9 +47,6 @@ import cn.polarismesh.polaris.sync.extension.config.ConfigInitRequest;
 import cn.polarismesh.polaris.sync.extension.config.SubscribeDbChangeTask;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
-import com.alibaba.nacos.api.NacosFactory;
-import com.alibaba.nacos.api.config.ConfigService;
-import com.alibaba.nacos.api.exception.NacosException;
 import com.alibaba.nacos.common.utils.StringUtils;
 import com.tencent.polaris.client.pb.ResponseProto;
 import com.tencent.polaris.client.pb.ServiceProto;
@@ -208,9 +202,6 @@ public class NacosConfigCenter implements ConfigCenter<ConfigInitRequest> {
 			// 从对应的数据库中获取
 			Collection<ConfigFile> files = databaseOperator.queryList(query, args.toArray(), ConfigFileMapper.getInstance())
 					.stream().peek(file -> {
-						if (Objects.equals("", file.getNamespace())) {
-							file.setNamespace(DefaultValues.DEFAULT_POLARIS_NAMESPACE);
-						}
 						Map<String, String> labels = file.getLabels();
 						labels.put(DefaultValues.META_SYNC, request.getSourceName());
 						file.setLabels(labels);
@@ -241,7 +232,7 @@ public class NacosConfigCenter implements ConfigCenter<ConfigInitRequest> {
 	public void updateGroups(Collection<ConfigGroup> groups) {
 		Set<String> namespaceIds = new HashSet<>();
 		for (ConfigGroup group : groups) {
-			if (group.getNamespace().equals(DefaultValues.EMPTY_NAMESPACE_HOLDER)) {
+			if (DefaultValues.EMPTY_NAMESPACE_HOLDER.equals(group.getNamespace())) {
 				continue;
 			}
 			namespaceIds.add(group.getNamespace());
@@ -312,7 +303,8 @@ public class NacosConfigCenter implements ConfigCenter<ConfigInitRequest> {
 				return;
 			}
 
-			if (Objects.equals(file.getLabels().get(DefaultValues.META_SYNC), request.getResourceEndpoint().getName())) {
+			if (Objects.equals(file.getLabels().get(DefaultValues.META_SYNC), request.getResourceEndpoint()
+					.getName())) {
 				return;
 			}
 

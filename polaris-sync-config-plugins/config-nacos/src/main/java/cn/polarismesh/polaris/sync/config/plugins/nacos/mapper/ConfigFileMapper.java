@@ -76,7 +76,7 @@ public class ConfigFileMapper implements RecordSupplier<ConfigFile> {
 	}
 
 	public String getMoreSqlTemplate(boolean first) {
-		String query = "SELECT ci.tenant_id, ci.group_id, ci.data_id, content, c_desc, tag_name, md5, ci.gmt_modified "
+		String query = "SELECT ci.tenant_id, ci.group_id, ci.data_id, content, c_desc, IFNULL(tag_name, ''), md5, ci.gmt_modified "
 				+ "FROM config_info ci LEFT JOIN config_tags_relation cr ON ci.tenant_id = cr.tenant_id "
 				+ "AND ci.group_id = cr.group_id AND ci.data_id = cr.data_id ";
 
@@ -100,11 +100,14 @@ public class ConfigFileMapper implements RecordSupplier<ConfigFile> {
 	public ConfigFile apply(ResultSet row) throws Exception {
 		Map<String, String> labels = new HashMap<>();
 		String tag = row.getString("tag_name");
-		if (StringUtils.contains(tag, "=")) {
-			String[] kv = StringUtils.split(tag, "=");
-			labels.put(kv[0], kv[1]);
-		} else {
-			labels.put(tag, tag);
+		if (StringUtils.isNotBlank(tag)) {
+			if (StringUtils.contains(tag, "=")) {
+				String[] kv = StringUtils.split(tag, "=");
+				labels.put(kv[0], kv[1]);
+			}
+			else {
+				labels.put(tag, tag);
+			}
 		}
 
 		return ConfigFile.builder()
