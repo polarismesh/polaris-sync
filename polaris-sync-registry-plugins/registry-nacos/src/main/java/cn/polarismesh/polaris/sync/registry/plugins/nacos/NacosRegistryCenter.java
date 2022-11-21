@@ -42,11 +42,17 @@ import com.alibaba.nacos.api.naming.listener.Event;
 import com.alibaba.nacos.api.naming.listener.EventListener;
 import com.alibaba.nacos.api.naming.listener.NamingEvent;
 import com.alibaba.nacos.api.naming.pojo.Instance;
+import com.alibaba.nacos.client.naming.NacosNamingService;
+import com.alibaba.nacos.client.naming.remote.NamingClientProxy;
+import com.alibaba.nacos.client.naming.remote.NamingClientProxyDelegate;
+import com.alibaba.nacos.common.utils.StringUtils;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse.DiscoverResponseType;
 import com.tencent.polaris.client.pb.ServiceProto;
 import com.tencent.polaris.client.pb.ServiceProto.Instance.Builder;
 import com.tencent.polaris.client.pb.ServiceProto.Namespace;
+
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -62,7 +68,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
+import org.springframework.util.ReflectionUtils;
 
 @Component
 public class NacosRegistryCenter implements RegistryCenter {
@@ -525,8 +531,22 @@ public class NacosRegistryCenter implements RegistryCenter {
         try {
             namingService.batchRegisterInstance(values[1], values[0], instances);
         } catch (NacosException e) {
-            LOG.error("[Nacos] fail to register instances {} to service {} when {}, reason {}",
-                    instances, svcName, operation, e.getMessage());
+            if (StringUtils.contains(e.getMessage(), "RequestHandler Not Found")) {
+                Field field = ReflectionUtils.findField(NacosNamingService.class, "clientProxy");
+                NamingClientProxyDelegate proxy = (NamingClientProxyDelegate) ReflectionUtils.getField(field, namingService);
+                NamingClientProxy httpProxy = (NamingClientProxy) ReflectionUtils.getField(ReflectionUtils.findField(NamingClientProxyDelegate.class, "httpClientProxy"), proxy);
+                for (Instance instance : instances) {
+                    try {
+                        httpProxy.registerService(values[1], values[0], instance);
+                    } catch (NacosException ex) {
+                        LOG.error("[Nacos] fail to register instances {} to service {} when {}, reason {}",
+                                instances, svcName, operation, e.getMessage());
+                    }
+                }
+            } else {
+                LOG.error("[Nacos] fail to register instances {} to service {} when {}, reason {}",
+                        instances, svcName, operation, e.getMessage());
+            }
         }
     }
 

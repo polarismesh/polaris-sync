@@ -35,7 +35,7 @@ import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PullTask implements Runnable {
+public class PullTask implements AbstractTask {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PullTask.class);
 
@@ -72,6 +72,7 @@ public class PullTask implements Runnable {
 			// check instances
 			for (Map.Entry<Service, Collection<ModelProto.Group>> entry : serviceToGroups.entrySet()) {
 				Service service = entry.getKey();
+				service = handle(source, destination, service);
 				for (ModelProto.Group group : entry.getValue()) {
 					DiscoverResponse srcInstanceResponse = source.getRegistry().listInstances(service, group);
 					if (srcInstanceResponse.getCode().getValue() != StatusCodes.SUCCESS) {

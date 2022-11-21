@@ -24,7 +24,6 @@ import cn.polarismesh.polaris.sync.core.tasks.NamedResourceCenter;
 import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
 import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.extension.InitRequest;
-import cn.polarismesh.polaris.sync.extension.ResourceCenter;
 import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
 import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.extension.config.ConfigCenter;

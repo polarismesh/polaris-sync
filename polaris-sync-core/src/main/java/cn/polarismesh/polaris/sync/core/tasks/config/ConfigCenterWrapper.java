@@ -18,6 +18,7 @@
 package cn.polarismesh.polaris.sync.core.tasks.config;
 
 import java.util.Collection;
+import java.util.Objects;
 
 import cn.polarismesh.polaris.sync.extension.Health;
 import cn.polarismesh.polaris.sync.extension.ResourceType;
@@ -31,11 +32,12 @@ import com.tencent.polaris.client.pb.ResponseProto;
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public class ConfigCenterWrapper implements ConfigCenter<ConfigInitRequest> {
+public class ConfigCenterWrapper implements ConfigCenter {
 
 	private final ConfigCenter center;
 
 	public ConfigCenterWrapper(ConfigCenter center) {
+		Objects.requireNonNull(center, "ConfigCenter");
 		this.center = center;
 	}
 

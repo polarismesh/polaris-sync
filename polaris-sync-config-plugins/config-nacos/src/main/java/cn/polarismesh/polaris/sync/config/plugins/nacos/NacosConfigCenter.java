@@ -64,7 +64,7 @@ import org.springframework.util.CollectionUtils;
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
 @Component
-public class NacosConfigCenter implements ConfigCenter<ConfigInitRequest> {
+public class NacosConfigCenter implements ConfigCenter {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NacosConfigCenter.class);
 
@@ -180,7 +180,7 @@ public class NacosConfigCenter implements ConfigCenter<ConfigInitRequest> {
 
 	@Override
 	public ConfigFilesResponse listConfigFile(ConfigGroup configGroup) {
-		String query = "SELECT ci.tenant_id, ci.group_id, ci.data_id, content, c_desc, tag_name, md5, ci.gmt_modified "
+		String query = "SELECT ci.tenant_id, ci.group_id, ci.data_id, ci.content, ci.c_desc, IFNULL(cr.tag_name, '') as tag_name, ci.md5, ci.gmt_modified "
 				+ "FROM config_info ci LEFT JOIN config_tags_relation cr ON ci.tenant_id = cr.tenant_id "
 				+ "AND ci.group_id = cr.group_id AND ci.data_id = cr.data_id WHERE 1=1 ";
 
@@ -237,6 +237,7 @@ public class NacosConfigCenter implements ConfigCenter<ConfigInitRequest> {
 			}
 			namespaceIds.add(group.getNamespace());
 		}
+		LOG.info("[Nacos][Config] wait create nacos ns : {}", namespaceIds);
 		if (namespaceIds.isEmpty()) {
 			return;
 		}

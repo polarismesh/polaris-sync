@@ -17,4 +17,4 @@
 
 #!/bin/bash
 
-java -jar ./bin/polaris-sync-server.jar --spring.config.location=./bin/application.yml
+nohup java -jar ./bin/polaris-sync-server.jar --spring.config.location=./bin/application.yml > stdout.log 2>&1 &

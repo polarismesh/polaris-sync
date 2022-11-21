@@ -17,10 +17,8 @@
 
 package cn.polarismesh.polaris.sync.core.tasks.config;
 
-import cn.polarismesh.polaris.sync.config.pb.ConfigProto;
 import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
 import cn.polarismesh.polaris.sync.extension.config.ConfigGroup;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
