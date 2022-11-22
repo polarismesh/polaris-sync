@@ -61,7 +61,7 @@ import org.springframework.stereotype.Component;
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
 @Component
-public class PolarisConfigCenter implements ConfigCenter<ConfigInitRequest> {
+public class PolarisConfigCenter implements ConfigCenter {
 
 	private static final String PREFIX_HTTP = "http://";
 

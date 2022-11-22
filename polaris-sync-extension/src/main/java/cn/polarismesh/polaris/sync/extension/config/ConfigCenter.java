@@ -27,7 +27,7 @@ import com.tencent.polaris.client.pb.ResponseProto;
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public interface ConfigCenter<T extends InitRequest> extends ResourceCenter<T> {
+public interface ConfigCenter extends ResourceCenter<ConfigInitRequest> {
 
 	/**
 	 * list the discovery namespaces
@@ -58,7 +58,7 @@ public interface ConfigCenter<T extends InitRequest> extends ResourceCenter<T> {
 	void unwatch(ConfigGroup group);
 
 	/**
-	 * register the service group
+	 * register the config group
 	 *
 	 */
 	void updateGroups(Collection<ConfigGroup> group);

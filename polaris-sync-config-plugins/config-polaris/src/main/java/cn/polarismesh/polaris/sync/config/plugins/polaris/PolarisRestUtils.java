@@ -27,6 +27,7 @@ import cn.polarismesh.polaris.sync.config.plugins.polaris.model.ConfigFileReleas
 import cn.polarismesh.polaris.sync.extension.config.ConfigFilesResponse;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -165,9 +166,15 @@ public class PolarisRestUtils {
 			return ResponseUtils.toConfigFilesResponse(null, StatusCodes.CONNECT_EXCEPTION);
 		}
 		if (restResponse.hasTextError()) {
-			LOG.warn("[Polaris] text error to send post {}, method {}, code {}, reason {}",
-					url, method, restResponse.getRawStatusCode(),
-					restResponse.getStatusText());
+			if (StringUtils.contains(restResponse.getStatusText(), "existed resource")) {
+				LOG.debug("[Polaris] text error to send post {}, method {}, code {}, reason {}",
+						url, method, restResponse.getRawStatusCode(),
+						restResponse.getStatusText());
+			} else {
+				LOG.warn("[Polaris] text error to send post {}, method {}, code {}, reason {}",
+						url, method, restResponse.getRawStatusCode(),
+						restResponse.getStatusText());
+			}
 			return ResponseUtils.toConfigFilesResponse(null, ResponseUtils.normalizeStatusCode(
 					restResponse.getRawStatusCode()));
 		}

@@ -21,6 +21,8 @@ public interface StatusCodes {
 
     int SUCCESS = 200000;
 
+    int EXIST_RESOURCE = 400201;
+
     int LOGIN_EXCEPTION = 403000;
 
     int NOT_FOUND_EXCEPTION = 404000;

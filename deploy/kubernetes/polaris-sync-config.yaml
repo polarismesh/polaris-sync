@@ -1,6 +1,33 @@
 apiVersion: v1
 data:
-  polaris-registry-sync.json: |-
+  sync-registry: |-
+    {
+    	"tasks": [],
+    	"methods": [
+    		{
+    			"type": "watch",
+    			"enable": true
+    		},
+    		{
+    			"type": "pull",
+    			"enable": true,
+    			"interval": "60s"
+    		}
+    	],
+    	"health_check": {
+    		"enable": true
+    	},
+    	"report": {
+    		"interval" : "1m",
+    		"targets": [
+    			{
+    				"type": "file",
+    				"enable": true
+    			}
+    		]
+    	}
+    }
+  sync-config: |-
     {
     	"tasks": [],
     	"methods": [

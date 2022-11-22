@@ -23,12 +23,10 @@ import java.util.Objects;
 
 import cn.polarismesh.polaris.sync.config.pb.ConfigProto;
 import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
-import cn.polarismesh.polaris.sync.core.tasks.registry.RegistrySyncTask;
 import cn.polarismesh.polaris.sync.extension.Authorization;
 import cn.polarismesh.polaris.sync.extension.Database;
 import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
 import cn.polarismesh.polaris.sync.extension.ResourceType;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>

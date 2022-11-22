@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class WatchTask implements Runnable {
+public class WatchTask implements AbstractTask {
 
     private static final Logger LOG = LoggerFactory.getLogger(WatchTask.class);
 
@@ -95,6 +95,7 @@ public class WatchTask implements Runnable {
         @Override
         public void onEvent(WatchEvent watchEvent) {
             registerExecutor.execute(() -> {
+                Service service = handle(source, destination, WatchTask.this.service);
                 // diff by groups
                 for (ModelProto.Group group : groups) {
                     DiscoverResponse discoverResponse = source.getRegistry().listInstances(service, group);

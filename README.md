@@ -1,5 +1,7 @@
 # Polaris Sync
 
+[English](./README.md) | 中文
+
 ##  介绍
 
 polaris-sync用于北极星和其他注册中心/网关服务之间的数据同步，用于以下2种场景：
@@ -43,8 +45,9 @@ kubectl apply -f polaris-sync.yaml
 
 ````
 unzip polaris-sync-server-${VERSION}.zip
-// 这里需要修改一下conf/sync-config.json
-java -jar polaris-sync-server-${VERSION}.jar
+
+// 这里需要修改一下 /bin/application.yaml, conf/sync-registry.json, conf/sync-config.json
+bash bin/start.sh
 ````
 
 日志默认会打印到STDOUT，可以通过重定向的方式来重定向到文件。

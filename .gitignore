@@ -45,3 +45,5 @@ logs/
 lib/
 backup/
 *.log
+
+polaris-sync-server-*
