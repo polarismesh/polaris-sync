@@ -237,7 +237,6 @@ public class NacosConfigCenter implements ConfigCenter {
 			}
 			namespaceIds.add(group.getNamespace());
 		}
-		LOG.info("[Nacos][Config] wait create nacos ns : {}", namespaceIds);
 		if (namespaceIds.isEmpty()) {
 			return;
 		}
@@ -252,6 +251,11 @@ public class NacosConfigCenter implements ConfigCenter {
 			if (null != discoverResponse) {
 				return;
 			}
+		}
+		if (!authResponse.isGlobalAdmin()) {
+			LOG.warn("[Nacos][Config] current user is not nacos global admin, ignore create nacos namespace, {}",
+					endpoint.getAuthorization());
+			return;
 		}
 		//2. 查询命名空间是否已经创建
 		List<NacosNamespace> nacosNamespaces = new ArrayList<>();
