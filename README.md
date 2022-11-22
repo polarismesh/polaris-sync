@@ -1,114 +1,115 @@
 # Polaris Sync
 
-[English](./README.md) | 中文
+English | [中文](./README.md)
 
-##  介绍
+## Introduce
 
-polaris-sync用于北极星和其他注册中心/网关服务之间的数据同步，用于以下2种场景：
+polaris-sync is used for data synchronization between Polaris and other registry/gateway services for the following 2 scenarios:
 
-- 北极星与其他注册中心的服务数据同步：用于服务实例在注册中心之间平滑迁移。
-- 北极星服务数据同步到网关：用于网关无缝对接到注册中心服务发现场景。
+- Service data synchronization between Polaris and other registries: for smooth migration of service instances between registries.
+- Synchronization of Polaris service data to the gateway: It is used for the seamless connection between the gateway and the registration center service discovery scenario.
 
-### 组件架构
+### Component Architecture
 
 ![](https://qcloudimg.tencent-cloud.cn/raw/b42f33820efb7bdde36a0e68c6359bfb.png)
 
-### 架构优势
+### Architecture Advantages
 
-- 支持任意注册中心之间的双向服务数据同步。
-- 支持对接主流网关，无需对网关做任何改动即可让网关对接任意注册中心。
-- 基于插件化设计，可方便扩展其他注册中心实现。
+- Support two-way service data synchronization between any registry.
+- Supports docking with mainstream gateways, allowing the gateway to dock with any registration center without making any changes to the gateway.
+- Based on the plug-in design, it is easy to extend other registry implementations.
 
-## 安装说明
+## Installation Notes
 
-### 在K8S环境下安装
+### Install in K8S environment
 
-- 执行所有安装之前，需要下载源码包，可以从以下2个地址下载源码包，请选择最新的release版本的源码包：
+- Before performing all installations, you need to download the source package. You can download the source package from the following two addresses. Please select the latest release version of the source package:
 
- - Github下载：[polaris-sync-release](https://github.com/polarismesh/polaris-sync/releases)
+- Github download: [polaris-sync-release](https://github.com/polarismesh/polaris-sync/releases)
 
-- 解压后，执行部署
+- After decompression, execute the deployment
 
-```
+````
 cd deploy/kubernetes
 kubectl apply -f polaris-sync-config.yaml
 kubectl apply -f polaris-sync.yaml
-```
+````
 
-### 在VM下安装
+### Install under VM
 
-- 执行所有安装之前，需要下载源码包，可以从以下2个地址下载软件包，请选择最新的release版本，并选择polaris-sync-server-*.zip的格式包下载：
+- Before performing all installations, you need to download the source package, you can download the package from the following two addresses, please select the latest release version, and select the polaris-sync-server-*.zip format package to download:
 
- - Github下载：[polaris-sync-release](https://github.com/polarismesh/polaris-sync/releases)
+- Github download: [polaris-sync-release](https://github.com/polarismesh/polaris-sync/releases)
 
-- 解压后，执行部署
+- After decompression, execute the deployment
 
 ````
 unzip polaris-sync-server-${VERSION}.zip
 
-// 这里需要修改一下 /bin/application.yaml, conf/sync-registry.json, conf/sync-config.json
+// Need to modify here /bin/application.yaml, conf/sync-registry.json, conf/sync-config.json
 bash bin/start.sh
 ````
 
-日志默认会打印到STDOUT，可以通过重定向的方式来重定向到文件。
+The log will be printed to STDOUT by default, and can be redirected to a file by redirection.
 
-## 快速入门
+## Quick start
 
-### 相关的环境变量
+### Relevant environment variables
 
-polaris-sync支持通过环境变量的方式来修改系统的各项参数：
+polaris-sync supports modifying various parameters of the system by means of environment variables:
 
-| 变量名                                    | 说明                                                         | 可选值                                                    |
-| ----------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------- |
-| POLARIS_SYNC_REGISTRY_CONFIG_PROVIDER     | 同步配置的提供方式，默认是file，即从本地文件获取配置         | file（本地文件），kubernetes（通过读取k8s configmap获取） |
-| POLARIS_SYNC_REGISTRY_CONFIG_BACKUP_PATH  | 同步配置的备份路径，容灾用，默认为conf/sync-config-backup.json | 任意可写的本地文件路径                                    |
-| POLARIS_SYNC_CONFIG_FILE_WATCH            | 配置提供方式为file时，同步配置通过该路径来监听并获取配置内容，默认为conf/sync-config.json | 任意文件路径                                              |
-| POLARIS_SYNC_CONFIG_K8S_ADDRESS           | k8s的APIServer地址，配置提供方式为kubernetes时有用           | ip:port                                                   |
-| POLARIS_SYNC_CONFIG_K8S_TOKEN             | k8s的访问token，配置提供方式为kubernetes时有用               | 任意字符串                                                |
-| POLARIS_SYNC_CONFIG_K8S_NAMESPACE         | k8s的configmap命名空间，配置提供方式为kubernetes时有用       | 任意字符串                                                |
-| POLARIS_SYNC_CONFIG_K8S_CONFIGMAP_NAME    | k8s的配置configmap名称，配置提供方式为kubernetes时有用       | 任意字符串                                                |
-| POLARIS_SYNC_CONFIG_K8S_CONFIGMAP_DATA_ID | k8s的配置configmap的配置项ID，配置提供方式为kubernetes时有用 | 任意字符串                                                |
+| variable name | description | optional value |
+| :-- | :--- | :-- |
+| POLARIS_SYNC_REGISTRY_CONFIG_PROVIDER | The way to provide synchronization configuration, the default is file, that is to get the configuration from the local file | file (local file), kubernetes (by reading k8s configmap) |
+| POLARIS_SYNC_REGISTRY_CONFIG_BACKUP_PATH | The backup path of the synchronization configuration, for disaster recovery, the default is conf/sync-config-backup.json | Any writable local file path |
+| POLARIS_SYNC_CONFIG_FILE_WATCH | When the configuration supply method is file, the synchronization configuration listens to and obtains the configuration content through this path. The default is conf/sync-config.json | Any file path |
+| POLARIS_SYNC_CONFIG_K8S_ADDRESS | APIServer address of k8s, useful when the configuration is provided by kubernetes | ip:port |
+| POLARIS_SYNC_CONFIG_K8S_TOKEN | k8s access token, useful when the configuration is provided by kubernetes | arbitrary string |
+| POLARIS_SYNC_CONFIG_K8S_NAMESPACE | k8s configmap namespace, useful when the configuration is provided by kubernetes | arbitrary string |
+| POLARIS_SYNC_CONFIG_K8S_CONFIGMAP_NAME | k8s configuration configmap name, useful when the configuration is provided by kubernetes | arbitrary string |
+| POLARIS_SYNC_CONFIG_K8S_CONFIGMAP_DATA_ID | k8s configuration configmap configuration item ID, useful when the configuration is provided by kubernetes | arbitrary string |
 
-### nacos到北极星的服务数据双向同步
+### Two-way synchronization of service data from nacos to Polaris
 
-在注册中心迁移的过程中，往往需要双向访问，迁移到新注册中心的服务，需要访问未迁移的服务。同时未迁移的服务，也需要访问已迁移的服务。
+In the process of registry migration, two-way access is often required, and services migrated to the new registry need to access services that have not been migrated. At the same time, the services that have not been migrated also need to access the migrated services.
 
-为了不对应用程序做任何的改造，注册中心之间需要进行实时的双向数据同步，才能达成热迁移的目标。
+In order not to make any changes to the application, real-time two-way data synchronization is required between the registries to achieve the goal of hot migration.
 
-下面以nacos到北极星的服务数据迁移为例，讲解如何使用polaris-sync实现注册中心之间的数据双向同步。
+The following takes the service data migration from nacos to Polaris as an example to explain how to use polaris-sync to achieve bidirectional data synchronization between registration centers.
 
-我们需要给polaris-sync配置2个同步任务，一个是nacos到北极星的同步任务，另外一个是北极星到nacos的同步任务。
+We need to configure 2 synchronization tasks for polaris-sync, one is the synchronization task from nacos to Polaris, and the other is the synchronization task from Polaris to nacos.
 
-需要修改polaris-sync-config.yaml中的json配置，添加任务的配置。注意，polaris-sync会监听该配置的变更，因此配置修改后，无需重启polaris-sync。
+You need to modify the json configuration in polaris-sync-config.yaml and add the configuration of the task. Note that polaris-sync will listen for changes to this configuration, so there is no need to restart polaris-sync after the configuration is modified.
 
 ```
 {
 	"tasks": [
-	    //第一个任务是从nacos单向同步到北极星
+	    //The first task is a one-way sync from nacos to north star
 		{
-			"name": "nacos1-to-polaris1",  //任务标识，需唯一
+			"name": "nacos1-to-polaris1",  //Task ID, which needs to be unique
 			"enable": true,
-			"source": {                    //定义来源注册中心
-					"name": "nacos1",      //注册中心名，需唯一
-					"type": "nacos",       //注册中心类型
+			"source": {                    //Define the source registry
+					"name": "nacos1",      //The name of the registration center, which must be unique
+					"type": "nacos",       //Registry Type
 					"addresses": [
-						"127.0.0.1:8848"   //nacos地址
+						"127.0.0.1:8848"   //nacos address
 					],
-					"user": "nacos",       //登录凭据，如果未开启鉴权，可不填
+					"user": "nacos",       //Login credentials, if authentication is not enabled, you can leave it blank
 					"password": "nacos"    
 			},
-			"destination": {              //定义目标注册中心
+			"destination": {              //Define the target registry
 					"name": "polaris1",
 					"type": "polaris",
 					"addresses": [
-						"127.0.0.1:8090"  //北极星地址，使用HTTP端口
+						"http://127.0.0.1:8090"  //Polaris address, using HTTP port
+						"grpc://127.0.0.1:8091"  //Polaris address, using gRPC port
 					],
-					"token": "123456"     //访问凭据，如果未开启鉴权，可不填
+					"token": "123456"     //Access credentials, if authentication is not enabled, you can leave it blank
 			},
-			"match": [                    // 指定哪些服务需要进行同步
+			"match": [                    // Specify which services need to be synchronized
 				{
-					"namespace": "empty_ns",                  //命名空间ID，nacos默认命名空间填empty_ns
-					"service": "nacos.test.3", // 需要进行同步的服务名，格式为分组名__服务名，如果不带分组名则为默认分组
+					"namespace": "empty_ns",                  //Namespace ID, nacos default namespace fill empty_ns
+					"service": "nacos.test.3", // The name of the service that needs to be synchronized, in the format of ${GROUP NAME}__${SERVICE NAME}, if there is no group name, it is the default group
 				}
 			]
 		},
@@ -167,20 +168,19 @@ polaris-sync支持通过环境变量的方式来修改系统的各项参数：
 }
 ```
 
-编辑完规则后，直接通过```kubectl apply -f polaris-sync-config.yaml```，polaris-sync监听到配置变更后，会进行任务的热加载，启动同步事项。
+After editing the rules, use ```kubectl apply -f polaris-sync-config.yaml``` directly. After polaris-sync monitors configuration changes, it will hot-load tasks and start synchronization.
 
-### 北极星到kong网关的服务数据单向同步
+### One-way synchronization of service data from Polaris to kong gateway
 
-应用的地址信息往往注册到注册中心，当用户使用网关想直接访问注册中心的地址时，往往有2个方案：
+The address information of the application is often registered in the registration center. When the user wants to directly access the address of the registration center using the gateway, there are often two solutions:
 
-第一种是使用网关插件，对接注册中心的服务发现机制。这种方式，用户需要在网关加载对应的注册中心的插件，存在一定的侵入性，且存在插件冲突管理的问题。
+The first is to use a gateway plug-in to connect to the service discovery mechanism of the registry. In this way, the user needs to load the plug-in of the corresponding registration center on the gateway, which is intrusive to a certain extent and has the problem of plug-in conflict management.
 
-第二种是通过同步工具，将服务数据从注册中心同步到网关，然后走网关原生的路由能力进行寻址。这种方式对网关无侵入，与网关现有的插件不冲突，更符合网关的原生使用场景。
+The second is to use synchronization tools to synchronize service data from the registry to the gateway, and then use the gateway's native routing capabilities for addressing. This method is non-intrusive to the gateway, does not conflict with the existing plug-ins of the gateway, and is more in line with the native usage scenarios of the gateway.
 
-下面讲解如何使用polaris-sync实现北极星的服务数据同步到Kong网关，实现Kong网关直通北极星注册中心的场景。
+The following explains how to use polaris-sync to synchronize the service data of Polaris to the Kong gateway, and realize the scenario where the Kong gateway is directly connected to the Polaris registration center.
 
-需要修改polaris-sync-config.yaml中的json配置，添加任务的配置。
-
+You need to modify the json configuration in polaris-sync-config.yaml and add the configuration of the task.
 ```
 {
 	"tasks": [
@@ -250,15 +250,14 @@ polaris-sync支持通过环境变量的方式来修改系统的各项参数：
 }
 ```
 
-编辑完规则后，直接通过```kubectl apply -f polaris-sync-config.yaml```，polaris-sync监听到配置变更后，会进行任务的热加载，启动同步事项。
+After editing the rules, use ```kubectl apply -f polaris-sync-config.yaml``` directly. After polaris-sync monitors configuration changes, it will hot-load tasks and start synchronization.
 
-同步后，在kong中会创建1个service，以及3个upstream（分别是default, version-1, version-2），每个upstream里面的target和对应的过滤后的实例对应。
+After synchronization, 1 service and 3 upstreams (respectively default, version-1, version-2) will be created in Kong, and the target in each upstream corresponds to the corresponding filtered instance.
 
-## 配置说明
+## Configuration instructions
 
-polaris-sync是一个配置驱动的同步工具，用户所有的任务下发都通过配置完成。
+polaris-sync is a configuration-driven synchronization tool. All user tasks are delivered through configuration.
 
-配置文件的定义可以参考polaris-sync-protobuf工程中的[registry.proto](https://github.com/polarismesh/polaris-sync/blob/main/polaris-sync-protobuf/src/main/proto/registry.proto)的协议定义。
+For the definition of the configuration file, please refer to [registry.proto] in the polaris-sync-protobuf project (https://github.com/polarismesh/polaris-sync/blob/main/polaris-sync-protobuf/src/main/proto/registry.proto) protocol definition.
 
-其中根对象为Registry。
-
+The root object is Registry.
