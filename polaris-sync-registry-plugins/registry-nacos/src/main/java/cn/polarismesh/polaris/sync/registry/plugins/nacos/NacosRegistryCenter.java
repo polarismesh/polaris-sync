@@ -19,6 +19,8 @@ package cn.polarismesh.polaris.sync.registry.plugins.nacos;
 
 import cn.polarismesh.polaris.sync.common.rest.HostAndPort;
 import cn.polarismesh.polaris.sync.common.rest.RestOperator;
+import cn.polarismesh.polaris.sync.common.utils.CommonUtils;
+import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.extension.Health;
 import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
 import cn.polarismesh.polaris.sync.extension.ResourceType;
@@ -26,8 +28,6 @@ import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.registry.WatchEvent;
-import cn.polarismesh.polaris.sync.common.utils.CommonUtils;
-import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.model.pb.ModelProto;
@@ -51,7 +51,6 @@ import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse.DiscoverResp
 import com.tencent.polaris.client.pb.ServiceProto;
 import com.tencent.polaris.client.pb.ServiceProto.Instance.Builder;
 import com.tencent.polaris.client.pb.ServiceProto.Namespace;
-
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -276,7 +275,8 @@ public class NacosRegistryCenter implements RegistryCenter {
         return builder.build();
     }
 
-    private List<ServiceProto.Instance> convertNacosInstances(Service service, List<Instance> instances, ModelProto.Group group) {
+    private List<ServiceProto.Instance> convertNacosInstances(Service service, List<Instance> instances,
+            ModelProto.Group group) {
         Map<String, String> filters = (null == group ? null : group.getMetadataMap());
         List<ServiceProto.Instance> polarisInstances = new ArrayList<>();
         for (Instance instance : instances) {
@@ -394,6 +394,11 @@ public class NacosRegistryCenter implements RegistryCenter {
                 return;
             }
         }
+        if (!authResponse.isGlobalAdmin()) {
+            LOG.warn("[Nacos][Registry] current user is not nacos global admin, ignore create nacos namespace, {}",
+                    registryEndpoint.getAuthorization());
+            return;
+        }
         //2. 查询命名空间是否已经创建
         List<NacosNamespace> nacosNamespaces = new ArrayList<>();
         DiscoverResponse discoverResponse = NacosRestUtils
@@ -420,7 +425,8 @@ public class NacosRegistryCenter implements RegistryCenter {
     }
 
     @Override
-    public void updateInstances(Service service, ModelProto.Group group, Collection<ServiceProto.Instance> srcInstances) {
+    public void updateInstances(Service service, ModelProto.Group group,
+            Collection<ServiceProto.Instance> srcInstances) {
         ResourceEndpoint registryEndpoint = registryInitRequest.getResourceEndpoint();
         List<Instance> allInstances = queryNacosInstances(service, registryEndpoint.getName());
         if (null == allInstances) {
@@ -458,7 +464,8 @@ public class NacosRegistryCenter implements RegistryCenter {
                 hasExistsInstances = true;
                 //比较是否存在不一致
                 if (!instanceEquals(srcInstance, destInstance)) {
-                    targetsToUpdate.put(srcAddress, toNacosInstancePendingSync(srcInstance, destInstance.getInstanceId()));
+                    targetsToUpdate.put(srcAddress,
+                            toNacosInstancePendingSync(srcInstance, destInstance.getInstanceId()));
                 }
                 targetsExists.put(srcAddress, toNacosInstancePendingSync(srcInstance, destInstance.getInstanceId()));
             }
@@ -485,7 +492,8 @@ public class NacosRegistryCenter implements RegistryCenter {
             //1. 有1-N个实例需要删除
             //2. 存在新增+存量
             if (!targetsToDelete.isEmpty()) {
-                LOG.info("[Nacos] targets pending to delete are {}, group {}", targetsToDelete.keySet(), group.getName());
+                LOG.info("[Nacos] targets pending to delete are {}, group {}", targetsToDelete.keySet(),
+                        group.getName());
                 deregisterInstance("delete", namingService, service.getService(), targetsToDelete.values().iterator()
                         .next());
                 targetDeleteCount += targetsToDelete.size();
@@ -505,7 +513,7 @@ public class NacosRegistryCenter implements RegistryCenter {
             }
             registerInstances("create", namingService, service.getService(), instances);
             targetAddCount += targetsToCreate.size();
-        } else{
+        } else {
             if (deleted) {
                 //前面已经删除了，则把存量重新注册一遍
                 List<Instance> instances = new ArrayList<>(targetsExists.values());
@@ -515,7 +523,8 @@ public class NacosRegistryCenter implements RegistryCenter {
             } else if (!targetsToUpdate.isEmpty()) {
                 //前面已经删除了，则把存量重新注册一遍
                 List<Instance> instances = new ArrayList<>(targetsToUpdate.values());
-                LOG.info("[Nacos] targets pending to update are {}, group {}", targetsToUpdate.keySet(), group.getName());
+                LOG.info("[Nacos] targets pending to update are {}, group {}", targetsToUpdate.keySet(),
+                        group.getName());
                 registerInstances("update", namingService, service.getService(), instances);
                 targetPatchCount += targetsToUpdate.size();
             }
@@ -533,8 +542,10 @@ public class NacosRegistryCenter implements RegistryCenter {
         } catch (NacosException e) {
             if (StringUtils.contains(e.getMessage(), "RequestHandler Not Found")) {
                 Field field = ReflectionUtils.findField(NacosNamingService.class, "clientProxy");
-                NamingClientProxyDelegate proxy = (NamingClientProxyDelegate) ReflectionUtils.getField(field, namingService);
-                NamingClientProxy httpProxy = (NamingClientProxy) ReflectionUtils.getField(ReflectionUtils.findField(NamingClientProxyDelegate.class, "httpClientProxy"), proxy);
+                NamingClientProxyDelegate proxy = (NamingClientProxyDelegate) ReflectionUtils.getField(field,
+                        namingService);
+                NamingClientProxy httpProxy = (NamingClientProxy) ReflectionUtils.getField(
+                        ReflectionUtils.findField(NamingClientProxyDelegate.class, "httpClientProxy"), proxy);
                 for (Instance instance : instances) {
                     try {
                         httpProxy.registerService(values[1], values[0], instance);

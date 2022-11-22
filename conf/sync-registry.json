@@ -6,6 +6,8 @@
       "source": {
         "name": "nacos",
         "type": "nacos",
+        "user": "nacos",
+        "password": "nacos",
         "addresses": [
           "127.0.0.1:8848"
         ]
@@ -51,12 +53,12 @@
       },
       "match": [
         {
-          "namespace": "atom-ns1",
-          "service": "nacos.test.3"
+          "namespace": "Polaris",
+          "service": "polaris.checker"
         },
         {
-          "namespace": "atom-ns1",
-          "service": "nacos.test.4"
+          "namespace": "default",
+          "service": "EchoServer"
         }
       ]
     }
