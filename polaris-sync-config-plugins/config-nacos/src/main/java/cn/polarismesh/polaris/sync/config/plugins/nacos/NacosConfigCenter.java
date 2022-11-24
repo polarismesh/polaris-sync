@@ -240,7 +240,6 @@ public class NacosConfigCenter implements ConfigCenter {
 		if (namespaceIds.isEmpty()) {
 			return;
 		}
-
 		ResourceEndpoint endpoint = request.getResourceEndpoint();
 		AuthResponse authResponse = new AuthResponse();
 		// 1. 先进行登录
@@ -261,7 +260,7 @@ public class NacosConfigCenter implements ConfigCenter {
 		List<NacosNamespace> nacosNamespaces = new ArrayList<>();
 		ResponseProto.DiscoverResponse discoverResponse = NacosRestUtils
 				.discoverAllNamespaces(authResponse, restOperator, endpoint, nacosNamespaces);
-		if (null == discoverResponse) {
+		if (Objects.nonNull(discoverResponse)) {
 			return;
 		}
 		for (NacosNamespace nacosNamespace : nacosNamespaces) {
@@ -307,7 +306,7 @@ public class NacosConfigCenter implements ConfigCenter {
 			if (file.isBeta() || !file.isValid()) {
 				return;
 			}
-
+			file.setNamespace(toNamespaceId(file.getNamespace()));
 			if (Objects.equals(file.getLabels().get(DefaultValues.META_SYNC), request.getResourceEndpoint()
 					.getName())) {
 				return;

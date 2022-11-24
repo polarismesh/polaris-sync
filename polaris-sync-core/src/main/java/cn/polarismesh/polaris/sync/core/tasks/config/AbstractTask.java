@@ -37,19 +37,23 @@ public interface AbstractTask extends Runnable {
 	 * @param files
 	 * @return
 	 */
-	default Collection<ConfigFile> handle(NamedConfigCenter source, NamedConfigCenter destination, Collection<ConfigFile> files) {
-		if (ResourceType.POLARIS.equals(destination.getConfigCenter().getType()) && ResourceType.NACOS.equals(source.getConfigCenter().getType())) {
+	default Collection<ConfigFile> handle(NamedConfigCenter source, NamedConfigCenter destination,
+			Collection<ConfigFile> files) {
+		if (ResourceType.POLARIS.equals(destination.getConfigCenter().getType()) && ResourceType.NACOS.equals(
+				source.getConfigCenter().getType())) {
 			return files.stream().peek(file -> {
-				if (Objects.equals("", file.getNamespace())) {
+				if (Objects.equals("", file.getNamespace()) || Objects.equals(DefaultValues.EMPTY_NAMESPACE_HOLDER,
+						file.getNamespace())) {
 					file.setNamespace(DefaultValues.DEFAULT_POLARIS_NAMESPACE);
 				}
 			}).collect(Collectors.toList());
 		}
 
-		if (ResourceType.POLARIS.equals(source.getConfigCenter().getType()) && ResourceType.NACOS.equals(destination.getConfigCenter().getType())) {
+		if (ResourceType.POLARIS.equals(source.getConfigCenter().getType()) && ResourceType.NACOS.equals(
+				destination.getConfigCenter().getType())) {
 			return files.stream().peek(file -> {
 				if (Objects.equals(DefaultValues.DEFAULT_POLARIS_NAMESPACE, file.getNamespace())) {
-					file.setNamespace("");
+					file.setNamespace(DefaultValues.EMPTY_NAMESPACE_HOLDER);
 				}
 			}).collect(Collectors.toList());
 		}

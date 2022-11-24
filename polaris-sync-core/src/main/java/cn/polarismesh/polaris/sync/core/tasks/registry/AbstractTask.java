@@ -33,23 +33,25 @@ public interface AbstractTask extends Runnable {
 	 * 如果是从 nacos -> polaris, 则需要将 nacos 的默认命名空间转为 polaris 的默认命名空间 default
 	 *
 	 * @param service
-	 * @return
+	 * @return {@link  Service}
 	 */
 	default Service handle(NamedRegistryCenter source, NamedRegistryCenter destination, Service service) {
+		// 处理目标是 polaris，源是 nacos
 		if (ResourceType.POLARIS.equals(destination.getRegistry()
 				.getType()) && ResourceType.NACOS.equals(source.getRegistry().getType())) {
 			String ns = service.getNamespace();
-			if (Objects.equals("", service.getNamespace())) {
+			if (Objects.equals(DefaultValues.EMPTY_NAMESPACE_HOLDER, service.getNamespace())) {
 				ns = DefaultValues.DEFAULT_POLARIS_NAMESPACE;
 			}
 			return new Service(ns, service.getService());
 		}
 
+		// 处理目标是 nacos，源是 polaris
 		if (ResourceType.POLARIS.equals(source.getRegistry()
 				.getType()) && ResourceType.NACOS.equals(destination.getRegistry().getType())) {
 			String ns = service.getNamespace();
 			if (Objects.equals(DefaultValues.DEFAULT_POLARIS_NAMESPACE, service.getNamespace())) {
-				ns = DefaultValues.DEFAULT_POLARIS_NAMESPACE;
+				ns = DefaultValues.EMPTY_NAMESPACE_HOLDER;
 			}
 			return new Service(ns, service.getService());
 		}
