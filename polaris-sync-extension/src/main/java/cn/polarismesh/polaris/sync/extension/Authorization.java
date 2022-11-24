@@ -23,6 +23,15 @@ public class Authorization {
 		return token;
 	}
 
+	@Override
+	public String toString() {
+		return "Authorization{" +
+				"username='" + username + '\'' +
+				", password='" + password + '\'' +
+				", token='" + token + '\'' +
+				'}';
+	}
+
 	public static AuthorizationBuilder builder() {
 		return new AuthorizationBuilder();
 	}

@@ -93,6 +93,7 @@ public class NacosRestUtils {
         }
         HttpMethod method = HttpMethod.POST;
         String requestText = String.format("customNamespaceId=%s&namespaceName=%s&namespaceDesc=", namespace, namespace);
+        namespacesUrl += "&" + requestText;
         RestResponse<String> restResponse = restOperator
                 .curlRemoteEndpoint(namespacesUrl, method, new HttpEntity<>(requestText), String.class);
         if (restResponse.hasServerError()) {

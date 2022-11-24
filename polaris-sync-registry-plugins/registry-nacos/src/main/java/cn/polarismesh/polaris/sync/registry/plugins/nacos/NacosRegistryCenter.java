@@ -220,7 +220,7 @@ public class NacosRegistryCenter implements RegistryCenter {
             try {
                 namingService = NacosFactory.createNamingService(properties);
             } catch (NacosException e) {
-                LOG.error("[Nacos] fail to create naming service to {}, namespace {}", address, namespace, e);
+                LOG.error("[Nacos][Registry] fail to create naming service to {}, namespace {}", address, namespace, e);
                 return null;
             }
             try {
@@ -311,7 +311,7 @@ public class NacosRegistryCenter implements RegistryCenter {
         ResourceEndpoint registryEndpoint = registryInitRequest.getResourceEndpoint();
         NamingService namingService = getOrCreateNamingService(service.getNamespace());
         if (null == namingService) {
-            LOG.error("[Nacos] fail to lookup namingService for service {}, registry {}",
+            LOG.error("[Nacos][Registry] fail to lookup namingService for service {}, registry {}",
                     service, registryEndpoint.getName());
             return false;
         }
@@ -339,7 +339,7 @@ public class NacosRegistryCenter implements RegistryCenter {
             eventListeners.put(service, nacosEventListener);
             return true;
         } catch (NacosException e) {
-            LOG.error("[Nacos] fail to subscribe for service {}, registry {}",
+            LOG.error("[Nacos][Registry] fail to subscribe for service {}, registry {}",
                     service, registryEndpoint.getName(), e);
             return false;
         }
@@ -350,7 +350,7 @@ public class NacosRegistryCenter implements RegistryCenter {
         ResourceEndpoint registryEndpoint = registryInitRequest.getResourceEndpoint();
         NamingService namingService = getOrCreateNamingService(service.getNamespace());
         if (null == namingService) {
-            LOG.error("[Nacos] fail to lookup namingService for service {}, registry {}",
+            LOG.error("[Nacos][Registry] fail to lookup namingService for service {}, registry {}",
                     service, registryEndpoint.getName());
             return;
         }
@@ -365,7 +365,7 @@ public class NacosRegistryCenter implements RegistryCenter {
             namingService.unsubscribe(serviceName, group, eventListener);
             eventListeners.remove(service);
         } catch (NacosException e) {
-            LOG.error("[Nacos] fail to unsubscribe for service {}, registry {}",
+            LOG.error("[Nacos][Registry] fail to unsubscribe for service {}, registry {}",
                     service, registryEndpoint.getName(), e);
         }
     }
@@ -403,7 +403,7 @@ public class NacosRegistryCenter implements RegistryCenter {
         List<NacosNamespace> nacosNamespaces = new ArrayList<>();
         DiscoverResponse discoverResponse = NacosRestUtils
                 .discoverAllNamespaces(authResponse, restOperator, registryEndpoint, nacosNamespaces);
-        if (null == discoverResponse) {
+        if (null != discoverResponse) {
             return;
         }
         for (NacosNamespace nacosNamespace : nacosNamespaces) {
@@ -413,7 +413,7 @@ public class NacosRegistryCenter implements RegistryCenter {
             return;
         }
         //3. 新增命名空间
-        LOG.info("[Nacos] namespaces to add {}", namespaceIds);
+        LOG.info("[Nacos][Registry] namespaces to add {}", namespaceIds);
         for (String namespaceId : namespaceIds) {
             NacosRestUtils.createNamespace(authResponse, restOperator, registryEndpoint, namespaceId);
         }
@@ -430,7 +430,7 @@ public class NacosRegistryCenter implements RegistryCenter {
         ResourceEndpoint registryEndpoint = registryInitRequest.getResourceEndpoint();
         List<Instance> allInstances = queryNacosInstances(service, registryEndpoint.getName());
         if (null == allInstances) {
-            LOG.info("[Nacos] cancel update instances for query nacos errors");
+            LOG.info("[Nacos][Registry] cancel update instances for query nacos errors");
             return;
         }
         String sourceName = registryInitRequest.getSourceName();
@@ -492,7 +492,7 @@ public class NacosRegistryCenter implements RegistryCenter {
             //1. 有1-N个实例需要删除
             //2. 存在新增+存量
             if (!targetsToDelete.isEmpty()) {
-                LOG.info("[Nacos] targets pending to delete are {}, group {}", targetsToDelete.keySet(),
+                LOG.info("[Nacos][Registry] targets pending to delete are {}, group {}", targetsToDelete.keySet(),
                         group.getName());
                 deregisterInstance("delete", namingService, service.getService(), targetsToDelete.values().iterator()
                         .next());
@@ -505,7 +505,7 @@ public class NacosRegistryCenter implements RegistryCenter {
         }
         if (!targetsToCreate.isEmpty()) {
             //新增实例
-            LOG.info("[Nacos] targets pending to create are {}, group {}", targetsToCreate.keySet(), group.getName());
+            LOG.info("[Nacos][Registry] targets pending to create are {}, group {}", targetsToCreate.keySet(), group.getName());
             List<Instance> instances = new ArrayList<>(targetsToCreate.values());
             if (hasExistsInstances) {
                 //假如有存量，因为之前已经删除了全部，这里要加上去
@@ -517,19 +517,19 @@ public class NacosRegistryCenter implements RegistryCenter {
             if (deleted) {
                 //前面已经删除了，则把存量重新注册一遍
                 List<Instance> instances = new ArrayList<>(targetsExists.values());
-                LOG.info("[Nacos] targets pending to update are {}, group {}", targetsExists.keySet(), group.getName());
+                LOG.info("[Nacos][Registry] targets pending to update are {}, group {}", targetsExists.keySet(), group.getName());
                 registerInstances("update", namingService, service.getService(), instances);
                 targetPatchCount += targetsExists.size();
             } else if (!targetsToUpdate.isEmpty()) {
                 //前面已经删除了，则把存量重新注册一遍
                 List<Instance> instances = new ArrayList<>(targetsToUpdate.values());
-                LOG.info("[Nacos] targets pending to update are {}, group {}", targetsToUpdate.keySet(),
+                LOG.info("[Nacos][Registry] targets pending to update are {}, group {}", targetsToUpdate.keySet(),
                         group.getName());
                 registerInstances("update", namingService, service.getService(), instances);
                 targetPatchCount += targetsToUpdate.size();
             }
         }
-        LOG.info("[Nacos] success to update targets, add {}, patch {}, delete {}",
+        LOG.info("[Nacos][Registry] success to update targets, add {}, patch {}, delete {}",
                 targetAddCount, targetPatchCount, targetDeleteCount);
 
     }
@@ -542,20 +542,22 @@ public class NacosRegistryCenter implements RegistryCenter {
         } catch (NacosException e) {
             if (StringUtils.contains(e.getMessage(), "RequestHandler Not Found")) {
                 Field field = ReflectionUtils.findField(NacosNamingService.class, "clientProxy");
+                field.setAccessible(true);
                 NamingClientProxyDelegate proxy = (NamingClientProxyDelegate) ReflectionUtils.getField(field,
                         namingService);
-                NamingClientProxy httpProxy = (NamingClientProxy) ReflectionUtils.getField(
-                        ReflectionUtils.findField(NamingClientProxyDelegate.class, "httpClientProxy"), proxy);
+                field = ReflectionUtils.findField(NamingClientProxyDelegate.class, "httpClientProxy");
+                field.setAccessible(true);
+                NamingClientProxy httpProxy = (NamingClientProxy) ReflectionUtils.getField(field, proxy);
                 for (Instance instance : instances) {
                     try {
                         httpProxy.registerService(values[1], values[0], instance);
                     } catch (NacosException ex) {
-                        LOG.error("[Nacos] fail to register instances {} to service {} when {}, reason {}",
+                        LOG.error("[Nacos][Registry] fail to register instances {} to service {} when {}, reason {}",
                                 instances, svcName, operation, e.getMessage());
                     }
                 }
             } else {
-                LOG.error("[Nacos] fail to register instances {} to service {} when {}, reason {}",
+                LOG.error("[Nacos][Registry] fail to register instances {} to service {} when {}, reason {}",
                         instances, svcName, operation, e.getMessage());
             }
         }
@@ -567,7 +569,7 @@ public class NacosRegistryCenter implements RegistryCenter {
         try {
             namingService.deregisterInstance(values[1], values[0], instance);
         } catch (NacosException e) {
-            LOG.error("[Nacos] fail to deregister instance {} to service {} when {}, reason {}",
+            LOG.error("[Nacos][Registry] fail to deregister instance {} to service {} when {}, reason {}",
                     instance, svcName, operation, e.getMessage());
         }
     }

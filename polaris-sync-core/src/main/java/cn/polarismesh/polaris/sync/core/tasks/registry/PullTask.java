@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
 import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
@@ -30,6 +31,7 @@ import cn.polarismesh.polaris.sync.core.utils.TaskUtils;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.model.pb.ModelProto;
+import com.google.protobuf.StringValue;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import org.slf4j.Logger;
@@ -52,11 +54,9 @@ public class PullTask implements AbstractTask {
 			if (ConfigUtils.isEmptyMatch(match)) {
 				continue;
 			}
-			serviceToGroups.put(
-					new Service(match.getNamespace(), match.getName()), TaskUtils.verifyGroups(match.getGroups()));
+			serviceToGroups.put(new Service(match.getNamespace(), match.getName()), TaskUtils.verifyGroups(match.getGroups()));
 		}
 	}
-
 
 	@Override
 	public void run() {
@@ -72,19 +72,24 @@ public class PullTask implements AbstractTask {
 			// check instances
 			for (Map.Entry<Service, Collection<ModelProto.Group>> entry : serviceToGroups.entrySet()) {
 				Service service = entry.getKey();
-				service = handle(source, destination, service);
 				for (ModelProto.Group group : entry.getValue()) {
 					DiscoverResponse srcInstanceResponse = source.getRegistry().listInstances(service, group);
 					if (srcInstanceResponse.getCode().getValue() != StatusCodes.SUCCESS) {
-						LOG.warn("[Core][Pull] fail to list service in source {}, type {}, group {}, code is {}",
-								source.getName(), source.getRegistry().getType(), group.getName(),
-								srcInstanceResponse.getCode().getValue());
+						LOG.warn("[Core][Pull] fail to list service in source {}, type {}, group {}, code is {}", source.getName(), source.getRegistry()
+								.getType(), group.getName(), srcInstanceResponse.getCode().getValue());
 						return;
 					}
 					List<Instance> instances = srcInstanceResponse.getInstancesList();
-					LOG.info(
-							"[Core][Pull]prepare to update from registry {}, type {}, service {}, group {}, instances {}",
-							source.getName(), source.getRegistry().getType(), service, group.getName(), instances);
+					service = handle(source, destination, service);
+					Service finalService = service;
+					instances = instances.stream().map(instance -> {
+						return Instance.newBuilder(instance)
+								.setNamespace(StringValue.newBuilder().setValue(finalService.getNamespace()).build())
+								.setService(StringValue.newBuilder().setValue(finalService.getService()).build())
+								.build();
+					}).collect(Collectors.toList());
+					LOG.info("[Core][Pull]prepare to update from registry {}, type {}, service {}, group {}, instances {}", source.getName(), source.getRegistry()
+							.getType(), service, group.getName(), instances);
 					destination.getRegistry().updateInstances(service, group, instances);
 				}
 			}

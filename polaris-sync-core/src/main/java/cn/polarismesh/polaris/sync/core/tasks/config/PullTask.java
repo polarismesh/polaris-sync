@@ -71,15 +71,16 @@ public class PullTask implements AbstractTask {
 				ConfigGroup configGroup = entry.getKey();
 				ConfigFilesResponse response = source.getConfigCenter().listConfigFile(configGroup);
 				if (response.getCode() != StatusCodes.SUCCESS) {
-					LOG.warn("[Core][Pull] config fail to list service in source {}, type {}, group {}, code is {}",
+					LOG.warn("[Core][Pull] config fail to list config_files in source {}, type {}, group {}, code is {}",
 							source.getName(), source.getConfigCenter().getType(), configGroup.getName(),
 							response.getCode());
 					return;
 				}
 				Collection<ConfigFile> files = handle(source, destination, response.getFiles());
 				LOG.debug(
-						"[Core][Pull] config prepare to update from registry {}, type {}, service {}, group {}, instances {}",
-						source.getName(), source.getConfigCenter().getType(), configGroup, configGroup.getName(), files);
+						"[Core][Pull] config prepare to update from config_center {}, type {}, service {}, group {}, instances {}",
+						source.getName(), source.getConfigCenter()
+								.getType(), configGroup, configGroup.getName(), files);
 				destination.getConfigCenter().updateConfigFiles(configGroup, files);
 			}
 		}

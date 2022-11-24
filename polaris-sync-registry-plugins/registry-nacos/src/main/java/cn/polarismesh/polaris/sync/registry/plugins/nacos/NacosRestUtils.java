@@ -58,12 +58,12 @@ public class NacosRestUtils {
         RestResponse<String> restResponse = restOperator
                 .curlRemoteEndpoint(namespacesUrl, method, new HttpEntity<>(""), String.class);
         if (restResponse.hasServerError()) {
-            LOG.error("[Nacos] server error to get namespaces {}, method {}, reason {}",
+            LOG.error("[Nacos][Registry] server error to get namespaces {}, method {}, reason {}",
                     namespacesUrl, method.name(), restResponse.getException().getMessage());
             return ResponseUtils.toConnectException(null, DiscoverResponseType.NAMESPACES);
         }
         if (restResponse.hasTextError()) {
-            LOG.warn("[Nacos] text error to get namespaces {}, method {}, code {}, reason {}",
+            LOG.warn("[Nacos][Registry] text error to get namespaces {}, method {}, code {}, reason {}",
                     namespacesUrl, method.name(), restResponse.getRawStatusCode(),
                     restResponse.getStatusText());
             return ResponseUtils.toDiscoverResponse(null, ResponseUtils.normalizeStatusCode(
@@ -73,7 +73,7 @@ public class NacosRestUtils {
         NacosNamespaceResponse nacosNamespaceResponse = RestUtils
                 .unmarshalJsonText(jsonText, NacosNamespaceResponse.class);
         if (null == nacosNamespaceResponse) {
-            LOG.error("[Nacos] invalid response to get namespaces {}, method {}, response {}",
+            LOG.error("[Nacos][Registry] invalid response to get namespaces {}, method {}, response {}",
                     namespacesUrl, method.name(), jsonText);
             return null;
         }
@@ -98,12 +98,12 @@ public class NacosRestUtils {
         RestResponse<String> restResponse = restOperator
                 .curlRemoteEndpoint(servicesUrl, method, new HttpEntity<>(""), String.class);
         if (restResponse.hasServerError()) {
-            LOG.error("[Nacos] server error to get services {}, method {}, reason {}",
+            LOG.error("[Nacos][Registry] server error to get services {}, method {}, reason {}",
                     servicesUrl, method.name(), restResponse.getException().getMessage());
             return ResponseUtils.toConnectException(service, DiscoverResponseType.SERVICES);
         }
         if (restResponse.hasTextError()) {
-            LOG.warn("[Nacos] text error to get services {}, method {}, code {}, reason {}",
+            LOG.warn("[Nacos][Registry] text error to get services {}, method {}, code {}, reason {}",
                     servicesUrl, method.name(), restResponse.getRawStatusCode(),
                     restResponse.getStatusText());
             return ResponseUtils.toDiscoverResponse(service, ResponseUtils.normalizeStatusCode(
@@ -113,7 +113,7 @@ public class NacosRestUtils {
         NacosServicesResponse nacosServicesResponse = RestUtils
                 .unmarshalJsonText(jsonText, NacosServicesResponse.class);
         if (null == nacosServicesResponse) {
-            LOG.error("[Nacos] invalid response to get services {}, method {}, response {}",
+            LOG.error("[Nacos][Registry] invalid response to get services {}, method {}, response {}",
                     servicesUrl, method.name(), jsonText);
             return ResponseUtils.toInvalidResponseException(service, DiscoverResponseType.SERVICES);
         }
@@ -142,20 +142,21 @@ public class NacosRestUtils {
         }
         HttpMethod method = HttpMethod.POST;
         String requestText = String.format("customNamespaceId=%s&namespaceName=%s&namespaceDesc=", namespace, namespace);
+        namespacesUrl += "&" + requestText;
         RestResponse<String> restResponse = restOperator
                 .curlRemoteEndpoint(namespacesUrl, method, new HttpEntity<>(requestText), String.class);
         if (restResponse.hasServerError()) {
-            LOG.error("[Nacos] server error to create namespaces {}, method {}, request {}, reason {}",
+            LOG.error("[Nacos][Registry] server error to create namespaces {}, method {}, request {}, reason {}",
                     namespacesUrl, method.name(), requestText, restResponse.getException().getMessage());
             return;
         }
         if (restResponse.hasTextError()) {
-            LOG.warn("[Nacos] text error to create namespaces {}, method {}, request {}, code {}, reason {}",
+            LOG.warn("[Nacos][Registry] text error to create namespaces {}, method {}, request {}, code {}, reason {}",
                     namespacesUrl, method.name(), requestText, restResponse.getRawStatusCode(),
                     restResponse.getStatusText());
             return;
         }
-        LOG.info("[Nacos] success to create namespaces {}, method {}, request {}", namespacesUrl, method, requestText);
+        LOG.info("[Nacos][Registry] success to create namespaces {}, method {}, request {}", namespacesUrl, method, requestText);
     }
 
     public static DiscoverResponse auth(RestOperator restOperator,
@@ -170,12 +171,12 @@ public class NacosRestUtils {
         RestResponse<String> restResponse = restOperator
                 .curlRemoteEndpoint(authUrl, method, entity, String.class);
         if (restResponse.hasServerError()) {
-            LOG.error("[Nacos] server error to auth {}, method {}, request {}, reason {}",
+            LOG.error("[Nacos][Registry] server error to auth {}, method {}, request {}, reason {}",
                     authUrl, method.name(), authMessage, restResponse.getException().getMessage());
             return ResponseUtils.toConnectException(service, type);
         }
         if (restResponse.hasTextError()) {
-            LOG.warn("[Nacos] text error to auth {}, method {}, request {}, code {}, reason {}",
+            LOG.warn("[Nacos][Registry] text error to auth {}, method {}, request {}, code {}, reason {}",
                     authUrl, method.name(), authMessage, restResponse.getRawStatusCode(),
                     restResponse.getStatusText());
             return ResponseUtils.toDiscoverResponse(service, ResponseUtils.normalizeStatusCode(
@@ -185,7 +186,7 @@ public class NacosRestUtils {
         String message = responseEntity.getBody();
         AuthResponse authResponseResp =  RestUtils.unmarshalJsonText(message, AuthResponse.class);
         if (null == authResponseResp) {
-            LOG.error("[Nacos] invalid response to auth {}, method {}, response {}", authUrl, method.name(), message);
+            LOG.error("[Nacos][Registry] invalid response to auth {}, method {}, response {}", authUrl, method.name(), message);
             return ResponseUtils.toInvalidResponseException(service, type);
         }
         authResponse.setAccessToken(authResponseResp.getAccessToken());
