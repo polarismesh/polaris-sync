@@ -1,5 +1,48 @@
 {
-  "tasks": [],
+  "tasks": [
+    {
+      "name":"nacos-to-polaris",          // 配置同步任务名称，唯一标识
+      "enable":true,                      // 任务启用
+      "source":{
+        "name":"source-nacos",          // 配置数据来源实例名称
+        "type":"nacos",                 // 配置中心类型
+        "server":{
+          "addresses":[
+            "127.0.0.1:8848"        // 配置 nacos 服务端接入地址
+          ],
+          "user": "nacos",            // 如果 nacos 开启了鉴权，则需要配置一个 nacos 账户
+          "password": "nacos"
+        },
+        "db":{
+          "jdbc_url":"jdbc:mysql://127.0.0.1:3306/nacos", // nacos 服务端连接的数据库 jdbc 信息
+          "username":"root",                              // nacos 配置数据库账户
+          "password":"root"                               // nacos 配置数据库密码
+        }
+      },
+      "destination":{
+        "name":"destination-polaris",   // 配置数据同步目标实例名称
+        "type":"polaris",               // 配置中心类型
+        "server":{
+          "addresses":[
+            "http://127.0.0.1:8090",    // 设置 Polaris 的 Http 协议接入地址
+            "grpc://127.0.0.1:8091"     // 设置 Polaris 的 gRPC 协议接入地址
+          ],
+          "token":"nu/0WRA4EqSR1FagrjRj0fZwPXuGlMpX+zCuWu4uMqy8xr1vRjisSbA25aAC3mtU8MeeRsKhQiDAynUR09I=" // 如果 Polaris 开启了资源鉴权，则需要配置 Polaris 的用户/用户组 token
+        },
+        "db":{
+          "jdbc_url":"jdbc:mysql://127.0.0.1:3306/polaris_server", // Polaris 服务端连接的数据库 jdbc 信息
+          "username":"root",                                       // Polaris 配置数据库账户
+          "password":"root"                                        // Polaris 配置数据库密码
+        }
+      },
+      "match":[
+        {
+          "namespace":"empty_ns",
+          "config_group":"DEFAULT_GROUP"
+        }
+      ]
+    }
+  ],
   "methods": [
     {
       "type": "watch",
