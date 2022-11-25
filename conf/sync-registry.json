@@ -1,25 +1,82 @@
 {
-  "tasks": [],
-  "methods": [
+  "tasks":[
     {
-      "type": "watch",
-      "enable": true
+      "name":"nacos-to-polaris",
+      "enable":true,
+      "source":{
+        "name":"source-nacos",
+        "type":"nacos",
+        "addresses":[
+          "127.0.0.1:8848"
+        ],
+        "user":"nacos",
+        "password":"nacos"
+      },
+      "destination":{
+        "name":"destination-polaris",
+        "type":"polaris",
+        "addresses":[
+          "http://127.0.0.1:8090",
+          "grpc://127.0.0.1:8091"
+        ],
+        "token":"123456"
+      },
+      "match":[
+        {
+          "namespace":"empty_ns",
+          "service":"nacos.test.3"
+        }
+      ]
     },
     {
-      "type": "pull",
-      "enable": true,
-      "interval": "60s"
+      "name":"polaris-to-nacos",
+      "enable":true,
+      "source":{
+        "name":"source-polaris",
+        "type":"polaris",
+        "addresses":[
+          "http://127.0.0.1:8090",
+          "grpc://127.0.0.1:8091"
+        ],
+        "token":"123456"
+      },
+      "destination":{
+        "name":"destination-nacos",
+        "type":"nacos",
+        "addresses":[
+          "127.0.0.1:8848"
+        ],
+        "user":"nacos",
+        "password":"nacos"
+      },
+      "match":[
+        {
+          "namespace":"empty_ns",
+          "service":"nacos.test.3"
+        }
+      ]
     }
   ],
-  "health_check": {
-    "enable": true
+  "methods":[
+    {
+      "type":"watch",
+      "enable":true
+    },
+    {
+      "type":"pull",
+      "enable":true,
+      "interval":"60s"
+    }
+  ],
+  "health_check":{
+    "enable":true
   },
-  "report": {
-    "interval" : "1m",
-    "targets": [
+  "report":{
+    "interval":"1m",
+    "targets":[
       {
-        "type": "file",
-        "enable": true
+        "type":"file",
+        "enable":true
       }
     ]
   }
