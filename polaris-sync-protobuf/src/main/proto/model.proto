@@ -55,4 +55,7 @@ message Group {
   string name = 1;
 
   map<string, string> metadata = 2;
+
+  string upstreamName = 3; // 用于指定kong的upstream名字
+
 }

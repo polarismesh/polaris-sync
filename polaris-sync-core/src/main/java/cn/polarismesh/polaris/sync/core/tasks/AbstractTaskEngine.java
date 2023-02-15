@@ -171,6 +171,12 @@ public abstract class AbstractTaskEngine<C extends ResourceCenter, T extends Syn
 		NamedResourceCenter<C> source = resourceSet.getSource();
 		NamedResourceCenter<C> dest = resourceSet.getDest();
 		Runnable pull = buildPullTask(source, dest, task.getMatchList());
+
+		if (resourceSet.getSource().getCenter().getType() == ResourceType.KUBERNETES
+				&& intervalMilli > DefaultValues.DEFAULT_INTERVAL_MS) {
+			// 目前kubernetes还没实现watch的模式，因此 pull 的时间要尽可能短
+			intervalMilli =  DefaultValues.DEFAULT_INTERVAL_MS;
+		}
 		ScheduledFuture<?> future = pullExecutor
 				.scheduleWithFixedDelay(pull, 0, intervalMilli, TimeUnit.MILLISECONDS);
 		pulledTasks.put(task.getName(), future);
