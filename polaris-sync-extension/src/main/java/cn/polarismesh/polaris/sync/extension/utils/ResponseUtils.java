@@ -71,9 +71,13 @@ public class ResponseUtils {
     public static DiscoverResponse.Builder toDiscoverResponse(Service service, int code, DiscoverResponseType type) {
         Builder builder = DiscoverResponse.newBuilder();
         if (null != service) {
-            builder.setService(
-                    ServiceProto.Service.newBuilder().setName(toStringValue(service.getService()))
-                            .setNamespace(toStringValue(service.getNamespace())).build());
+            ServiceProto.Service.Builder svrBuilder = ServiceProto.Service.newBuilder()
+                    .setName(toStringValue(service.getService()))
+                    .setNamespace(toStringValue(service.getNamespace()));
+            if (service.getMetadata() != null) {
+                svrBuilder.putAllMetadata(service.getMetadata());
+            }
+            builder.setService(svrBuilder.build());
         }
         builder.setCode(toUInt32Value(code));
         builder.setType(type);

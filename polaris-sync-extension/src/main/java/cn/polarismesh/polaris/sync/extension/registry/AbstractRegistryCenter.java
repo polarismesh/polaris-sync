@@ -22,10 +22,24 @@ import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse.DiscoverResponseType;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class AbstractRegistryCenter implements RegistryCenter {
-
+    public static Map<String, Set<ServiceAlias>> ServiceAlias = new HashMap<String, Set<ServiceAlias>>() {
+        @Override
+        public Set<ServiceAlias> get(Object key) {
+            Set<ServiceAlias> aliases = super.get(key);
+            if (aliases == null) {
+                put(key.toString(), aliases = new HashSet<>());
+            }
+            return aliases;
+        }
+    };
 
     protected final AtomicInteger serverErrorCount = new AtomicInteger(0);
 

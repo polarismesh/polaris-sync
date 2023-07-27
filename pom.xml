@@ -48,7 +48,7 @@
     </scm>
 
     <properties>
-        <revision>0.4.0-beta</revision>
+        <revision>0.5.0-beta</revision>
         <timestamp>${maven.build.timestamp}</timestamp>
         <kubernetes.client.version>15.0.1</kubernetes.client.version>
         <!-- Spring Cloud -->

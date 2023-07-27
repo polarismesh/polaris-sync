@@ -17,7 +17,9 @@ public enum ResourceType {
 
 	KUBERNETES("kubernetes"),
 
-	APOLLO("apollo")
+	APOLLO("apollo"),
+
+	ZOOKEEPER("zookeeper"),
 	;
 
 	private final String name;

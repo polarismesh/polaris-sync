@@ -17,11 +17,26 @@
 
 package cn.polarismesh.polaris.sync.registry.plugins.polaris;
 
-import static cn.polarismesh.polaris.sync.common.rest.RestOperator.pickAddress;
-
 import java.util.List;
 
+import static cn.polarismesh.polaris.sync.common.rest.RestOperator.pickAddress;
+
 public class PolarisEndpointUtils {
+
+    public static String toServicesUrl(List<String> addresses) {
+        String address = pickAddress(addresses);
+        return String.format("http://%s/naming/v1/services", address);
+    }
+
+    public static String toServicesDeleteUrl(List<String> addresses) {
+        String address = pickAddress(addresses);
+        return String.format("http://%s/naming/v1/services/delete", address);
+    }
+
+    public static String toServicesAliasUrl(List<String> addresses) {
+        String address = pickAddress(addresses);
+        return String.format("http://%s/naming/v1/service/alias", address);
+    }
 
     public static String toInstancesUrl(List<String> addresses) {
         String address = pickAddress(addresses);

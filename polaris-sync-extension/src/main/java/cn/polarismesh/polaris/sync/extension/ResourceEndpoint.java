@@ -1,6 +1,7 @@
 package cn.polarismesh.polaris.sync.extension;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
@@ -18,6 +19,8 @@ public class ResourceEndpoint {
 	private Authorization authorization;
 
 	private Database database;
+
+	private Map<String, String> options;
 
 
 	public String getName() {
@@ -44,6 +47,10 @@ public class ResourceEndpoint {
 		return database;
 	}
 
+	public Map<String, String> getOptions() {
+		return options;
+	}
+
 	public static ResourceEndpointBuilder builder() {
 		return new ResourceEndpointBuilder();
 	}
@@ -56,6 +63,8 @@ public class ResourceEndpoint {
 		private List<String> addresses;
 		private Authorization authorization;
 		private Database database;
+
+		private Map<String, String> options;
 
 		private ResourceEndpointBuilder() {
 		}
@@ -90,6 +99,11 @@ public class ResourceEndpoint {
 			return this;
 		}
 
+		public ResourceEndpointBuilder options(Map<String, String> options) {
+			this.options = options;
+			return this;
+		}
+
 		public ResourceEndpoint build() {
 			ResourceEndpoint resourceEndpoint = new ResourceEndpoint();
 			resourceEndpoint.addresses = this.addresses;
@@ -98,6 +112,7 @@ public class ResourceEndpoint {
 			resourceEndpoint.authorization = this.authorization;
 			resourceEndpoint.database = this.database;
 			resourceEndpoint.productName = this.productName;
+			resourceEndpoint.options = this.options;
 			return resourceEndpoint;
 		}
 	}

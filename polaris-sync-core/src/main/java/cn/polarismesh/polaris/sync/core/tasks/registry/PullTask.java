@@ -17,14 +17,6 @@
 
 package cn.polarismesh.polaris.sync.core.tasks.registry;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
 import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
 import cn.polarismesh.polaris.sync.core.utils.ConfigUtils;
 import cn.polarismesh.polaris.sync.core.utils.TaskUtils;
@@ -33,9 +25,14 @@ import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import com.google.protobuf.StringValue;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
-import com.tencent.polaris.client.pb.ServiceProto.Instance;
+import com.tencent.polaris.client.pb.ServiceProto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class PullTask implements AbstractTask {
 
@@ -61,6 +58,17 @@ public class PullTask implements AbstractTask {
 	@Override
 	public void run() {
 		try {
+			//when has too much dubbo interfaces, config service=* to get all services
+			if (serviceToGroups.size() == 1) {
+				Map.Entry<Service, Collection<ModelProto.Group>> entry = serviceToGroups.entrySet().iterator().next();
+				Map<Service, Collection<ModelProto.Group>> tmp = new HashMap<>();
+				boolean processed = tryProcessWildcardService(entry.getKey(), svr -> tmp.put(svr, entry.getValue()));
+				if (processed) {
+					serviceToGroups.clear();
+					serviceToGroups.putAll(tmp);
+				}
+			}
+
 			// check services, add or remove the services from destination
 			destination.getRegistry().updateServices(serviceToGroups.keySet());
 
@@ -79,11 +87,11 @@ public class PullTask implements AbstractTask {
 								.getType(), group.getName(), srcInstanceResponse.getCode().getValue());
 						return;
 					}
-					List<Instance> instances = srcInstanceResponse.getInstancesList();
+					List<ServiceProto.Instance> instances = srcInstanceResponse.getInstancesList();
 					service = handle(source, destination, service);
 					Service finalService = service;
 					instances = instances.stream().map(instance -> {
-						return Instance.newBuilder(instance)
+						return ServiceProto.Instance.newBuilder(instance)
 								.setNamespace(StringValue.newBuilder().setValue(finalService.getNamespace()).build())
 								.setService(StringValue.newBuilder().setValue(finalService.getService()).build())
 								.build();
@@ -101,5 +109,21 @@ public class PullTask implements AbstractTask {
 			LOG.error("[Core] pull task(source {}) encounter exception {}", source.getName(), sw);
 		}
 	}
+
+	@Override
+	public List<ServiceProto.Service> getAllServices(String namespace) {
+		return source.getRegistry().listServices(namespace).getServicesList();
+	}
+
+	<T> T firstElement(Collection<? extends T> collection, String msgWhenNull) {
+		if (collection == null || collection.isEmpty()) {
+			if (msgWhenNull != null) {
+				throw new IllegalStateException(msgWhenNull);
+			}
+			return null;
+		}
+		return collection.iterator().next();
+	}
+
 
 }

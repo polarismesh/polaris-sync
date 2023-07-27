@@ -52,6 +52,11 @@
             <artifactId>registry-kubernetes</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.tencent.polaris</groupId>
+            <artifactId>registry-zookeeper</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!--    配置中心插件    -->
         <dependency>

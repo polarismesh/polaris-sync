@@ -17,15 +17,14 @@
 
 package cn.polarismesh.polaris.sync.core.tasks.registry;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Consumer;
-
 import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
 import cn.polarismesh.polaris.sync.extension.Authorization;
 import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
 import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.registry.pb.RegistryProto;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
@@ -89,6 +88,9 @@ public class RegistrySyncTask implements SyncTask {
 		if (RegistryProto.RegistryEndpoint.RegistryType.kubernetes.equals(t)) {
 			return ResourceType.KUBERNETES;
 		}
+		if (RegistryProto.RegistryEndpoint.RegistryType.zookeeper.equals(t)) {
+			return ResourceType.ZOOKEEPER;
+		}
 		
 		return ResourceType.UNKNOWN;
 	}
@@ -96,6 +98,7 @@ public class RegistrySyncTask implements SyncTask {
 	private static ResourceEndpoint parse(RegistryProto.RegistryEndpoint endpoint) {
 		ResourceEndpoint source = ResourceEndpoint.builder()
 				.addresses(endpoint.getAddressesList())
+				.options(endpoint.getOptionsMap())
 				.name(endpoint.getName())
 				.productName(endpoint.getProductName())
 				.resourceType(find(endpoint.getType()))

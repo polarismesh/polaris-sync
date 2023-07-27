@@ -17,11 +17,14 @@
 
 package cn.polarismesh.polaris.sync.core.tasks.registry;
 
-import java.util.Objects;
-
 import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.extension.ResourceType;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
+import com.tencent.polaris.client.pb.ServiceProto;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
@@ -57,6 +60,20 @@ public interface AbstractTask extends Runnable {
 		}
 
 		return service;
+	}
+
+	List<ServiceProto.Service> getAllServices(String namespace);
+
+
+	default boolean tryProcessWildcardService(Service allServiceTag, Consumer<Service> consumer) {
+		if (!"*".equals(allServiceTag.getService())) {
+			return false;
+		}
+		String namespace = allServiceTag.getNamespace();
+		List<ServiceProto.Service> allServices = getAllServices(namespace);
+		allServices.stream().map(s -> new Service(namespace, s.getName().getValue()))
+				.forEach(consumer);
+		return true;
 	}
 
 }

@@ -17,15 +17,6 @@
 
 package cn.polarismesh.polaris.sync.core.tasks.registry;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
 import cn.polarismesh.polaris.sync.core.tasks.SyncTask;
 import cn.polarismesh.polaris.sync.core.utils.TaskUtils;
 import cn.polarismesh.polaris.sync.extension.registry.RegistryCenter;
@@ -35,9 +26,19 @@ import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import com.google.protobuf.StringValue;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
+import com.tencent.polaris.client.pb.ServiceProto;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class WatchTask implements AbstractTask {
 
@@ -75,9 +76,22 @@ public class WatchTask implements AbstractTask {
 		responseListener = new ResponseListener();
 	}
 
+	@Override
+	public List<ServiceProto.Service> getAllServices(String namespace) {
+		return source.getRegistry().listServices(namespace).getServicesList();
+	}
 
 	@Override
 	public void run() {
+		//when has too much dubbo interfaces, config service=* to get all services
+		boolean processed = tryProcessWildcardService(service, svr -> {
+			if (source.getRegistry().watch(svr, responseListener)) {
+				LOG.info("[LOG] success to watch for service {}", serviceWithSource);
+			}
+		});
+		if (processed)
+			return;
+
 		if (source.getRegistry().watch(service, responseListener)) {
 			LOG.info("[LOG] success to watch for service {}", serviceWithSource);
 			return;
@@ -95,17 +109,19 @@ public class WatchTask implements AbstractTask {
 
 		@Override
 		public void onEvent(WatchEvent watchEvent) {
+			ServiceProto.Service protoSvr = watchEvent.getResponse().getService();
+			Service svr = new Service(protoSvr.getNamespace().getValue(), protoSvr.getName().getValue());
 			registerExecutor.execute(() -> {
 				// diff by groups
 				for (ModelProto.Group group : groups) {
-					DiscoverResponse discoverResponse = source.getRegistry().listInstances(service, group);
+					DiscoverResponse discoverResponse = source.getRegistry().listInstances(svr, group);
 					if (discoverResponse.getCode().getValue() != StatusCodes.SUCCESS) {
 						LOG.warn("[Core][Watch] fail to list service in source {}, group {}, code is {}",
 								source.getName(), group.getName(), discoverResponse.getCode().getValue());
 						return;
 					}
 					List<Instance> instances = discoverResponse.getInstancesList();
-					Service service = handle(source, destination, WatchTask.this.service);
+					Service service = handle(source, destination, getService(discoverResponse));
 					Service finalService = service;
 					instances = instances.stream().map(instance -> {
 						return Instance.newBuilder(instance)
@@ -118,5 +134,11 @@ public class WatchTask implements AbstractTask {
 				}
 			});
 		}
+	}
+
+	private Service getService(DiscoverResponse response) {
+		String namespace = response.getService().getNamespace().getValue();
+		String service = response.getService().getName().getValue();
+		return new Service(namespace, service);
 	}
 }

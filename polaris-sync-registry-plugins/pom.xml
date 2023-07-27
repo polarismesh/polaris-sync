@@ -17,6 +17,7 @@
         <module>registry-consul</module>
         <module>registry-polaris</module>
         <module>registry-kubernetes</module>
+        <module>registry-zookeeper</module>
     </modules>
     <packaging>pom</packaging>
     <description>Polaris Sync Plugins POM</description>

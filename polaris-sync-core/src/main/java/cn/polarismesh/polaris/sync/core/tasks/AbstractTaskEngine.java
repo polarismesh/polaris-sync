@@ -17,20 +17,6 @@
 
 package cn.polarismesh.polaris.sync.core.tasks;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-
 import cn.polarismesh.polaris.sync.common.pool.NamedThreadFactory;
 import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
 import cn.polarismesh.polaris.sync.core.utils.CommonUtils;
@@ -44,8 +30,10 @@ import cn.polarismesh.polaris.sync.model.pb.ModelProto;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.springframework.util.CollectionUtils;
+
+import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
@@ -74,7 +62,12 @@ public abstract class AbstractTaskEngine<C extends ResourceCenter, T extends Syn
 
 	private final Map<String, ResourceSet<C>> resources = new HashMap<>();
 
-	protected final Map<ResourceType, Class<? extends ResourceCenter>> typeClassMap = new HashMap<>();
+	protected final Map<ResourceType, Class<? extends ResourceCenter>> typeClassMap = new HashMap<ResourceType, Class<? extends ResourceCenter>>() {
+		@Override
+		public Class<? extends ResourceCenter> put(ResourceType key, Class<? extends ResourceCenter> value) {
+			return super.put(key, value);
+		}
+	};
 
 	private final Object configLock = new Object();
 

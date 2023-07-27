@@ -17,13 +17,15 @@
 
 package cn.polarismesh.polaris.sync.extension.registry;
 
-import java.util.Objects;
+import java.util.*;
 
 public class Service {
 
     private final String namespace;
 
     private final String service;
+
+    private Map<String, String> metadata;
 
     public Service(String namespace, String service) {
         this.namespace = namespace;
@@ -36,6 +38,24 @@ public class Service {
 
     public String getService() {
         return service;
+    }
+
+    public Map<String, String> getMetadata() {
+        return metadata;
+    }
+
+    public void addMetadata(String k, String v) {
+        if (metadata == null) {
+            metadata = new LinkedHashMap<>();
+        }
+        metadata.put(k, v);
+    }
+
+    public void addMetadata(Map<String, String> metadata) {
+        if (this.metadata == null) {
+            this.metadata = new LinkedHashMap<>();
+        }
+        this.metadata.putAll(metadata);
     }
 
     @Override

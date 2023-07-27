@@ -22,15 +22,13 @@ import cn.polarismesh.polaris.sync.common.rest.RestOperator;
 import cn.polarismesh.polaris.sync.common.rest.RestResponse;
 import cn.polarismesh.polaris.sync.common.utils.CommonUtils;
 import cn.polarismesh.polaris.sync.common.utils.DefaultValues;
-import cn.polarismesh.polaris.sync.extension.ResourceType;
-import cn.polarismesh.polaris.sync.extension.registry.AbstractRegistryCenter;
 import cn.polarismesh.polaris.sync.extension.Health;
-import cn.polarismesh.polaris.sync.extension.registry.RegistryInitRequest;
-import cn.polarismesh.polaris.sync.extension.registry.Service;
-import cn.polarismesh.polaris.sync.extension.registry.WatchEvent;
+import cn.polarismesh.polaris.sync.extension.ResourceType;
+import cn.polarismesh.polaris.sync.extension.registry.*;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
 import cn.polarismesh.polaris.sync.extension.utils.StatusCodes;
 import cn.polarismesh.polaris.sync.model.pb.ModelProto;
+import com.google.protobuf.UInt32Value;
 import com.tencent.polaris.api.core.ConsumerAPI;
 import com.tencent.polaris.api.exception.PolarisException;
 import com.tencent.polaris.api.listener.ServiceListener;
@@ -42,26 +40,21 @@ import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse.DiscoverResp
 import com.tencent.polaris.client.pb.ServiceProto;
 import com.tencent.polaris.client.pb.ServiceProto.Instance;
 import com.tencent.polaris.factory.api.DiscoveryAPIFactory;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
+import static cn.polarismesh.polaris.sync.common.utils.DefaultValues.META_SYNC;
 
 @Component
 public class PolarisRegistryCenter extends AbstractRegistryCenter {
@@ -149,7 +142,7 @@ public class PolarisRegistryCenter extends AbstractRegistryCenter {
 			return discoverResponse;
 		}
 		if (DefaultValues.GROUP_NAME_DEFAULT.equals(group.getName())) {
-			return builder.build();
+			return builder.setCode(UInt32Value.of(StatusCodes.SUCCESS)).build();
 		}
 		Map<String, String> filters = group.getMetadataMap();
 		List<Instance> filteredInstances = new ArrayList<>();
@@ -239,6 +232,65 @@ public class PolarisRegistryCenter extends AbstractRegistryCenter {
 
 	@Override
 	public void updateServices(Collection<Service> services) {
+		String namespace = services.size() > 0 ? services.iterator().next().getNamespace() : "default";
+		final List<ServiceProto.Service> allServices = new ArrayList<>();
+		PolarisRestUtils.listAllServices(restOperator, registryInitRequest.getResourceEndpoint(),
+				httpAddresses, namespace, allServices::add);
+		Map<String, ServiceProto.Service> svrInPolaris = toMap(allServices, s -> s.getName().getValue());
+		Map<String, Service> svrInSource = toMap(services, Service::getService);
+
+		Map<String, ServiceProto.Service> targetsToCreate = new HashMap<>();
+		Map<String, ServiceProto.Service> targetsToUpdate = new HashMap<>();
+		List<ServiceAlias> serviceAliasToCreate = new ArrayList<>();
+		for (Map.Entry<String, Service> e : svrInSource.entrySet()) {
+			String svrName = e.getKey();
+			Service svrSource = e.getValue();
+			ServiceProto.Service svr = svrInPolaris.remove(svrName); //after remove, left service in the map need to be removed
+			if (svr != null) { //exists in Polaris, update
+				if (svrSource.getMetadata() != null && !CommonUtils.metadataEquals(svrSource.getMetadata(), svr.getMetadataMap())) {
+					targetsToUpdate.put(svrName, svr.toBuilder().putAllMetadata(svrSource.getMetadata()).build());
+				}
+			} else { //missed in Polaris, create
+				ServiceProto.Service.Builder builder = ServiceProto.Service.newBuilder()
+						.setName(ResponseUtils.toStringValue(svrSource.getService()))
+						.setNamespace(ResponseUtils.toStringValue(svrSource.getNamespace()));
+				if (svrSource.getMetadata() != null) {
+					builder.putAllMetadata(svrSource.getMetadata());
+					builder.putMetadata(META_SYNC, registryInitRequest.getSourceName());
+				}
+				targetsToCreate.put(svrName, builder.build());
+
+				if (AbstractRegistryCenter.ServiceAlias.containsKey(svrName)) {
+					serviceAliasToCreate.addAll(AbstractRegistryCenter.ServiceAlias.get(svrName));
+				}
+			}
+		}
+		if (targetsToCreate.size() > 0) {
+			PolarisRestUtils.createServices(restOperator, targetsToCreate.values(),
+					registryInitRequest.getResourceEndpoint(), httpAddresses);
+		}
+		if (serviceAliasToCreate.size() > 0) {
+			List<ServiceAlias> aliases = new ArrayList<>();
+
+			PolarisRestUtils.createServiceAlias(restOperator, serviceAliasToCreate,
+					registryInitRequest.getResourceEndpoint(), httpAddresses);
+		}
+		if (targetsToUpdate.size() > 0) {
+			PolarisRestUtils.updateServices(restOperator, targetsToUpdate.values(),
+					registryInitRequest.getResourceEndpoint(), httpAddresses);
+		}
+		if (svrInPolaris.size() > 0) {
+			PolarisRestUtils.deleteServices(restOperator, svrInPolaris.values(),
+					registryInitRequest.getResourceEndpoint(), httpAddresses);
+		}
+	}
+
+	static <K, V> Map<K, V> toMap(Collection<V> vs, Function<V, K> convert) {
+		Map<K, V> map = new HashMap<>(vs.size());
+		for (V v : vs) {
+			map.put(convert.apply(v), v);
+		}
+		return map;
 	}
 
 	@Override
@@ -248,7 +300,7 @@ public class PolarisRegistryCenter extends AbstractRegistryCenter {
 	private static ServiceProto.Instance wrapInstanceWithSync(Instance instance, String sourceName) {
 		Instance.Builder builder = Instance.newBuilder();
 		builder.mergeFrom(instance);
-		builder.putMetadata(DefaultValues.META_SYNC, sourceName);
+		builder.putMetadata(META_SYNC, sourceName);
 		return builder.build();
 	}
 
@@ -274,7 +326,7 @@ public class PolarisRegistryCenter extends AbstractRegistryCenter {
 					srcInstance.getHost().getValue(), srcInstance.getPort().getValue());
 			processedAddresses.add(srcAddress);
 			Map<String, String> srcMetadata = srcInstance.getMetadataMap();
-			if (srcMetadata.containsKey(DefaultValues.META_SYNC)) {
+			if (srcMetadata.containsKey(META_SYNC)) {
 				continue;
 			}
 			if (!instancesMap.containsKey(srcAddress)) {
@@ -335,7 +387,7 @@ public class PolarisRegistryCenter extends AbstractRegistryCenter {
 	private ServiceProto.Instance toUpdateInstance(ServiceProto.Instance instance, String instanceId) {
 		ServiceProto.Instance.Builder builder = ServiceProto.Instance.newBuilder().mergeFrom(instance);
 		builder.setId(ResponseUtils.toStringValue(instanceId));
-		builder.putMetadata(DefaultValues.META_SYNC, registryInitRequest.getSourceName());
+		builder.putMetadata(META_SYNC, registryInitRequest.getSourceName());
 		return builder.build();
 	}
 
@@ -386,5 +438,18 @@ public class PolarisRegistryCenter extends AbstractRegistryCenter {
 		}
 		totalCount++;
 		return new Health(totalCount, errorCount);
+	}
+
+	@Override
+	public DiscoverResponse listServices(String namespace) {
+		List<ServiceProto.Service> services = new ArrayList<>();
+		Consumer<ServiceProto.Service> addService = s -> {
+			if (!s.getMetadataMap().containsKey(META_SYNC))
+				services.add(s);
+		};
+		PolarisRestUtils.listAllServices(restOperator, registryInitRequest.getResourceEndpoint(), httpAddresses,
+				namespace, addService);
+		return ResponseUtils.toDiscoverResponse(null, StatusCodes.SUCCESS, DiscoverResponseType.SERVICES)
+				.addAllServices(services).build();
 	}
 }

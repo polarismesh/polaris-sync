@@ -21,8 +21,9 @@ import cn.polarismesh.polaris.sync.common.rest.RestOperator;
 import cn.polarismesh.polaris.sync.common.rest.RestResponse;
 import cn.polarismesh.polaris.sync.extension.ResourceEndpoint;
 import cn.polarismesh.polaris.sync.extension.registry.Service;
+import cn.polarismesh.polaris.sync.extension.registry.ServiceAlias;
 import cn.polarismesh.polaris.sync.extension.utils.ResponseUtils;
-import cn.polarismesh.polaris.sync.registry.pb.RegistryProto.RegistryEndpoint;
+import com.google.gson.Gson;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
@@ -30,27 +31,80 @@ import com.google.protobuf.util.JsonFormat.Parser;
 import com.google.protobuf.util.JsonFormat.Printer;
 import com.tencent.polaris.client.pb.RequestProto.DiscoverRequest;
 import com.tencent.polaris.client.pb.RequestProto.DiscoverRequest.DiscoverRequestType;
+import com.tencent.polaris.client.pb.ResponseProto;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse;
 import com.tencent.polaris.client.pb.ResponseProto.DiscoverResponse.DiscoverResponseType;
 import com.tencent.polaris.client.pb.ServiceProto;
-import com.tencent.polaris.client.pb.ServiceProto.Instance;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.util.StringUtils;
+
+import java.util.*;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class PolarisRestUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(PolarisRestUtils.class);
 
     private static int CODE_NOT_FOUND_RESOURCE = 400202;
+
+    public static void listAllServices(RestOperator restOperator, ResourceEndpoint registryEndpoint,
+                                      List<String> httpAddresses, String namespace,
+                                      Consumer<ServiceProto.Service> consumer) {
+        int limit = 100;
+        String allServiceUrl = String.format("%s?namespace=%s&limit=%s",
+                PolarisEndpointUtils.toServicesUrl(httpAddresses), namespace, limit);
+        int offset = 0;
+        while (true) {
+            String url = String.format("%s&offset=%s", allServiceUrl, offset);
+            RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(url, HttpMethod.GET,
+                    getRequestEntity(registryEndpoint.getAuthorization().getToken(), ""), String.class);
+            if (!checkResponse(restResponse, "query", "all services", url, HttpMethod.GET, "")) {
+                return;
+            }
+            ResponseProto.BatchQueryResponse.Builder builder = ResponseProto.BatchQueryResponse.newBuilder();
+            boolean result = unmarshalProtoMessage(restResponse.getResponseEntity().getBody(), builder);
+            if (!result) {
+                LOG.error("[Polaris] invalid response to query instances from {}", url);
+                return;
+            }
+            List<ServiceProto.Service> services = builder.build().getServicesList();
+            services.forEach(consumer);
+            if (services.size() < limit)
+                break;
+            offset += limit;
+        }
+    }
+
+    public static void createServices(RestOperator restOperator, Collection<ServiceProto.Service> services,
+                                       ResourceEndpoint registryEndpoint, List<String> httpAddresses) {
+        String serviceUrl = PolarisEndpointUtils.toServicesUrl(httpAddresses);
+        operateServices(serviceUrl, HttpMethod.POST, "create", restOperator, services, registryEndpoint);
+    }
+
+    public static void updateServices(RestOperator restOperator, Collection<ServiceProto.Service> services,
+                                       ResourceEndpoint registryEndpoint, List<String> httpAddresses) {
+        String serviceUrl = PolarisEndpointUtils.toServicesUrl(httpAddresses);
+        operateServices(serviceUrl, HttpMethod.PUT, "update", restOperator, services, registryEndpoint);
+    }
+
+    public static void deleteServices(RestOperator restOperator, Collection<ServiceProto.Service> services,
+                                       ResourceEndpoint registryEndpoint, List<String> httpAddresses) {
+        String serviceUrl = PolarisEndpointUtils.toServicesDeleteUrl(httpAddresses);
+        /* TODO
+             1. remove instances of services firstly
+             2. remove serviceAlias referenced by the service
+         */
+        operateServices(serviceUrl, HttpMethod.POST, "delete", restOperator, services, registryEndpoint);
+    }
+
+    public static void createServiceAlias(RestOperator restOperator, Collection<ServiceAlias> services,
+                                      ResourceEndpoint registryEndpoint, List<String> httpAddresses) {
+        String serviceAliasUrl = PolarisEndpointUtils.toServicesAliasUrl(httpAddresses);
+        operateServiceAlias(serviceAliasUrl, HttpMethod.POST, "create", restOperator, services, registryEndpoint);
+    }
 
     public static void createInstances(RestOperator restOperator, Collection<ServiceProto.Instance> instances,
             ResourceEndpoint registryEndpoint, List<String> httpAddresses) {
@@ -70,11 +124,69 @@ public class PolarisRestUtils {
         operateInstances(instancesUrl, HttpMethod.POST, "delete", restOperator, instances, registryEndpoint);
     }
 
+    private static void operateServices(String servicesUrl, HttpMethod method, String operation,
+                                         RestOperator restOperator, Collection<ServiceProto.Service> services, ResourceEndpoint registryEndpoint) {
+        String jsonText = "[]";
+        if (null != services) {
+            jsonText = marshalProtoObjectJsonText(services,
+                    service -> String.format("service %s", service.getName().getValue()));
+        }
+        RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(
+                servicesUrl, method, getRequestEntity(registryEndpoint.getAuthorization().getToken(), jsonText), String.class);
+        if (restResponse.hasServerError()) {
+            LOG.error("[Polaris] server error to {} service to {}, method {}, request {}",
+                    operation, servicesUrl, method.name(), jsonText, restResponse.getException());
+            return;
+        }
+        if (restResponse.hasTextError()) {
+            LOG.warn("[Polaris] text error to {} service to {}, method {}, request {}, code {}, reason {}",
+                    operation, servicesUrl, method.name(), jsonText, restResponse.getRawStatusCode(),
+                    restResponse.getStatusText());
+            return;
+        }
+        LOG.info("[Polaris] success to {} service to {}, method {}, request {}", operation, servicesUrl, method.name(),
+                jsonText);
+    }
+
+    private static void operateServiceAlias(String servicesUrl, HttpMethod method, String operation,
+                                            RestOperator restOperator, Collection<ServiceAlias> aliases,
+                                            ResourceEndpoint registryEndpoint) {
+        if (null != aliases) {
+            Gson gson = new Gson();
+            for (ServiceAlias alias : aliases) {
+                //protobuf marshal generate json missing "alias_namespace", use Gson temporarily
+                String jsonText = gson.toJson(alias);
+                RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(servicesUrl, method,
+                        getRequestEntity(registryEndpoint.getAuthorization().getToken(), jsonText), String.class);
+                checkResponse(restResponse, operation, "serviceAlias", servicesUrl, method, jsonText);
+            }
+        }
+    }
+
+    private static boolean checkResponse(RestResponse<String> restResponse, String operation, String target,
+                                         String servicesUrl, HttpMethod method, String jsonText) {
+        if (restResponse.hasServerError()) {
+            LOG.error("[Polaris] server error to {} {} to {}, method {}, request {}",
+                    operation, target, servicesUrl, method.name(), jsonText, restResponse.getException());
+            return false;
+        }
+        if (restResponse.hasTextError()) {
+            LOG.warn("[Polaris] text error to {} {} serviceAlias to {}, method {}, request {}, code {}, reason {}",
+                    operation, target, servicesUrl, method.name(), jsonText, restResponse.getRawStatusCode(),
+                    restResponse.getStatusText());
+            return false;
+        }
+        LOG.info("[Polaris] success to {} {} to {}, method {}, request {}", operation, target, servicesUrl, method.name(),
+                jsonText);
+        return true;
+    }
+
     private static void operateInstances(String instancesUrl, HttpMethod method, String operation,
             RestOperator restOperator, Collection<ServiceProto.Instance> instances, ResourceEndpoint registryEndpoint) {
         String jsonText = "[]";
         if (null != instances) {
-            jsonText = marshalProtoInstancesJsonText(instances);
+            jsonText = marshalProtoObjectJsonText(instances,
+                    instance -> String.format("instance %s:%s", instance.getHost().getValue(), instance.getPort().getValue()));
         }
         RestResponse<String> restResponse = restOperator.curlRemoteEndpoint(
                 instancesUrl, method, getRequestEntity(registryEndpoint.getAuthorization().getToken(), jsonText), String.class);
@@ -97,10 +209,13 @@ public class PolarisRestUtils {
             ResourceEndpoint registryEndpoint, List<String> httpAddresses, DiscoverResponse.Builder builder) {
         DiscoverRequest.Builder requestBuilder = DiscoverRequest.newBuilder();
         requestBuilder.setType(DiscoverRequestType.INSTANCE);
-        ServiceProto.Service requestService = ServiceProto.Service.newBuilder()
+        ServiceProto.Service.Builder requestServiceBuilder = ServiceProto.Service.newBuilder()
                 .setNamespace(ResponseUtils.toStringValue(service.getNamespace()))
-                .setName(ResponseUtils.toStringValue(service.getService())).build();
-        requestBuilder.setService(requestService);
+                .setName(ResponseUtils.toStringValue(service.getService()));
+        if (service.getMetadata() != null) {
+            requestServiceBuilder.putAllMetadata(service.getMetadata());
+        }
+        requestBuilder.setService(requestServiceBuilder.build());
         String jsonText = marshalProtoMessageJsonText(requestBuilder.build());
         String discoverUrl = PolarisEndpointUtils.toDiscoverUrl(httpAddresses);
         HttpMethod method = HttpMethod.POST;
@@ -151,13 +266,13 @@ public class PolarisRestUtils {
         return new HttpEntity<T>(object, headers);
     }
 
-    public static String marshalProtoInstancesJsonText(Collection<Instance> values) {
+    public static <T extends Message> String marshalProtoObjectJsonText(Collection<T> values,
+                                                                        Function<T, String> infoResolver) {
         List<String> jsonValues = new ArrayList<>();
-        for (ServiceProto.Instance value : values) {
+        for (T value : values) {
             String jsonText = marshalProtoMessageJsonText(value);
             if (null == jsonText) {
-                LOG.error("[Polaris] instance {}:{} marshaled failed, skip next operation",
-                        value.getHost().getValue(), value.getPort().getValue());
+                LOG.error("[Polaris] {} marshaled failed, skip next operation", infoResolver.apply(value));
                 continue;
             }
             jsonValues.add(jsonText);
