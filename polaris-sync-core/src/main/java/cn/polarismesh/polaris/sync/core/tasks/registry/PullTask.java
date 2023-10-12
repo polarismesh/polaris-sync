@@ -73,24 +73,7 @@ public class PullTask implements AbstractTask {
 			for (Map.Entry<Service, Collection<ModelProto.Group>> entry : serviceToGroups.entrySet()) {
 				Service service = entry.getKey();
 				for (ModelProto.Group group : entry.getValue()) {
-					DiscoverResponse srcInstanceResponse = source.getRegistry().listInstances(service, group);
-					if (srcInstanceResponse.getCode().getValue() != StatusCodes.SUCCESS) {
-						LOG.warn("[Core][Pull] fail to list service in source {}, type {}, group {}, code is {}", source.getName(), source.getRegistry()
-								.getType(), group.getName(), srcInstanceResponse.getCode().getValue());
-						return;
-					}
-					List<Instance> instances = srcInstanceResponse.getInstancesList();
-					service = handle(source, destination, service);
-					Service finalService = service;
-					instances = instances.stream().map(instance -> {
-						return Instance.newBuilder(instance)
-								.setNamespace(StringValue.newBuilder().setValue(finalService.getNamespace()).build())
-								.setService(StringValue.newBuilder().setValue(finalService.getService()).build())
-								.build();
-					}).collect(Collectors.toList());
-					LOG.info("[Core][Pull]prepare to update from registry {}, type {}, service {}, group {}, instances {}", source.getName(), source.getRegistry()
-							.getType(), service, group.getName(), instances);
-					destination.getRegistry().updateInstances(service, group, instances);
+					realRun(service, group);
 				}
 			}
 		}
@@ -98,7 +81,35 @@ public class PullTask implements AbstractTask {
 			StringWriter sw = new StringWriter();
 			PrintWriter pw = new PrintWriter(sw);
 			e.printStackTrace(pw);
-			LOG.error("[Core] pull task(source {}) encounter exception {}", source.getName(), sw);
+			LOG.error("[Core][Pull] task(source {}) encounter exception {}", source.getName(), sw);
+		}
+	}
+
+	private void realRun(Service service, ModelProto.Group group) {
+		try {
+			DiscoverResponse srcInstanceResponse = source.getRegistry().listInstances(service, group);
+			if (srcInstanceResponse.getCode().getValue() != StatusCodes.SUCCESS) {
+				LOG.warn("[Core][Pull] fail to list service in source {}, type {}, group {}, code is {}", source.getName(), source.getRegistry()
+						.getType(), group.getName(), srcInstanceResponse.getCode().getValue());
+				return;
+			}
+			List<Instance> instances = srcInstanceResponse.getInstancesList();
+			service = handle(source, destination, service);
+			Service finalService = service;
+			instances = instances.stream().map(instance -> {
+				return Instance.newBuilder(instance)
+						.setNamespace(StringValue.newBuilder().setValue(finalService.getNamespace()).build())
+						.setService(StringValue.newBuilder().setValue(finalService.getService()).build())
+						.build();
+			}).collect(Collectors.toList());
+			LOG.info("[Core][Pull] prepare to update from registry {}, type {}, service {}, group {}, instances {}", source.getName(), source.getRegistry()
+					.getType(), service, group.getName(), instances);
+			destination.getRegistry().updateInstances(service, group, instances);
+		} catch (Throwable ex) {
+			StringWriter sw = new StringWriter();
+			PrintWriter pw = new PrintWriter(sw);
+			ex.printStackTrace(pw);
+			LOG.error("[Core][Pull] real run task(source {}) encounter exception {}", source.getName(), sw);
 		}
 	}
 

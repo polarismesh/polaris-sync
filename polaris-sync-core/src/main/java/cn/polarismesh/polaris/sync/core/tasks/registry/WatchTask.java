@@ -98,25 +98,33 @@ public class WatchTask implements AbstractTask {
 			registerExecutor.execute(() -> {
 				// diff by groups
 				for (ModelProto.Group group : groups) {
-					DiscoverResponse discoverResponse = source.getRegistry().listInstances(service, group);
-					if (discoverResponse.getCode().getValue() != StatusCodes.SUCCESS) {
-						LOG.warn("[Core][Watch] fail to list service in source {}, group {}, code is {}",
-								source.getName(), group.getName(), discoverResponse.getCode().getValue());
-						return;
-					}
-					List<Instance> instances = discoverResponse.getInstancesList();
-					Service service = handle(source, destination, WatchTask.this.service);
-					Service finalService = service;
-					instances = instances.stream().map(instance -> {
-						return Instance.newBuilder(instance)
-								.setNamespace(StringValue.newBuilder().setValue(finalService.getNamespace()).build())
-								.setService(StringValue.newBuilder().setValue(finalService.getService()).build())
-								.build();
-					}).collect(Collectors.toList());
-					LOG.info("[Core][Watch]prepare to update service {} group {} instances {}", service, group.getName(), instances);
-					destination.getRegistry().updateInstances(service, group, instances);
+					onNotify(group);
 				}
 			});
+		}
+
+		private void onNotify(ModelProto.Group group) {
+			try {
+				DiscoverResponse discoverResponse = source.getRegistry().listInstances(service, group);
+				if (discoverResponse.getCode().getValue() != StatusCodes.SUCCESS) {
+					LOG.warn("[Core][Watch] fail to list service in source {}, group {}, code is {}",
+							source.getName(), group.getName(), discoverResponse.getCode().getValue());
+					return;
+				}
+				List<Instance> instances = discoverResponse.getInstancesList();
+				Service service = handle(source, destination, WatchTask.this.service);
+				Service finalService = service;
+				instances = instances.stream().map(instance -> {
+					return Instance.newBuilder(instance)
+							.setNamespace(StringValue.newBuilder().setValue(finalService.getNamespace()).build())
+							.setService(StringValue.newBuilder().setValue(finalService.getService()).build())
+							.build();
+				}).collect(Collectors.toList());
+				LOG.info("[Core][Watch]prepare to update service {} group {} instances {}", service, group.getName(), instances);
+				destination.getRegistry().updateInstances(service, group, instances);
+			} catch (Throwable ex) {
+				LOG.info("[Core][Watch] real notify fail", ex);
+			}
 		}
 	}
 }
